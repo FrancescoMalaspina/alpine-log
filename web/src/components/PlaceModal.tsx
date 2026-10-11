@@ -15,6 +15,8 @@ export type PickOnMap = (label: string, apply: (at: LatLng) => void) => void;
 type Props = {
   /** The place to edit; omitted when adding a new one. */
   place?: Place;
+  /** Where a new place starts, e.g. a location found with the search bar. */
+  initialAt?: LatLng;
   rocks: string[];
   areas: Area[];
   partners: Partner[];
@@ -28,8 +30,11 @@ type Props = {
 };
 
 /** Add or edit a place; a new place can be saved together with a visit there. */
-export function PlaceModal({ place, rocks, areas, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted }: Props) {
-  const [values, setValues] = useState<PlaceValues>(() => placeValuesFrom(place));
+export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted }: Props) {
+  const [values, setValues] = useState<PlaceValues>(() => ({
+    ...placeValuesFrom(place),
+    ...(initialAt && !place ? { coords: formatCoords(initialAt.lat, initialAt.lng) } : {}),
+  }));
   const [logVisit, setLogVisit] = useState(false);
   const [visit, setVisit] = useState<VisitValues>(() => visitValuesFrom());
   // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.

@@ -9,7 +9,7 @@ import type { Place, PlaceType } from '../lib/types';
 
 export type MapCommand =
   | { kind: 'focus'; place: Place; nonce: number }
-  | { kind: 'fly'; at: LatLng; nonce: number }
+  | { kind: 'fly'; at: LatLng; zoom?: number; nonce: number }
   | { kind: 'fit'; points: LatLng[]; nonce: number };
 
 type Props = {
@@ -17,6 +17,8 @@ type Props = {
   focusedPlace: Place | null;
   tracks: Track[];
   tempPin: LatLng | null;
+  /** A location found with the search bar. */
+  searchPin: (LatLng & { name: string }) | null;
   armed: boolean;
   command: MapCommand | null;
   /** Changes whenever the map becomes visible again (mobile tabs). */
@@ -29,6 +31,7 @@ type Props = {
   onDetails: (place: Place) => void;
   onViewVisits: (place: Place) => void;
   onAddVisit: (place: Place) => void;
+  onAddPlaceAt: (at: LatLng) => void;
   onCenterChange: (center: LatLng) => void;
 };
 
@@ -51,6 +54,7 @@ const TOPO_ATTRIBUTION = 'Map data &copy; <a href="https://www.openstreetmap.org
   + 'style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)';
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const PARKING_ICON = badgeIcon('P', 'parking');
+const SEARCH_ICON = L.divIcon({ html: '<div class="search-pin"></div>', className: '', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10] });
 const START_ICON = badgeIcon('⚑', 'start');
 
 /** Every point that belongs to a place: the pin, parking, start, GPX tracks. */
@@ -118,7 +122,8 @@ function Controller({ pins, command, markers, armed, tempPin, focusedPlace, trac
   useEffect(() => {
     if (!command) return;
     if (command.kind === 'fly') {
-      map.flyTo([command.at.lat, command.at.lng], Math.max(map.getZoom(), 11), { duration: 0.6, animate: !reducedMotion() });
+      map.invalidateSize();
+      map.flyTo([command.at.lat, command.at.lng], command.zoom ?? Math.max(map.getZoom(), 11), { duration: 0.8, animate: !reducedMotion() });
       return;
     }
     if (command.kind === 'fit') {
@@ -160,6 +165,15 @@ export function MapView(props: Props) {
   // new array, which re-pans an open popup — keep them stable across renders.
   const positions = useMemo(
     () => new Map(pins.map(p => [p.id, [p.lat, p.lng] as L.LatLngTuple])), [pins]);
+  const searchMarker = useRef<L.Marker>(null);
+  // Open the found location's popup once its marker is on the map.
+  useEffect(() => {
+    if (!props.searchPin) return;
+    const t = setTimeout(() => searchMarker.current?.openPopup(), 150);
+    return () => clearTimeout(t);
+  }, [props.searchPin]);
+  const searchPosition = useMemo(
+    () => (props.searchPin ? [props.searchPin.lat, props.searchPin.lng] as L.LatLngTuple : null), [props.searchPin]);
   const tempPosition = useMemo(
     () => (tempPin ? [tempPin.lat, tempPin.lng] as L.LatLngTuple : null), [tempPin]);
   const focusExtras = useMemo(() => {
@@ -252,6 +266,22 @@ export function MapView(props: Props) {
       {focusExtras?.start && (
         <Marker position={focusExtras.start} icon={START_ICON}>
           <Popup><div className="pop"><h3>Start (attacco)</h3><Row k="of" v={focusedPlace!.name} /></div></Popup>
+        </Marker>
+      )}
+
+      {searchPosition && props.searchPin && (
+        <Marker position={searchPosition} icon={SEARCH_ICON} ref={searchMarker}>
+          <Popup>
+            <div className="pop">
+              <h3>{props.searchPin.name}</h3>
+              <div className="pop-area num">{props.searchPin.lat.toFixed(5)}, {props.searchPin.lng.toFixed(5)}</div>
+              {signedIn && (
+                <div className="pop-actions">
+                  <button type="button" className="primary" onClick={() => props.onAddPlaceAt(props.searchPin!)}>Add a place here</button>
+                </div>
+              )}
+            </div>
+          </Popup>
         </Marker>
       )}
 

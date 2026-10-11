@@ -6,6 +6,7 @@ import { Header } from './components/Header';
 import { MapView, type MapCommand } from './components/MapView';
 import { MobileNav, type MobileTab } from './components/MobileNav';
 import { MyLog } from './components/MyLog';
+import { NewAreaModal } from './components/NewAreaModal';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
 import { Sidebar, type ListMode } from './components/Sidebar';
@@ -150,6 +151,7 @@ export default function App() {
   // ---- map, panels & dialogs -------------------------------------------
   const [mobileTab, setMobileTab] = useState<MobileTab>('map');
   const [tempPin, setTempPin] = useState<LatLng | null>(null);
+  const [searchPin, setSearchPin] = useState<(LatLng & { name: string }) | null>(null);
   // While set, the open form is hidden and the next map click answers it.
   const [picking, setPicking] = useState<{ label: string; apply: (at: LatLng) => void } | null>(null);
   const [focusedId, setFocusedId] = useState<number | null>(() => {
@@ -161,6 +163,7 @@ export default function App() {
   const mapCenter = useRef<LatLng>({ lat: 42.5, lng: 12.5 });
 
   const [authOpen, setAuthOpen] = useState(false);
+  const [newAreaOpen, setNewAreaOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(() => panelFromHash(window.location.hash));
 
   useEffect(() => {
@@ -178,7 +181,7 @@ export default function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const [placeModal, setPlaceModal] = useState<{ place?: Place } | null>(null);
+  const [placeModal, setPlaceModal] = useState<{ place?: Place; at?: LatLng } | null>(null);
   const [visitModal, setVisitModal] = useState<{ placeId?: number; visit?: VisitDetail } | null>(null);
 
   // GPX tracks of the focused place, drawn on the map and summarised in its panel.
@@ -300,6 +303,18 @@ export default function App() {
           onPlaceDetails={p => openPlace(p)}
           onAddVisit={openAddVisit}
           onAreaClick={openArea}
+          onNewArea={() => setNewAreaOpen(true)}
+          onLocationPick={loc => {
+            setSearchPin({ lat: loc.lat, lng: loc.lng, name: loc.name });
+            setPanel(null);
+            if (isMobile) setMobileTab('map');
+            if (loc.extent) {
+              const [w, n, e, s] = loc.extent;
+              setCommand({ kind: 'fit', points: [{ lat: n, lng: w }, { lat: s, lng: e }], nonce: Date.now() });
+            } else {
+              setCommand({ kind: 'fly', at: loc, zoom: 14, nonce: Date.now() });
+            }
+          }}
           onVisitClick={v => {
             const place = placeById.get(v.place_id);
             if (place) openPlace(place, 'visits', v.id);
@@ -311,6 +326,7 @@ export default function App() {
           focusedPlace={focusedPlace}
           tracks={trackList}
           tempPin={tempPin}
+          searchPin={placeFilters.search.trim() ? searchPin : null}
           armed={!!picking}
           command={command}
           visibleKey={`${isMobile}-${mobileTab}-${!!panel}`}
@@ -328,6 +344,7 @@ export default function App() {
           onDetails={p => openPlace(p)}
           onViewVisits={p => openPlace(p, 'visits')}
           onAddVisit={openAddVisit}
+          onAddPlaceAt={at => setPlaceModal({ at: { lat: at.lat, lng: at.lng } })}
           onCenterChange={c => { mapCenter.current = c; }}
         />
 
@@ -372,6 +389,8 @@ export default function App() {
             key={`area-panel-${panelArea.id}`}
             area={panelArea}
             places={areaPlaces(panelArea.id)}
+            allPlaces={catalog}
+            canEditPlace={canEdit}
             userId={userId}
             isAdmin={isAdmin}
             onClose={() => setPanel(null)}
@@ -410,6 +429,7 @@ export default function App() {
         <PlaceModal
           key={`place-${placeModal.place?.id ?? 'new'}`}
           place={placeModal.place}
+          initialAt={placeModal.at}
           rocks={rocks}
           areas={areas}
           partners={partners}
@@ -437,6 +457,18 @@ export default function App() {
           onCoordsChange={setTempPin}
           onClose={closeForms}
           onSaved={placeId => showSaved(placeId, true)}
+        />
+      )}
+
+      {newAreaOpen && userId && (
+        <NewAreaModal
+          onClose={() => setNewAreaOpen(false)}
+          onCreated={areaId => {
+            setNewAreaOpen(false);
+            reload();
+            setPanel({ kind: 'area', areaId });
+            setNotice('Area created. Add places to it below.');
+          }}
         />
       )}
 

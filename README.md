@@ -11,6 +11,12 @@ marked public. Admins can see everything.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides
   and GPX approach tracks. GPX tracks are drawn on the map, with distance and
   ascent worked out from the file.
+- **Search** finds your places and also mountains, huts and villages
+  (OpenStreetMap, via the free [Photon](https://photon.komoot.io) geocoder);
+  a found location can become a new place in one click.
+- **My logbook** shows each user's visits with totals per activity and year,
+  and downloads them as CSV (one row per route), JSON (full backup) or GPX
+  (visited places as waypoints).
 - **Phones** get their own layout: Map/List tabs, a bottom bar with "add here"
   (GPS), and full-screen panels and forms.
 

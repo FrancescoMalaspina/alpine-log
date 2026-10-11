@@ -91,10 +91,30 @@ export async function fetchAreas(): Promise<Area[]> {
   return rows.map(({ places, ...a }) => ({ ...a, place_count: places[0]?.count ?? 0 }));
 }
 
+export async function createArea(name: string, description: string): Promise<number> {
+  const { data, error } = await supabase.from('areas')
+    .insert({ name: name.trim(), description: description.trim() || null })
+    .select('id').single();
+  if (error) {
+    throw new Error(error.code === '23505' ? `There is already an area called "${name.trim()}".` : error.message);
+  }
+  return data.id;
+}
+
+/** Moves places into an area (or out of any area with null). Returns how many changed. */
+export async function setPlacesArea(placeIds: number[], areaId: number | null): Promise<number> {
+  if (!placeIds.length) return 0;
+  const rows = unwrap(await supabase.from('places').update({ area_id: areaId }).in('id', placeIds).select('id'));
+  return rows.length;
+}
+
 export async function updateArea(id: number, patch: { name: string; description: string }): Promise<void> {
-  const rows = unwrap(await supabase.from('areas')
+  const { data: rows, error } = await supabase.from('areas')
     .update({ name: patch.name.trim(), description: patch.description.trim() || null })
-    .eq('id', id).select('id'));
+    .eq('id', id).select('id');
+  if (error) {
+    throw new Error(error.code === '23505' ? `There is already an area called "${patch.name.trim()}".` : error.message);
+  }
   if (!rows.length) throw new Error('Only the creator of this area or an admin can change it.');
 }
 
@@ -204,6 +224,27 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
     partners: visit_partners.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort(),
   }));
 }
+
+/** Every visit of one user with its place, routes and partners: the full logbook, for export. */
+export async function fetchLogbook(userId: string) {
+  const rows = unwrap(await supabase
+    .from('visits')
+    .select(`
+      id, date, summary, approach, descent, conditions, duration_hours, visibility, created_at,
+      place:places (id, name, types, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
+                    area:areas (name)),
+      ascents (name, grade, comment, position, sector:sectors (name)),
+      visit_partners (partner:partners (name))
+    `)
+    .eq('user_id', userId)
+    .order('date', { ascending: false, nullsFirst: false })
+    .order('position', { referencedTable: 'ascents' }));
+  return rows.map(({ visit_partners, ...v }) => ({
+    ...v,
+    partners: visit_partners.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort(),
+  }));
+}
+export type LogbookVisit = Awaited<ReturnType<typeof fetchLogbook>>[number];
 
 export async function fetchMyPartners(userId: string): Promise<Partner[]> {
   return unwrap(await supabase.from('partners').select('id, name').eq('owner_id', userId).order('name'));

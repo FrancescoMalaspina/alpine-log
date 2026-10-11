@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { GRADE_OPTIONS } from '../lib/grades';
 import { formatDate, formatHours, plural, typeLabel, typesLabel } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
+import { LocationResults } from './LocationResults';
+import type { Location } from '../lib/geocode';
 import type { LatLng } from '../lib/coords';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS, PLACE_TYPES,
@@ -34,6 +36,8 @@ type Props = {
   onAddVisit: (place: Place) => void;
   onAreaClick: (areaId: number) => void;
   onVisitClick: (visit: VisitSummary) => void;
+  onLocationPick: (location: Location) => void;
+  onNewArea: () => void;
 };
 
 function countPlaceFilters(f: PlaceFilters) {
@@ -47,7 +51,7 @@ function countVisitFilters(f: VisitFilters) {
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
 const SEARCH_PLACEHOLDER: Record<ListMode, string> = {
-  places: 'Search name, rock, grade…',
+  places: 'Search places, peaks, huts, villages…',
   areas: 'Search areas…',
   visits: 'Search by place, person, or route…',
 };
@@ -103,16 +107,24 @@ export function Sidebar(props: Props) {
           {visitsLoading ? '' : `${count} ${mode === 'places' ? 'places' : mode === 'areas' ? 'areas' : 'visits'} shown`}
         </p>
         {props.error && <div className="list-empty form-error">{props.error}</div>}
-        {!props.error && !visitsLoading && count === 0 && (
+        {!props.error && !visitsLoading && count === 0 && !(mode === 'places' && search.trim().length >= 3) && (
           <div className="list-empty">
             {mode === 'visits' && !props.userId
               ? 'No public visits match. Sign in to see your own.'
               : mode === 'areas' && !props.areaSearch
-                ? 'No areas yet. Type one in the "Macroarea" field when you add or edit a place.'
+                ? 'No areas yet. Create one with New area, or type one in a place\'s "Macroarea" field.'
                 : 'Nothing matches. Try clearing the search or filters.'}
           </div>
         )}
         {mode === 'places' && <PlaceGroups {...props} />}
+        {mode === 'places' && (
+          <LocationResults query={pf.search} getMapCenter={props.getMapCenter} onPick={props.onLocationPick} />
+        )}
+        {mode === 'areas' && props.userId && (
+          <div className="list-action">
+            <button type="button" className="btn btn-ghost" onClick={props.onNewArea}>New area</button>
+          </div>
+        )}
         {mode === 'areas' && (
           <ul className="rows">
             {props.areas.map(a => (

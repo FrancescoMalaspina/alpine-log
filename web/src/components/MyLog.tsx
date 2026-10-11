@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchVisits } from '../lib/api';
+import { fetchLogbook, fetchVisits } from '../lib/api';
+import { downloadLogbook, type ExportFormat } from '../lib/exportLogbook';
 import { errorMessage, formatDate, primaryType, typeLabel } from '../lib/labels';
 import { computeStats } from '../lib/logStats';
 import { EMPTY_VISIT_FILTERS, type PlaceType, type VisitSummary } from '../lib/types';
@@ -18,11 +19,30 @@ type Props = {
 
 const MINE = { ...EMPTY_VISIT_FILTERS, scope: 'mine' as const };
 
+const EXPORTS: { format: ExportFormat; name: string; use: string }[] = [
+  { format: 'csv', name: 'Spreadsheet (CSV)', use: 'One row per route, for Excel, Numbers or Google Sheets' },
+  { format: 'json', name: 'Full backup (JSON)', use: 'Every detail of every visit, for keeping or importing elsewhere' },
+  { format: 'gpx', name: 'Places for GPS (GPX)', use: 'Your places as waypoints, for Garmin, Komoot, OsmAnd, Google Earth' },
+];
+
 /** The signed-in user's own logbook: every visit they logged, with simple totals. */
 export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Props) {
   const [visits, setVisits] = useState<VisitSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [only, setOnly] = useState<PlaceType | null>(null);
+  const [exporting, setExporting] = useState<ExportFormat | null>(null);
+
+  async function download(format: ExportFormat) {
+    setError(null);
+    setExporting(format);
+    try {
+      downloadLogbook(await fetchLogbook(userId), username, format);
+    } catch (e) {
+      setError(`Couldn't prepare the download: ${errorMessage(e)}`);
+    } finally {
+      setExporting(null);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +87,16 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Pro
           <div><dt>Places</dt><dd className="num">{stats.totals.places}</dd></div>
           <div><dt>Areas</dt><dd className="num">{stats.totals.areas}</dd></div>
         </dl>
+
+        <h3 className="section-title">Download</h3>
+        <div className="downloads">
+          {EXPORTS.map(x => (
+            <button key={x.format} type="button" className="download" disabled={!!exporting} onClick={() => download(x.format)}>
+              <span className="download-name">{exporting === x.format ? 'Preparing…' : x.name}</span>
+              <span className="download-use">{x.use}</span>
+            </button>
+          ))}
+        </div>
 
         <h3 className="section-title">By activity</h3>
         <table className="stats-table">
