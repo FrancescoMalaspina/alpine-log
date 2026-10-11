@@ -68,7 +68,9 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
     try {
       id = await savePlace(input);
       setSavedId(id);
-      if (logVisit) await saveVisitAt(id, visit, values.activity);
+      if (logVisit) {
+        await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit);
+      }
       onSaved(id, logVisit);
     } catch (e) {
       setError(id && logVisit && !place ? `The place is saved, but the visit isn't: ${errorMessage(e)}` : errorMessage(e));

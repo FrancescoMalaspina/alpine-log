@@ -1,18 +1,17 @@
 import { fetchSectors, saveVisit } from '../../lib/api';
-import type { Activity } from '../../lib/types';
-import { buildVisitInput, type VisitValues } from './visitForm';
+import { buildVisitInput, type VisitSpot, type VisitValues } from './visitForm';
 
 /**
  * Saves a visit at a spot. Routes filed under a sector of a spot created
  * in the same save carry "name:<sector>" keys, resolved here to real ids.
  */
-export async function saveVisitAt(placeId: number, values: VisitValues, activity: Activity, visitId?: number) {
+export async function saveVisitAt(spot: VisitSpot, values: VisitValues, visitId?: number) {
   const byName = values.ascents.some(a => a.sectorKey.startsWith('name:'))
-    ? new Map((await fetchSectors(placeId)).map(s => [s.name.toLowerCase(), s.id]))
+    ? new Map((await fetchSectors(spot.id)).map(s => [s.name.toLowerCase(), s.id]))
     : null;
   const sectorId = (key: string) =>
     key.startsWith('name:') ? byName?.get(key.slice(5).toLowerCase()) ?? null : Number(key);
-  return saveVisit(buildVisitInput(values, placeId, activity, sectorId, visitId));
+  return saveVisit(buildVisitInput(values, spot, sectorId, visitId));
 }
 
 /** Sector choices for a spot being created: keyed by name until it has ids. */

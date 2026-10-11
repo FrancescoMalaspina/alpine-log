@@ -101,6 +101,7 @@ export function VisitFields({ values: v, onChange, partners, activity, sectors, 
 
       {f.routes && <>
       <span className="field-label">{f.isRoute ? 'The route' : 'Routes'}</span>
+      {f.isRoute && <span className="hint-block">This spot is the route: a row left without a name is saved as it.</span>}
       <div className="routes-list">
         {v.ascents.map(a => (
           <div key={a.key} className="route-row">

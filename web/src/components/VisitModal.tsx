@@ -115,7 +115,10 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
         id = await savePlace(placeInput);
         setSavedPlaceId(id);
       }
-      const visitId = await saveVisitAt(id!, values, activity, visit?.id);
+      const spot = placeInput
+        ? { id: id!, name: placeInput.name, grade: placeInput.grade || null, activity: placeInput.activity }
+        : { id: id!, name: place!.name, grade: place!.grade, activity: place!.activity };
+      const visitId = await saveVisitAt(spot, values, visit?.id);
       const failed: string[] = [];
       for (const [i, f] of photos.entries()) {
         setProgress(`Uploading photo ${i + 1} of ${photos.length}…`);

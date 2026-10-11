@@ -63,11 +63,29 @@ export function visitProblem(v: VisitValues): string | null {
     : null;
 }
 
+/** The spot a visit is saved at: its route, when the spot is itself a route. */
+export type VisitSpot = { id: number; name: string; grade: string | null; activity: Activity };
+
+/**
+ * The routes to save. At a spot that is itself a route (multipitch, alpine,
+ * ice), a visit is a go at that route: rows without a name get the spot's
+ * name, and a visit with no rows gets one, so it always counts as a route.
+ */
+function routesFor(v: VisitValues, spot: VisitSpot) {
+  const f = ACTIVITIES[spot.activity];
+  if (!f.routes) return [];
+  const rows = filledAscents(v);
+  if (!f.isRoute) return rows;
+  if (!rows.length) return [{ ...ascentRow(), name: spot.name, grade: spot.grade ?? '' }];
+  return rows.map(a => (a.name.trim() ? a : { ...a, name: spot.name, grade: a.grade || spot.grade || '' }));
+}
+
 /** The save_visit payload. `sectorId` resolves a row's sectorKey to a real sector id. */
 export function buildVisitInput(
-  v: VisitValues, placeId: number, activity: Activity, sectorId: (key: string) => number | null, id?: number,
+  v: VisitValues, spot: VisitSpot, sectorId: (key: string) => number | null, id?: number,
 ): VisitInput {
-  const f = ACTIVITIES[activity];
+  const f = ACTIVITIES[spot.activity];
+  const placeId = spot.id;
   return {
     id,
     place_id: placeId,
@@ -80,7 +98,7 @@ export function buildVisitInput(
     visibility: v.visibility,
     partners: v.withPeople,
     add_routes: f.sectors && v.addRoutes,
-    ascents: (f.routes ? filledAscents(v) : []).map(a => ({
+    ascents: routesFor(v, spot).map(a => ({
       name: a.name, grade: a.grade, comment: a.comment, route_id: null,
       sector_id: a.sectorKey ? sectorId(a.sectorKey) : null,
     })),
