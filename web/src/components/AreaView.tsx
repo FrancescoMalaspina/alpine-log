@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { deleteArea, updateArea } from '../lib/api';
 import { errorMessage, plural, typesLabel } from '../lib/labels';
 import type { Area, Place } from '../lib/types';
+import { ActivityBadge } from './ActivityBadge';
 import { Attachments } from './Attachments';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
@@ -49,8 +50,8 @@ export function AreaView({ area, places, userId, isAdmin, onClose, onShowOnMap, 
 
   return (
     <Drawer
-      kicker="Macroarea"
       title={area.name}
+      meta={<span className="meta-item">Macroarea with {plural(places.length, 'place')}</span>}
       onClose={onClose}
       footer={<>
         {canEdit && !editing && <button className="btn btn-danger" type="button" onClick={remove}>Delete area</button>}
@@ -72,12 +73,12 @@ export function AreaView({ area, places, userId, isAdmin, onClose, onShowOnMap, 
       ) : area.description && <p className="place-description">{area.description}</p>}
       <ErrorText error={error} />
 
-      <h4 className="section-title">{plural(places.length, 'place')}</h4>
+      <h3 className="section-title">Places</h3>
       <div className="area-places">
         {places.map(p => (
           <button key={p.id} type="button" className="area-place" onClick={() => onOpenPlace(p)}>
-            <span className="area-place-name">{p.name}</span>
-            <span className="area-place-meta">{[typesLabel(p.types), p.grade].filter(Boolean).join(' · ')}</span>
+            <span className="row-title"><ActivityBadge types={p.types} />{p.name}</span>
+            <span className="row-meta">{[typesLabel(p.types), p.grade].filter(Boolean).join(', ')}</span>
           </button>
         ))}
         {!places.length && <div className="empty">No places in this area yet. Pick it in a place's form.</div>}

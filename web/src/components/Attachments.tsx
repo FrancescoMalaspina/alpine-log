@@ -15,7 +15,7 @@ type Props = {
   onChange?: () => void;
 };
 
-const ICONS: Record<Attachment['kind'], string> = { gpx: '〰', pdf: '📄', link: '↗' };
+const ICONS: Record<Attachment['kind'], string> = { gpx: 'GPX', pdf: 'PDF', link: 'URL' };
 
 export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props) {
   const [items, setItems] = useState<Attachment[] | null>(null);
@@ -51,14 +51,14 @@ export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props)
 
   return (
     <div className="attachments">
-      <h4>Approach tracks (GPX)</h4>
+      <h3 className="section-title">Approach tracks</h3>
       {items && !gpx.length && <div className="empty">No GPX yet.</div>}
       {gpx.map(a => (
         <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)}
               detail={trackSummary(tracks?.get(a.id))} />
       ))}
 
-      <h4>Guides & links</h4>
+      <h3 className="section-title">Guides and links</h3>
       {items && !guides.length && <div className="empty">No guides yet.</div>}
       {guides.map(a => (
         <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)} />
@@ -74,9 +74,9 @@ function trackSummary(t: Track | undefined) {
   if (!t) return undefined;
   return [
     `${t.distanceKm.toFixed(1)} km`,
-    t.gainM != null && `+${Math.round(t.gainM)} m`,
-    t.maxEleM != null && `max ${Math.round(t.maxEleM)} m`,
-  ].filter(Boolean).join(' · ');
+    t.gainM != null && `${Math.round(t.gainM)} m up`,
+    t.maxEleM != null && `top ${Math.round(t.maxEleM)} m`,
+  ].filter(Boolean).join(', ');
 }
 
 function Item({ a, canDelete, onDelete, detail }:
@@ -85,7 +85,7 @@ function Item({ a, canDelete, onDelete, detail }:
     detail,
     a.kind === 'link' ? new URL(a.url!).hostname.replace(/^www\./, '') : a.size_bytes && formatBytes(a.size_bytes),
     a.username && `by ${a.username}`,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(', ');
   return (
     <div className="attachment">
       <span className={`attachment-icon ${a.kind}`} aria-hidden="true">{ICONS[a.kind]}</span>
@@ -141,7 +141,7 @@ function AddAttachment({ owner, userId, onAdded }: { owner: AttachmentOwner; use
         <button type="button" className={mode === 'file' ? 'active' : ''} onClick={() => setMode('file')}>Upload GPX / PDF</button>
       </div>
       {mode === 'link' ? (
-        <input type="url" required placeholder="https://www.thecrag.com/…" value={url} aria-label="Link"
+        <input type="url" required placeholder="https://www.thecrag.com/…" value={url} aria-label="Link" spellCheck={false}
                onChange={e => setUrl(e.target.value)} />
       ) : (
         <input key={fileKey} type="file" required accept=".gpx,.pdf,application/pdf,application/gpx+xml" aria-label="File"
@@ -149,7 +149,7 @@ function AddAttachment({ owner, userId, onAdded }: { owner: AttachmentOwner; use
       )}
       <div className="add-attachment-row">
         <input type="text" placeholder="Title (optional)" value={title} aria-label="Title" onChange={e => setTitle(e.target.value)} />
-        <button type="submit" className="btn btn-ghost" disabled={busy}>{busy ? 'Saving…' : 'Add'}</button>
+        <button type="submit" className="btn btn-ghost" disabled={busy}>{busy ? 'Adding…' : mode === 'link' ? 'Add link' : 'Upload'}</button>
       </div>
       <ErrorText error={error} />
     </form>

@@ -1,4 +1,4 @@
-# Climbing Log
+# Alpine Log
 
 A shared map of crags and routes (sport climbing, multipitch, alpinism, ice
 climbing, ski mountaineering) with a personal logbook. Anyone can browse the

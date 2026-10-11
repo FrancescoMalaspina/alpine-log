@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { errorMessage } from '../lib/labels';
+import { errorMessage, isTouchLayout } from '../lib/labels';
 import { ErrorText, Modal } from './Modal';
 
 type Tab = 'signin' | 'signup' | 'reset';
@@ -68,20 +68,21 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
         {tab === 'signup' && (
           <div className="field">
             <label htmlFor="authUsername">Username</label>
-            <input id="authUsername" required autoComplete="username" value={username} minLength={3} maxLength={30}
+            <input id="authUsername" name="username" required autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} minLength={3} maxLength={30}
                    pattern="[A-Za-z0-9_.\-]{3,30}" title="3–30 letters, digits, dots, dashes or underscores"
                    onChange={e => setUsername(e.target.value)} />
           </div>
         )}
         <div className="field">
           <label htmlFor="authEmail">Email</label>
-          <input id="authEmail" type="email" required autoComplete="email" autoFocus value={email}
+          <input id="authEmail" name="email" type="email" required autoComplete="email" autoFocus={!isTouchLayout()}
+                 spellCheck={false} value={email}
                  onChange={e => setEmail(e.target.value)} />
         </div>
         {tab !== 'reset' && (
           <div className="field">
             <label htmlFor="authPassword">Password</label>
-            <input id="authPassword" type="password" required minLength={8} value={password}
+            <input id="authPassword" name="password" type="password" required minLength={8} value={password}
                    autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
                    onChange={e => setPassword(e.target.value)} />
           </div>

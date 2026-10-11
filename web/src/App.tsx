@@ -32,6 +32,14 @@ type Panel =
   | { kind: 'place'; placeId: number; tab: PlaceTab; visitId?: number }
   | { kind: 'area'; areaId: number };
 
+/** The open panel lives in the URL hash (#place-12, #area-3): shareable, and Back closes it. */
+const panelHash = (p: Panel | null) => (!p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : `#area-${p.areaId}`);
+function panelFromHash(hash: string): Panel | null {
+  const m = hash.match(/^#(place|area)-(\d+)$/);
+  if (!m) return null;
+  return m[1] === 'place' ? { kind: 'place', placeId: +m[2], tab: 'info' } : { kind: 'area', areaId: +m[2] };
+}
+
 /** Loads and parses every GPX attachment of a place. */
 async function loadTracks(placeId: number): Promise<Map<number, Track>> {
   const gpx = (await fetchAttachments({ placeId })).filter(a => a.kind === 'gpx');
@@ -142,13 +150,32 @@ export default function App() {
   const armed = armedState && !!userId;
   const [pickerOpen, setPickerOpen] = useState(false);
   const [tempPin, setTempPin] = useState<LatLng | null>(null);
-  const [focusedId, setFocusedId] = useState<number | null>(null);
+  const [focusedId, setFocusedId] = useState<number | null>(() => {
+    const p = panelFromHash(window.location.hash);
+    return p?.kind === 'place' ? p.placeId : null;
+  });
   const [command, setCommand] = useState<MapCommand | null>(null);
   // A ref, not state: the map moves constantly and only the "near" filter reads this.
   const mapCenter = useRef<LatLng>({ lat: 42.5, lng: 12.5 });
 
   const [authOpen, setAuthOpen] = useState(false);
-  const [panel, setPanel] = useState<Panel | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(() => panelFromHash(window.location.hash));
+
+  useEffect(() => {
+    const want = panelHash(panel);
+    if (window.location.hash !== want) {
+      window.history.pushState(null, '', want || window.location.pathname + window.location.search);
+    }
+  }, [panel]);
+  useEffect(() => {
+    const onPop = () => {
+      const next = panelFromHash(window.location.hash);
+      setPanel(next);
+      if (next?.kind === 'place') setFocusedId(next.placeId);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
   const [placeModal, setPlaceModal] = useState<{ place: Place } | { at: LatLng } | null>(null);
   const [visitModal, setVisitModal] = useState<{ placeId: number; visit?: VisitDetail } | null>(null);
 
@@ -238,7 +265,6 @@ export default function App() {
   return (
     <>
       <Header
-        stats={stats}
         isMobile={isMobile}
         armed={armed}
         onToggleArmed={() => { closePicker(); setArmed(a => !a); }}
@@ -368,7 +394,7 @@ export default function App() {
       )}
 
       {armed && !isMobile && (
-        <div className="toast show">📍 Click the map where the place is — <b>Esc</b> to cancel</div>
+        <div className="toast show" role="status">Click the map where the place is. Press <kbd>Esc</kbd> to cancel.</div>
       )}
       {notice && <div className="toast show notice" role="status">{notice}</div>}
 

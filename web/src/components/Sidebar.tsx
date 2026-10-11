@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GRADE_OPTIONS } from '../lib/grades';
-import { ACTIVITIES, formatHours, plural, typeLabel } from '../lib/labels';
+import { formatDate, formatHours, plural, typeLabel, typesLabel } from '../lib/labels';
+import { ActivityBadge } from './ActivityBadge';
 import type { LatLng } from '../lib/coords';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS, PLACE_TYPES,
@@ -56,7 +57,9 @@ export function Sidebar(props: Props) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const active = mode === 'places' ? countPlaceFilters(pf) : mode === 'visits' ? countVisitFilters(vf) : 0;
   const search = mode === 'places' ? pf.search : mode === 'visits' ? vf.search : props.areaSearch;
-  const count = { places: props.places.length, areas: props.areas.length, visits: props.visits.length }[mode];
+  const counts = { places: props.places.length, areas: props.areas.length, visits: props.visits.length };
+  const count = counts[mode];
+  const visitsLoading = props.loading && mode === 'visits';
   const setSearch = (s: string) => {
     if (mode === 'places') props.onPlaceFilters({ ...pf, search: s });
     else if (mode === 'visits') props.onVisitFilters({ ...vf, search: s });
@@ -65,20 +68,21 @@ export function Sidebar(props: Props) {
 
   return (
     <aside>
-      <div className="search">
-        <input type="search" value={search} placeholder={SEARCH_PLACEHOLDER[mode]} aria-label={SEARCH_PLACEHOLDER[mode]}
-               onChange={e => setSearch(e.target.value)} />
-      </div>
-
-      <div className="list-mode-tabs">
+      <div className="list-mode-tabs" role="tablist" aria-label="What to list">
         {(['places', 'areas', 'visits'] as const).map(m => (
-          <button key={m} type="button" className={`list-mode-tab${mode === m ? ' active' : ''}`}
-                  onClick={() => props.onModeChange(m)}>
+          <button key={m} type="button" role="tab" aria-selected={mode === m}
+                  className={`list-mode-tab${mode === m ? ' active' : ''}`} onClick={() => props.onModeChange(m)}>
             {m === 'places' ? 'Places' : m === 'areas' ? 'Areas' : 'Visits'}
+            <span className="tab-count">{m === 'visits' && props.loading ? '' : counts[m]}</span>
           </button>
         ))}
+      </div>
+
+      <div className="search">
+        <input type="search" value={search} placeholder={SEARCH_PLACEHOLDER[mode]} aria-label={SEARCH_PLACEHOLDER[mode]}
+               spellCheck={false} onChange={e => setSearch(e.target.value)} />
         {mode !== 'areas' && (
-          <button type="button" className={`list-mode-tab filter-toggle${filtersOpen ? ' active' : ''}`}
+          <button type="button" className={`btn btn-quiet filter-toggle${filtersOpen ? ' active' : ''}`}
                   aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}>
             Filters{active > 0 && <span className="filter-count">{active}</span>}
           </button>
@@ -94,107 +98,127 @@ export function Sidebar(props: Props) {
                            signedIn={!!props.userId} isAdmin={props.isAdmin} />
       )}
 
-      <div className="list-head">
-        <span>{{ places: 'Logbook', areas: 'Macroareas', visits: 'Visits (newest first)' }[mode]}</span>
-        <span className="mono">{props.loading && mode === 'visits' ? '…' : count}</span>
-      </div>
-
-      <div className="list">
+      <div className="list" aria-busy={visitsLoading}>
+        <p className="visually-hidden" aria-live="polite">
+          {visitsLoading ? '' : `${count} ${mode === 'places' ? 'places' : mode === 'areas' ? 'areas' : 'visits'} shown`}
+        </p>
         {props.error && <div className="list-empty form-error">{props.error}</div>}
-        {!props.error && !(props.loading && mode === 'visits') && count === 0 && (
+        {!props.error && !visitsLoading && count === 0 && (
           <div className="list-empty">
             {mode === 'visits' && !props.userId
               ? 'No public visits match. Sign in to see your own.'
               : mode === 'areas' && !props.areaSearch
-                ? 'No areas yet. Type one in a place\'s "Macroarea" field.'
-                : 'Nothing matches.'}
+                ? 'No areas yet. Type one in the "Macroarea" field when you add or edit a place.'
+                : 'Nothing matches. Try clearing the search or filters.'}
           </div>
         )}
-        {mode === 'places' && props.places.map(p => <PlaceCard key={p.id} place={p} {...props} />)}
-        {mode === 'areas' && props.areas.map(a => (
-          <div key={a.id} className="card" {...activate(() => props.onAreaClick(a.id))}>
-            <h3>{a.name}</h3>
-            <div className="meta"><span className="tagpill">{plural(a.place_count, 'place')}</span></div>
-            {a.description && <div className="visit-card-summary">{a.description}</div>}
-          </div>
-        ))}
-        {mode === 'visits' && props.visits.map(v => (
-          <VisitCard key={v.id} visit={v} mine={v.user_id === props.userId} onClick={() => props.onVisitClick(v)} />
-        ))}
+        {mode === 'places' && <PlaceGroups {...props} />}
+        {mode === 'areas' && (
+          <ul className="rows">
+            {props.areas.map(a => (
+              <li key={a.id} className="row-item">
+                <button type="button" className="row-main" onClick={() => props.onAreaClick(a.id)}>
+                  <span className="row-title">{a.name}</span>
+                  <span className="row-meta">{plural(a.place_count, 'place')}</span>
+                  {a.description && <span className="row-summary">{a.description}</span>}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {mode === 'visits' && (
+          <ul className="rows">
+            {props.visits.map(v => (
+              <VisitRow key={v.id} visit={v} mine={v.user_id === props.userId} onClick={() => props.onVisitClick(v)} />
+            ))}
+          </ul>
+        )}
       </div>
     </aside>
   );
 }
 
-function activate(fn: () => void) {
-  return {
-    tabIndex: 0,
-    onClick: fn,
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-        e.preventDefault();
-        fn();
-      }
-    },
-  };
+/** Places grouped under their macroarea; the area heading opens the area. */
+function PlaceGroups(props: Props) {
+  const groups = new Map<string, { areaId: number | null; places: Place[] }>();
+  for (const p of props.places) {
+    const key = p.area?.name ?? '';
+    if (!groups.has(key)) groups.set(key, { areaId: p.area?.id ?? null, places: [] });
+    groups.get(key)!.places.push(p);
+  }
+  const ordered = [...groups.entries()].sort(([a], [b]) => (!a ? 1 : !b ? -1 : a.localeCompare(b)));
+  const grouped = ordered.length > 1 || ordered[0]?.[0] !== '';
+
+  return <>
+    {ordered.map(([name, g]) => (
+      <section key={name || 'none'} className="row-group">
+        {grouped && (
+          <h2 className="group-head">
+            {g.areaId
+              ? <button type="button" onClick={() => props.onAreaClick(g.areaId!)}>{name}</button>
+              : <span>Not in an area</span>}
+            <span className="group-count">{g.places.length}</span>
+          </h2>
+        )}
+        <ul className="rows">
+          {g.places.map(p => <PlaceRow key={p.id} place={p} {...props} />)}
+        </ul>
+      </section>
+    ))}
+  </>;
 }
 
-function TypePills({ types }: { types: Place['types'] }) {
-  return <>{types.map(t => (
-    <span key={t} className="tagpill type-pill" style={{ '--type-color': ACTIVITIES[t].color } as React.CSSProperties}>
-      {typeLabel(t)}
-    </span>
-  ))}</>;
-}
-
-function PlaceCard({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit, onAreaClick }: { place: Place } & Props) {
-  const stop = (fn: () => void) => (e: React.MouseEvent) => { e.stopPropagation(); fn(); };
+function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }: { place: Place } & Props) {
+  const facts = [
+    typesLabel(p.types),
+    p.grade,
+    p.rock,
+    p.exposition.length ? `faces ${p.exposition.join('/')}` : null,
+    p.sectors.length ? plural(p.sectors.length, 'sector') : null,
+    p.visit_count ? plural(p.visit_count, 'visit') : null,
+  ].filter(Boolean);
   return (
-    <div className="card" {...activate(() => onPlaceClick(p))}>
-      {p.area && (
-        <button type="button" className="card-area" onClick={stop(() => onAreaClick(p.area!.id))}>{p.area.name} ›</button>
-      )}
-      <h3>{p.name}</h3>
-      <div className="meta">
-        <TypePills types={p.types} />
-        {p.grade && <span className="tagpill">{p.grade}</span>}
-        {p.rock && <span className="tagpill">{p.rock}</span>}
-        {p.exposition.length > 0 && <span className="tagpill">{p.exposition.join(', ')}</span>}
-        {p.sectors.length > 0 && <span className="tagpill">{plural(p.sectors.length, 'sector')}</span>}
-        {p.visit_count > 0 && <span className="tagpill">{plural(p.visit_count, 'visit')}</span>}
+    <li className="row-item">
+      <button type="button" className="row-main" onClick={() => onPlaceClick(p)}>
+        <span className="row-title"><ActivityBadge types={p.types} />{p.name}</span>
+        <span className="row-meta">{facts.join(', ')}</span>
+      </button>
+      <div className="row-actions">
+        <button type="button" onClick={() => onPlaceDetails(p)}>Details</button>
+        {userId && <button type="button" onClick={() => onAddVisit(p)}>Add visit</button>}
       </div>
-      <div className="card-actions">
-        <button type="button" className="btn-view-visits-card" onClick={stop(() => onPlaceDetails(p))}>Details</button>
-        {userId && <button type="button" onClick={stop(() => onAddVisit(p))}>+ Add visit</button>}
-      </div>
-    </div>
+    </li>
   );
 }
 
-function VisitCard({ visit: v, mine, onClick }: { visit: VisitSummary; mine: boolean; onClick: () => void }) {
+function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; mine: boolean; onClick: () => void }) {
+  const facts = [
+    v.partner_names.length ? `with ${v.partner_names.join(', ')}` : null,
+    v.duration_hours != null ? formatHours(v.duration_hours) : null,
+    v.grades.length ? v.grades.join(', ') : null,
+    v.sector_names.length ? v.sector_names.join(', ') : null,
+  ].filter(Boolean);
   return (
-    <div className="card" {...activate(onClick)}>
-      {v.area_name && <div className="card-area static">{v.area_name}</div>}
-      <h3>{v.place_name}</h3>
-      <div className="meta">
-        {v.date && <span className="tagpill mono">{v.date}</span>}
-        <VisibilityPill visibility={v.visibility} />
-        {!mine && v.username && <span className="tagpill by-pill">by {v.username}</span>}
-        {v.partner_names.length > 0 && <span className="tagpill">with {v.partner_names.join(', ')}</span>}
-        {v.duration_hours != null && <span className="tagpill mono">{formatHours(v.duration_hours)}</span>}
-        {v.ascent_count > 0 && <span className="tagpill">{plural(v.ascent_count, 'route')}</span>}
-        {v.grades.length > 0 && <span className="tagpill mono">{v.grades.join(' · ')}</span>}
-        {v.sector_names.length > 0 && <span className="tagpill">{v.sector_names.join(', ')}</span>}
-      </div>
-      {v.summary && <div className="visit-card-summary">{v.summary}</div>}
-    </div>
+    <li className="row-item">
+      <button type="button" className="row-main" onClick={onClick}>
+        <span className="row-kicker">
+          {v.date ? <time dateTime={v.date}>{formatDate(v.date)}</time> : 'No date'}
+          {!mine && v.username && <span> by {v.username}</span>}
+          <VisibilityPill visibility={v.visibility} />
+        </span>
+        <span className="row-title"><ActivityBadge types={v.place_types} />{v.place_name}</span>
+        {v.area_name && <span className="row-meta">{v.area_name}</span>}
+        {facts.length > 0 && <span className="row-meta">{facts.join('; ')}</span>}
+        {v.summary && <span className="row-summary">{v.summary}</span>}
+      </button>
+    </li>
   );
 }
 
 export function VisibilityPill({ visibility }: { visibility: 'private' | 'public' }) {
   return visibility === 'public'
-    ? <span className="tagpill vis-pill public" title="Anyone can see this visit">Public</span>
-    : <span className="tagpill vis-pill private" title="Only you (and admins) can see this visit">Private</span>;
+    ? <span className="vis-pill public" title="Anyone can see this visit">Public</span>
+    : <span className="vis-pill private" title="Only you (and admins) can see this visit">Private</span>;
 }
 
 function AreaSelect({ id, value, areas, onChange }:
@@ -320,7 +344,7 @@ function VisitFiltersPanel({ f, onChange, partners, areas, signedIn, isAdmin }: 
         <span className="filter-label">Date</span>
         <div className="date-row">
           <input type="date" value={f.from} aria-label="From date" onChange={e => onChange({ ...f, from: e.target.value })} />
-          <span>→</span>
+          <span>to</span>
           <input type="date" value={f.to} aria-label="To date" onChange={e => onChange({ ...f, to: e.target.value })} />
         </div>
       </div>

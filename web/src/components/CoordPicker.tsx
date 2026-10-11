@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { parseCoordinates, type LatLng } from '../lib/coords';
+import { isTouchLayout } from '../lib/labels';
 
 type Props = {
   onPreview: (at: LatLng | null) => void;
@@ -15,11 +16,12 @@ export function CoordPicker({ onPreview, onNext, onClose }: Props) {
     <div className="coord-picker show">
       <div className="coord-picker-head">
         <span>Place a pin</span>
-        <button type="button" aria-label="Close" onClick={onClose}>×</button>
+        <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>×</button>
       </div>
       <input
         className="mono"
-        autoFocus
+        autoFocus={!isTouchLayout()}
+        spellCheck={false}
         value={text}
         placeholder={'46.076245, 9.435389 or 46°04\'34.5"N 9°26\'07.4"E'}
         onChange={e => {
@@ -35,7 +37,7 @@ export function CoordPicker({ onPreview, onNext, onClose }: Props) {
         )}
       </div>
       <button className="btn btn-add" type="button" disabled={!at} onClick={() => at && onNext(at)}>
-        Add details →
+        Add details
       </button>
     </div>
   );

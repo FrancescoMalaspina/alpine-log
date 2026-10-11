@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef } from 'react';
 import L from 'leaflet';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { badgeSvg, pinSvg, plainPinSvg } from '../lib/activityIcons';
 import type { LatLng } from '../lib/coords';
 import type { Track } from '../lib/gpx';
-import { ACTIVITIES, primaryType, typesLabel } from '../lib/labels';
+import { ACTIVITIES, primaryType, typeLabel, typesLabel } from '../lib/labels';
 import type { Place, PlaceType } from '../lib/types';
 
 export type MapCommand =
@@ -31,22 +32,24 @@ type Props = {
   onCenterChange: (center: LatLng) => void;
 };
 
-function pinIcon(color: string, extraClass = '') {
-  const html = `<div class="pin${extraClass ? ` ${extraClass}` : ''}">
-    <svg width="30" height="40" viewBox="0 0 30 40" xmlns="http://www.w3.org/2000/svg">
-      <path d="M15 0C6.7 0 0 6.7 0 15c0 10.5 15 25 15 25s15-14.5 15-25C30 6.7 23.3 0 15 0z" fill="${color}"/>
-      <circle cx="15" cy="15" r="6" fill="#F6F3EB"/>
-    </svg></div>`;
-  return L.divIcon({ html, className: '', iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -38] });
-}
+const pinIcon = (svg: string, extraClass = '') => L.divIcon({
+  html: `<div class="pin${extraClass ? ` ${extraClass}` : ''}">${svg}</div>`,
+  className: '', iconSize: [30, 40], iconAnchor: [15, 40], popupAnchor: [0, -38],
+});
 const badgeIcon = (label: string, cls: string) => L.divIcon({
   html: `<div class="map-badge ${cls}">${label}</div>`, className: '', iconSize: [26, 26], iconAnchor: [13, 13], popupAnchor: [0, -12],
 });
 
 const PLACE_ICONS = Object.fromEntries(
-  (Object.keys(ACTIVITIES) as PlaceType[]).map(t => [t, pinIcon(ACTIVITIES[t].color)]),
+  (Object.keys(ACTIVITIES) as PlaceType[]).map(t => [t, pinIcon(pinSvg(t))]),
 ) as Record<PlaceType, L.DivIcon>;
-const TEMP_ICON = pinIcon('#23433C', 'temp');
+const TEMP_ICON = pinIcon(plainPinSvg('#D7261E'), 'temp');
+
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+const TOPO_ATTRIBUTION = 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM &middot; '
+  + 'style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)';
+const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const PARKING_ICON = badgeIcon('P', 'parking');
 const START_ICON = badgeIcon('⚑', 'start');
 
@@ -71,10 +74,12 @@ function fit(map: L.Map, pts: L.LatLngTuple[], insetRight: number) {
     paddingBottomRight: [50 + insetRight, 50],
     maxZoom: pts.length > 1 ? 15 : Math.max(map.getZoom(), 13),
     duration: 0.8,
+    animate: !reducedMotion(),
   });
 }
 
-function Controller({ command, markers, armed, tempPin, focusedPlace, tracks, visibleKey, insetRight, onMapClick, onCenterChange }: {
+function Controller({ pins, command, markers, armed, tempPin, focusedPlace, tracks, visibleKey, insetRight, onMapClick, onCenterChange }: {
+  pins: Place[];
   command: MapCommand | null;
   markers: React.RefObject<Map<number, L.Marker>>;
   armed: boolean;
@@ -102,10 +107,18 @@ function Controller({ command, markers, armed, tempPin, focusedPlace, tracks, vi
     },
   });
 
+  // Open framed on the places themselves rather than on half of Europe.
+  const framed = useRef(false);
+  useEffect(() => {
+    if (framed.current || !pins.length) return;
+    framed.current = true;
+    if (!command) map.fitBounds(L.latLngBounds(pins.map(p => [p.lat, p.lng] as L.LatLngTuple)), { padding: [40, 40], maxZoom: 12, animate: false });
+  }, [pins, command, map]);
+
   useEffect(() => {
     if (!command) return;
     if (command.kind === 'fly') {
-      map.flyTo([command.at.lat, command.at.lng], Math.max(map.getZoom(), 11), { duration: 0.6 });
+      map.flyTo([command.at.lat, command.at.lng], Math.max(map.getZoom(), 11), { duration: 0.6, animate: !reducedMotion() });
       return;
     }
     if (command.kind === 'fit') {
@@ -125,7 +138,7 @@ function Controller({ command, markers, armed, tempPin, focusedPlace, tracks, vi
   }, [tracks, focusedPlace, map]);
 
   useEffect(() => {
-    if (tempPin) map.panTo([tempPin.lat, tempPin.lng]);
+    if (tempPin) map.panTo([tempPin.lat, tempPin.lng], { animate: !reducedMotion() });
   }, [tempPin, map]);
 
   useEffect(() => {
@@ -160,12 +173,17 @@ export function MapView(props: Props) {
 
   return (
     <MapContainer id="map" center={[42.5, 12.5]} zoom={5} zoomControl>
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        maxZoom={19}
-      />
+      <LayersControl position="topleft">
+        <LayersControl.BaseLayer checked name="Topographic">
+          <TileLayer attribution={TOPO_ATTRIBUTION} url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" maxZoom={17} />
+        </LayersControl.BaseLayer>
+        <LayersControl.BaseLayer name="Streets">
+          <TileLayer attribution={OSM_ATTRIBUTION} url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
+        </LayersControl.BaseLayer>
+      </LayersControl>
+      <Legend />
       <Controller
+        pins={pins}
         command={props.command}
         markers={markers}
         armed={props.armed}
@@ -213,7 +231,7 @@ export function MapView(props: Props) {
                 {p.visit_count > 0 && (
                   <button type="button" onClick={() => props.onViewVisits(p)}>Visits ({p.visit_count})</button>
                 )}
-                {signedIn && <button type="button" onClick={() => props.onAddVisit(p)}>+ Visit</button>}
+                {signedIn && <button type="button" onClick={() => props.onAddVisit(p)}>Add visit</button>}
               </div>
             </div>
           </Popup>
@@ -233,6 +251,32 @@ export function MapView(props: Props) {
 
       {tempPosition && <Marker position={tempPosition} icon={TEMP_ICON} interactive={false} />}
     </MapContainer>
+  );
+}
+
+/** Which pin is which activity: colour and shape, folded away on small screens. */
+function Legend() {
+  const el = useRef<HTMLDetailsElement>(null);
+  // Clicks and scrolls on the legend must not reach the map underneath.
+  useEffect(() => {
+    L.DomEvent.disableClickPropagation(el.current!);
+    L.DomEvent.disableScrollPropagation(el.current!);
+  }, []);
+  return (
+    <details ref={el} className="map-legend" open={!window.matchMedia('(max-width: 820px)').matches}>
+      <summary>Legend</summary>
+      <ul>
+        {(Object.keys(ACTIVITIES) as PlaceType[]).map(t => (
+          <li key={t}>
+            <span className="activity-badge" dangerouslySetInnerHTML={{ __html: badgeSvg(t) }} />
+            {typeLabel(t)}
+          </li>
+        ))}
+        <li><span className="map-badge small parking" aria-hidden="true">P</span>Parking</li>
+        <li><span className="map-badge small start" aria-hidden="true">⚑</span>Start</li>
+        <li><span className="legend-track" aria-hidden="true" />Approach (GPX)</li>
+      </ul>
+    </details>
   );
 }
 

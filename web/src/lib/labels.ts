@@ -10,13 +10,13 @@ type Activity = {
 };
 
 export const ACTIVITIES: Record<PlaceType, Activity> = {
-  crag:       { label: 'Crag',               color: '#C1372F', grades: GRADE_OPTIONS.map(g => g.label) },
-  multipitch: { label: 'Multipitch',         color: '#D9822B', grades: GRADE_OPTIONS.map(g => g.label) },
+  crag:       { label: 'Crag',               color: '#4A5560', grades: GRADE_OPTIONS.map(g => g.label) },
+  multipitch: { label: 'Multipitch',         color: '#A55A17', grades: GRADE_OPTIONS.map(g => g.label) },
   alpine:     { label: 'Alpinism',           color: '#6B4E9B',
                 grades: ['F', 'PD-', 'PD', 'PD+', 'AD-', 'AD', 'AD+', 'D-', 'D', 'D+', 'TD-', 'TD', 'TD+', 'ED'] },
-  ice:        { label: 'Ice climbing',       color: '#2B8FA8',
+  ice:        { label: 'Ice climbing',       color: '#1F7898',
                 grades: ['WI2', 'WI3', 'WI3+', 'WI4', 'WI4+', 'WI5', 'WI5+', 'WI6', 'M4', 'M5', 'M6', 'M7'] },
-  ski:        { label: 'Ski mountaineering', color: '#2F5D8A',
+  ski:        { label: 'Ski mountaineering', color: '#2F7D5B',
                 grades: ['MS', 'MSA', 'BS', 'BSA', 'OS', 'OSA', '1.2', '1.3', '2.1', '2.3', '3.1', '3.3', '4.1', '5.1'] },
 };
 
@@ -39,6 +39,17 @@ export const formatHours = (h: number) => {
 };
 export const formatBytes = (n: number) =>
   n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`;
+const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+/** "11 Jul 2026" in the reader's locale, from an ISO date (yyyy-mm-dd). */
+export const formatDate = (iso: string) => DATE_FORMAT.format(new Date(`${iso}T00:00:00`));
+/** Today's date as yyyy-mm-dd in local time (toISOString would give the UTC day). */
+export const localToday = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+/** Phones get no autofocus: it opens the keyboard over a full-screen form. */
+export const isTouchLayout = () => window.matchMedia('(max-width: 820px)').matches;
+
 /** Google Maps directions to a point (opens the app on phones). */
 export const directionsUrl = (lat: number, lng: number) =>
   `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;

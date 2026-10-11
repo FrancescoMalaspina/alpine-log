@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { deleteVisit, fetchPlaceVisits } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { Track } from '../lib/gpx';
-import { directionsUrl, errorMessage, formatHours, plural, typeLabel } from '../lib/labels';
+import { directionsUrl, errorMessage, formatDate, formatHours, plural, typeLabel, typesLabel } from '../lib/labels';
+import { ActivityBadge } from './ActivityBadge';
 import type { Place, VisitDetail } from '../lib/types';
 import { Attachments } from './Attachments';
 import { Drawer } from './Drawer';
@@ -35,23 +36,32 @@ export function PlaceView(props: Props) {
   const { place: p, tab } = props;
   return (
     <Drawer
-      kicker={p.area
-        ? <button type="button" className="link-btn" onClick={() => props.onOpenArea(p.area!.id)}>{p.area.name} ›</button>
-        : p.types.map(typeLabel).join(' · ')}
       title={p.name}
+      meta={<>
+        <span className="meta-item"><ActivityBadge types={p.types} />{typesLabel(p.types)}</span>
+        {p.area && (
+          <button type="button" className="meta-item link-btn" onClick={() => props.onOpenArea(p.area!.id)}>
+            in {p.area.name}
+          </button>
+        )}
+        {p.max_altitude != null && <span className="meta-item num">{p.max_altitude} m</span>}
+        {p.grade && <span className="meta-item num">{p.grade}</span>}
+      </>}
       onClose={props.onClose}
       footer={<>
         {props.isMobile && <button className="btn btn-ghost" type="button" onClick={props.onShowOnMap}>Show on map</button>}
         {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>Edit place</button>}
-        {props.userId && <button className="btn btn-add" type="button" onClick={props.onAddVisit}>+ Add visit</button>}
+        {props.userId && <button className="btn btn-add" type="button" onClick={props.onAddVisit}>Add visit</button>}
       </>}
     >
-      <div className="list-mode-tabs drawer-tabs">
-        <button type="button" className={`list-mode-tab${tab === 'info' ? ' active' : ''}`} onClick={() => props.onTab('info')}>
+      <div className="list-mode-tabs drawer-tabs" role="tablist" aria-label="Place sections">
+        <button type="button" role="tab" aria-selected={tab === 'info'}
+                className={`list-mode-tab${tab === 'info' ? ' active' : ''}`} onClick={() => props.onTab('info')}>
           Info
         </button>
-        <button type="button" className={`list-mode-tab${tab === 'visits' ? ' active' : ''}`} onClick={() => props.onTab('visits')}>
-          Visits{p.visit_count ? ` (${p.visit_count})` : ''}
+        <button type="button" role="tab" aria-selected={tab === 'visits'}
+                className={`list-mode-tab${tab === 'visits' ? ' active' : ''}`} onClick={() => props.onTab('visits')}>
+          Visits<span className="tab-count">{p.visit_count}</span>
         </button>
       </div>
       {tab === 'info' ? <PlaceInfo {...props} /> : <PlaceVisits {...props} />}
@@ -61,21 +71,22 @@ export function PlaceView(props: Props) {
 
 function PlaceInfo({ place: p, userId, isAdmin, tracks, onChanged }: Props) {
   const rows: [string, React.ReactNode][] = [];
-  rows.push(['type', p.types.map(typeLabel).join(', ')]);
-  if (p.grade) rows.push(['grade', p.grade]);
-  if (p.max_altitude != null) rows.push(['altitude', `${p.max_altitude} m`]);
-  if (p.elevation_gain != null) rows.push(['elevation gain', `${p.elevation_gain} m`]);
-  if (p.rock) rows.push(['rock', p.rock]);
-  if (p.exposition.length) rows.push(['exposition', p.exposition.join(', ')]);
-  if (p.sectors.length) rows.push(['sectors', p.sectors.map(s => s.name).join(', ')]);
+  rows.push(['Activity', p.types.map(typeLabel).join(', ')]);
+  if (p.grade) rows.push(['Grade', p.grade]);
+  if (p.max_altitude != null) rows.push(['Altitude', `${p.max_altitude} m`]);
+  if (p.elevation_gain != null) rows.push(['Elevation gain', `${p.elevation_gain} m`]);
+  if (p.rock) rows.push(['Rock', p.rock]);
+  if (p.exposition.length) rows.push(['Faces', p.exposition.join(', ')]);
+  if (p.sectors.length) rows.push(['Sectors', p.sectors.map(s => s.name).join(', ')]);
 
   return (
     <div className="place-info">
-      <div className="pop">
-        {rows.map(([k, v]) => <div key={k} className="row"><span>{k}</span><span>{v}</span></div>)}
-      </div>
+      <dl className="facts">
+        {rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+      </dl>
       {p.description && <p className="place-description">{p.description}</p>}
 
+      <h3 className="section-title">Getting there</h3>
       <div className="waypoints">
         <Waypoint label="Pin" lat={p.lat} lng={p.lng} />
         <Waypoint label="Parking" icon="P" lat={p.parking_lat} lng={p.parking_lng} />
@@ -91,10 +102,10 @@ function Waypoint({ label, icon, lat, lng }: { label: string; icon?: string; lat
   if (lat == null || lng == null) return null;
   return (
     <div className="waypoint">
-      <span className={`map-badge small ${icon === 'P' ? 'parking' : icon ? 'start' : 'pin'}`}>{icon ?? '●'}</span>
+      <span className={`map-badge small ${icon === 'P' ? 'parking' : icon ? 'start' : 'pin'}`} aria-hidden="true">{icon ?? ''}</span>
       <span className="waypoint-label">{label}</span>
-      <span className="mono waypoint-coords">{formatCoords(lat, lng, 5)}</span>
-      <a href={directionsUrl(lat, lng)} target="_blank" rel="noopener noreferrer">Directions ↗</a>
+      <span className="waypoint-coords num">{formatCoords(lat, lng, 5)}</span>
+      <a href={directionsUrl(lat, lng)} target="_blank" rel="noopener noreferrer">Directions</a>
     </div>
   );
 }
@@ -135,7 +146,7 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
           {visits.map((v, i) => (
             <button key={v.id} type="button" className={`visit-tab${v.id === selected?.id ? ' active' : ''}`}
                     onClick={() => setSelectedId(v.id)}>
-              {v.date ?? `Visit ${i + 1}`}{v.user_id !== userId && v.username ? ` · ${v.username}` : ''}
+              {v.date ? formatDate(v.date) : `Visit ${i + 1}`}{v.user_id !== userId && v.username ? `, ${v.username}` : ''}
             </button>
           ))}
         </div>
@@ -157,11 +168,11 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
 
 function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean }) {
   const meta = [
-    v.date,
+    v.date ? formatDate(v.date) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
     v.partners.length ? `with ${v.partners.join(', ')}` : null,
     !mine && v.username ? `by ${v.username}` : null,
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean).join(', ');
   return <>
     <div className="visit-meta">
       {meta && <span>{meta}</span>}
@@ -176,11 +187,13 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
         {v.ascents.map(a => (
           <li key={a.id}>
             {[
-              a.sector && <span key="s" className="mono">[{a.sector.name}]</span>,
-              a.name && <b key="n">{a.name}</b>,
-              a.grade && <span key="g">{a.grade}</span>,
-              a.comment && <span key="c">{a.comment}</span>,
-            ].filter(Boolean).flatMap((el, i) => (i ? [' — ', el] : [el]))}
+              <span key="h" className="ascent-head">
+                {a.name ? <b>{a.name}</b> : <b className="unnamed">Unnamed route</b>}
+                {a.grade && <span className="ascent-grade num">{a.grade}</span>}
+                {a.sector && <span className="ascent-sector">{a.sector.name}</span>}
+              </span>,
+              a.comment && <span key="c" className="ascent-comment">{a.comment}</span>,
+            ]}
           </li>
         ))}
       </ul>

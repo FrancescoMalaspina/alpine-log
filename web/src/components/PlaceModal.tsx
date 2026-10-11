@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { deletePlace, savePlace } from '../lib/api';
 import { currentPosition, formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
-import { errorMessage, gradeSuggestions, isRouteLike, typeLabel } from '../lib/labels';
+import { errorMessage, gradeSuggestions, isRouteLike, isTouchLayout, typeLabel } from '../lib/labels';
 import { EXPOSITIONS, PLACE_TYPES, type Area, type Exposition, type Place, type PlaceType } from '../lib/types';
 import { ErrorText, Modal } from './Modal';
 
@@ -41,6 +41,10 @@ export function PlaceModal({ target, rocks, areas, canDelete, onCoordsChange, on
     () => (editing?.sectors ?? []).map(s => ({ key: nextKey++, id: s.id, name: s.name })));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const close = () => {
+    if (!dirty || confirm('Discard the changes to this place?')) onClose();
+  };
 
   useEffect(() => {
     onCoordsChange(parseCoordinates(coords));
@@ -132,21 +136,21 @@ export function PlaceModal({ target, rocks, areas, canDelete, onCoordsChange, on
       subtitle={editing
         ? 'Places are shared: everyone sees them, only you (and admins) can change this one.'
         : 'A crag or a single route. Places are shared; your visits stay private unless you make them public.'}
-      onClose={onClose}
+      onClose={close}
       footer={<>
         {editing && canDelete && (
           <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>Delete</button>
         )}
-        <button className="btn btn-ghost" type="button" onClick={onClose}>Close</button>
+        <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
         {!editing && (
           <button className="btn btn-ghost" type="button" disabled={busy} onClick={() => save(true)}>Save & log a visit</button>
         )}
         <button className="btn btn-add" type="button" disabled={busy} onClick={() => save(false)}>
-          {editing ? 'Save changes' : 'Drop on map'}
+          {editing ? 'Save changes' : 'Save place'}
         </button>
       </>}
     >
-      <form className="place-form" onSubmit={e => { e.preventDefault(); save(false); }}>
+      <form className="place-form" onSubmit={e => { e.preventDefault(); save(false); }} onChange={() => setDirty(true)}>
         <div className="field full">
           <label>Activity <span className="hint">(pick all that apply)</span></label>
           <div className="type-group">
@@ -159,7 +163,7 @@ export function PlaceModal({ target, rocks, areas, canDelete, onCoordsChange, on
         </div>
         <div className="field full">
           <label htmlFor="placeName">Name</label>
-          <input id="placeName" required autoFocus value={name}
+          <input id="placeName" required autoFocus={!isTouchLayout()} value={name}
                  placeholder={routeLike ? 'Via Raggio di sole' : 'Muro del Butch'} onChange={e => setName(e.target.value)} />
         </div>
         <div className="field full">

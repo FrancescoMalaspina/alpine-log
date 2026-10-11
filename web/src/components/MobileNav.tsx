@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { StatChips, type Stats } from './Header';
+import { StatsLine, type Stats } from './Header';
 
 export type MobileTab = 'map' | 'list';
 
@@ -21,21 +21,29 @@ export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, on
   const [sheet, setSheet] = useState<'add' | 'account' | null>(null);
   const pick = (fn: () => void) => () => { setSheet(null); fn(); };
 
+  useEffect(() => {
+    if (!sheet) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSheet(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [sheet]);
+
   return <>
     {sheet && (
       <div className="sheet-backdrop" onClick={() => setSheet(null)}>
-        <div className="sheet" role="menu" onClick={e => e.stopPropagation()}>
+        <div className="sheet" role="dialog" aria-modal="true" aria-label={sheet === 'add' ? 'Add a place' : 'Account'}
+             onClick={e => e.stopPropagation()}>
           {sheet === 'add' ? <>
             <div className="sheet-title">Add a place</div>
-            <button type="button" role="menuitem" onClick={pick(onAtMyLocation)}>◎ At my current location</button>
-            <button type="button" role="menuitem" onClick={pick(onTapOnMap)}>📍 Tap a spot on the map</button>
-            <button type="button" role="menuitem" onClick={pick(onByCoords)}>⌖ Enter coordinates</button>
+            <button type="button" autoFocus onClick={pick(onAtMyLocation)}>Here, at my current location</button>
+            <button type="button" onClick={pick(onTapOnMap)}>Tap a spot on the map</button>
+            <button type="button" onClick={pick(onByCoords)}>Type in coordinates</button>
           </> : <>
             <div className="sheet-title">
               {profile?.username}{isAdmin && <span className="admin-badge">admin</span>}
             </div>
-            <StatChips stats={stats} />
-            <button type="button" role="menuitem" onClick={pick(() => signOut())}>Sign out</button>
+            <StatsLine stats={stats} />
+            <button type="button" autoFocus onClick={pick(() => signOut())}>Sign out</button>
           </>}
           <button type="button" className="sheet-cancel" onClick={() => setSheet(null)}>Cancel</button>
         </div>
@@ -43,19 +51,28 @@ export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, on
     )}
     <nav className="mobile-nav" aria-label="Main">
       <button type="button" className={tab === 'map' ? 'active' : ''} aria-current={tab === 'map'} onClick={() => onTab('map')}>
-        <span aria-hidden="true">🗺</span>Map
+        <NavIcon d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z M9 4v14 M15 6v14" />Map
       </button>
       <button type="button" className={tab === 'list' ? 'active' : ''} aria-current={tab === 'list'} onClick={() => onTab('list')}>
-        <span aria-hidden="true">☰</span>List
+        <NavIcon d="M4 6h16 M4 12h16 M4 18h16" />List
       </button>
       {session && (
         <button type="button" className={`add${armed ? ' armed' : ''}`} onClick={() => (armed ? onTapOnMap() : setSheet('add'))}>
-          <span aria-hidden="true">{armed ? '✕' : '+'}</span>{armed ? 'Cancel' : 'Add'}
+          <span className="add-disc" aria-hidden="true">{armed ? '×' : '+'}</span>{armed ? 'Cancel' : 'Add'}
         </button>
       )}
       <button type="button" onClick={() => (session ? setSheet('account') : onSignIn())}>
-        <span aria-hidden="true">●</span>{session ? profile?.username ?? 'Me' : 'Sign in'}
+        <NavIcon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c1-4 4-6 8-6s7 2 8 6" />
+        <span className="nav-label">{session ? profile?.username ?? 'Me' : 'Sign in'}</span>
       </button>
     </nav>
   </>;
+}
+
+function NavIcon({ d }: { d: string }) {
+  return (
+    <svg className="nav-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }

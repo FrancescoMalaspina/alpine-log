@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { saveVisit } from '../lib/api';
-import { errorMessage, gradeSuggestions, isRouteLike } from '../lib/labels';
+import { errorMessage, gradeSuggestions, isRouteLike, localToday } from '../lib/labels';
 import type { Partner, Place, VisitDetail, Visibility } from '../lib/types';
 import { ErrorText, Modal } from './Modal';
 
@@ -16,12 +16,11 @@ type AscentRow = { key: number; name: string; grade: string; sectorId: string; c
 
 let nextKey = 1;
 const emptyAscent = (): AscentRow => ({ key: nextKey++, name: '', grade: '', sectorId: '', comment: '' });
-const today = () => new Date().toISOString().slice(0, 10);
 
 export function VisitModal({ place, visit, partners, onClose, onSaved }: Props) {
   const routeLike = isRouteLike(place.types);
   const hasSectors = place.sectors.length > 0;
-  const [date, setDate] = useState(visit ? visit.date ?? '' : today());
+  const [date, setDate] = useState(visit ? visit.date ?? '' : localToday());
   const [visibility, setVisibility] = useState<Visibility>(visit?.visibility ?? 'private');
   const [withPeople, setWithPeople] = useState<string[]>(visit?.partners ?? []);
   const [newPerson, setNewPerson] = useState('');
@@ -37,6 +36,10 @@ export function VisitModal({ place, visit, partners, onClose, onSaved }: Props) 
     : [emptyAscent()]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const close = () => {
+    if (!dirty || confirm('Discard this visit? What you typed will be lost.')) onClose();
+  };
 
   const knownNames = [...new Set([...partners.map(p => p.name), ...withPeople])].sort((a, b) => a.localeCompare(b));
   const togglePerson = (n: string) => setWithPeople(ws => (ws.includes(n) ? ws.filter(x => x !== n) : [...ws, n]));
@@ -85,13 +88,13 @@ export function VisitModal({ place, visit, partners, onClose, onSaved }: Props) 
         {visit ? 'Editing a visit to' : 'Log a visit to'} <b>{place.name}</b>.
         {place.types.includes('crag') && !hasSectors && ' No sectors defined for this place yet.'}
       </>}
-      onClose={onClose}
+      onClose={close}
       footer={<>
-        <button className="btn btn-ghost" type="button" onClick={onClose}>Close</button>
+        <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
         <button className="btn btn-add" type="button" disabled={busy} onClick={save}>Save visit</button>
       </>}
     >
-      <div className="visit-modal-body">
+      <div className="visit-modal-body" onChange={() => setDirty(true)}>
         <div className="visit-block">
           <div className="visit-row">
             <input type="date" className="visit-date" aria-label="Date" value={date} onChange={e => setDate(e.target.value)} />
