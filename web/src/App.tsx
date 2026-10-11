@@ -6,6 +6,7 @@ import { CoordPicker } from './components/CoordPicker';
 import { Header } from './components/Header';
 import { MapView, type MapCommand } from './components/MapView';
 import { MobileNav, type MobileTab } from './components/MobileNav';
+import { MyLog } from './components/MyLog';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
 import { Sidebar, type ListMode } from './components/Sidebar';
@@ -30,11 +31,14 @@ const NO_TRACKS = new Map<number, Track>();
 
 type Panel =
   | { kind: 'place'; placeId: number; tab: PlaceTab; visitId?: number }
-  | { kind: 'area'; areaId: number };
+  | { kind: 'area'; areaId: number }
+  | { kind: 'log' };
 
-/** The open panel lives in the URL hash (#place-12, #area-3): shareable, and Back closes it. */
-const panelHash = (p: Panel | null) => (!p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : `#area-${p.areaId}`);
+/** The open panel lives in the URL hash (#place-12, #area-3, #log): shareable, and Back closes it. */
+const panelHash = (p: Panel | null) =>
+  !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}` : '#log';
 function panelFromHash(hash: string): Panel | null {
+  if (hash === '#log') return { kind: 'log' };
   const m = hash.match(/^#(place|area)-(\d+)$/);
   if (!m) return null;
   return m[1] === 'place' ? { kind: 'place', placeId: +m[2], tab: 'info' } : { kind: 'area', areaId: +m[2] };
@@ -55,7 +59,7 @@ async function loadTracks(placeId: number): Promise<Map<number, Track>> {
 }
 
 export default function App() {
-  const { session, isAdmin, recovering } = useAuth();
+  const { session, profile, isAdmin, recovering } = useAuth();
   const userId = session?.user.id ?? null;
   const isMobile = useMediaQuery(MOBILE_QUERY);
 
@@ -270,6 +274,7 @@ export default function App() {
         onToggleArmed={() => { closePicker(); setArmed(a => !a); }}
         onAddByCoords={() => { setArmed(false); closePlaceModal(); setPickerOpen(true); }}
         onSignIn={() => setAuthOpen(true)}
+        onOpenLog={() => setPanel({ kind: 'log' })}
       />
 
       <div className={`stage${isMobile ? ` mobile show-${mobileTab}` : ''}`}>
@@ -361,6 +366,19 @@ export default function App() {
           />
         )}
 
+        {panel?.kind === 'log' && userId && (
+          <MyLog
+            userId={userId}
+            username={profile?.username ?? 'Your'}
+            reloadKey={reloadKey}
+            onClose={() => setPanel(null)}
+            onOpenVisit={v => {
+              const place = placeById.get(v.place_id);
+              if (place) openPlace(place, 'visits', v.id);
+            }}
+          />
+        )}
+
         {panel?.kind === 'area' && panelArea && (
           <AreaView
             key={`area-panel-${panelArea.id}`}
@@ -390,6 +408,7 @@ export default function App() {
           onByCoords={() => { setArmed(false); setPanel(null); setMobileTab('map'); setPickerOpen(true); }}
           onAtMyLocation={addAtMyLocation}
           onSignIn={() => setAuthOpen(true)}
+          onOpenLog={() => setPanel({ kind: 'log' })}
         />
       )}
 

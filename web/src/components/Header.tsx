@@ -8,20 +8,26 @@ type Props = {
   onToggleArmed: () => void;
   onAddByCoords: () => void;
   onSignIn: () => void;
+  onOpenLog: () => void;
 };
 
-/** The red-white-red trail blaze painted on rocks along every Alpine path. */
-export function Blaze() {
-  return <span className="blaze" aria-hidden="true"><i /><i /><i /></span>;
+/** Two peaks, the higher one snow-capped. */
+export function Logo() {
+  return (
+    <svg className="logo" viewBox="0 0 32 24" aria-hidden="true">
+      <path d="M1 23 11 8l4.5 6.5L21 5l10 18z" fill="currentColor" />
+      <path d="M21 5l-3.2 5.6 1.9-1.1 1.5 1.6 1.7-1.5 1.4.9z" fill="#fff" />
+    </svg>
+  );
 }
 
-export function Header({ isMobile, armed, onToggleArmed, onAddByCoords, onSignIn }: Props) {
+export function Header({ isMobile, armed, onToggleArmed, onAddByCoords, onSignIn, onOpenLog }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
 
   return (
     <header className="app-header">
       <div className="brand">
-        <Blaze />
+        <Logo />
         <h1 translate="no">Alpine Log</h1>
       </div>
 
@@ -34,10 +40,11 @@ export function Header({ isMobile, armed, onToggleArmed, onAddByCoords, onSignIn
             {armed ? 'Cancel' : 'Add a place'}
           </button>
           <div className="account">
-            <span className="account-name">
-              {profile?.username ?? '…'}
+            <button type="button" className="account-name" onClick={onOpenLog} title="Your visits and totals">
+              My logbook
               {isAdmin && <span className="admin-badge">admin</span>}
-            </span>
+            </button>
+            <span className="account-user">{profile?.username ?? '…'}</span>
             <button className="link-btn" type="button" onClick={() => signOut()}>Sign out</button>
           </div>
         </div>

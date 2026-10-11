@@ -11,7 +11,7 @@ type Props = {
 
 /**
  * Side panel for a place or area. Its header is drawn as an Alpine trail
- * signpost: a white plate with a pointed end and the red-white-red blaze.
+ * signpost: a white plate with a pointed end and a red edge.
  * Docked right of the map on desktop, full-screen on phones.
  */
 export function Drawer({ title, meta, onClose, footer, children }: Props) {
@@ -19,7 +19,7 @@ export function Drawer({ title, meta, onClose, footer, children }: Props) {
     <section className="drawer" role="dialog" aria-labelledby="drawerTitle">
       <div className="drawer-head">
         <div className="signpost">
-          <span className="signpost-blaze" aria-hidden="true"><i /><i /><i /></span>
+          <span className="signpost-edge" aria-hidden="true" />
           <h2 id="drawerTitle" className="signpost-name">{title}</h2>
         </div>
         <button type="button" className="icon-btn drawer-close" aria-label="Close panel" onClick={onClose}>×</button>

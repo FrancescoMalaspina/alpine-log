@@ -191,7 +191,7 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
   );
 }
 
-function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; mine: boolean; onClick: () => void }) {
+export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; mine: boolean; onClick: () => void }) {
   const facts = [
     v.partner_names.length ? `with ${v.partner_names.join(', ')}` : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,

@@ -13,10 +13,11 @@ type Props = {
   onByCoords: () => void;
   onAtMyLocation: () => void;
   onSignIn: () => void;
+  onOpenLog: () => void;
 };
 
 /** Bottom tab bar for phones: map, list, add, account. */
-export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, onAtMyLocation, onSignIn }: Props) {
+export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, onAtMyLocation, onSignIn, onOpenLog }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
   const [sheet, setSheet] = useState<'add' | 'account' | null>(null);
   const pick = (fn: () => void) => () => { setSheet(null); fn(); };
@@ -43,7 +44,8 @@ export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, on
               {profile?.username}{isAdmin && <span className="admin-badge">admin</span>}
             </div>
             <StatsLine stats={stats} />
-            <button type="button" autoFocus onClick={pick(() => signOut())}>Sign out</button>
+            <button type="button" autoFocus onClick={pick(onOpenLog)}>My logbook</button>
+            <button type="button" onClick={pick(() => signOut())}>Sign out</button>
           </>}
           <button type="button" className="sheet-cancel" onClick={() => setSheet(null)}>Cancel</button>
         </div>
