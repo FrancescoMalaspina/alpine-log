@@ -1,0 +1,72 @@
+# Builds web/ and publishes it to GitHub Pages:
+# https://francescomalaspina.github.io/alpine-log/
+#
+# One-time setup in the repository settings:
+#   Settings → Pages → Source: GitHub Actions
+#   Settings → Secrets and variables → Actions → Variables:
+#     VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY (public values, same as web/.env)
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Check Supabase settings
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Add VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY under Settings → Secrets and variables → Actions → Variables."
+            exit 1
+          fi
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          VITE_BASE: /${{ github.event.repository.name }}/
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+        run: npm run build
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

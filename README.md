@@ -123,3 +123,23 @@ After changing the schema, regenerate the TypeScript types with
 sortable number. The visits filter "hardest route ≥" uses it. Its French half
 is mirrored in `web/src/lib/grades.ts`; keep the two in sync
 (`supabase/tests/grades.test.sql`).
+
+## Publishing (GitHub Pages)
+
+The site is published at **https://francescomalaspina.github.io/alpine-log/**
+by `.github/workflows/deploy.yml` on every push to `main` that touches `web/`
+(or by hand from the Actions tab).
+
+One-time setup in the GitHub repository:
+
+1. **Actions** tab: enable workflows (GitHub disables them on forks).
+2. **Settings → Pages → Build and deployment → Source**: *GitHub Actions*.
+3. **Settings → Secrets and variables → Actions → Variables**: add
+   `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, with the same
+   values as `web/.env`. They're public, so variables rather than secrets.
+4. In Supabase → Authentication → URL Configuration, set the *Site URL* to
+   `https://francescomalaspina.github.io/alpine-log/` and add it to
+   *Redirect URLs*, so confirmation and reset emails open the live site.
+
+`.github/workflows/keep-supabase-awake.yml` reads one row twice a week, so the
+free Supabase project doesn't pause after a week without visitors.
