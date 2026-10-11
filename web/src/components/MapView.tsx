@@ -212,6 +212,12 @@ export function MapView(props: Props) {
           eventHandlers={{
             click: e => {
               L.DomEvent.stopPropagation(e);
+              // While a form is picking a point, a pin is just a spot on the map.
+              if (props.armed) {
+                e.target.closePopup();
+                props.onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng });
+                return;
+              }
               props.onPinClick(p);
             },
           }}

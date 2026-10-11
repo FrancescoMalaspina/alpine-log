@@ -70,6 +70,10 @@ export async function savePlace(input: PlaceInput): Promise<number> {
   return unwrap(await supabase.rpc('save_place', { p: input }));
 }
 
+export async function fetchSectors(placeId: number): Promise<{ id: number; name: string }[]> {
+  return unwrap(await supabase.from('sectors').select('id, name').eq('place_id', placeId));
+}
+
 export async function deletePlace(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('places').delete().eq('id', id).select('id'));
   if (!rows.length) {

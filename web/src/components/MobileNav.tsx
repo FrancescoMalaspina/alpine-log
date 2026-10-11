@@ -8,16 +8,14 @@ type Props = {
   tab: MobileTab;
   onTab: (tab: MobileTab) => void;
   stats: Stats;
-  armed: boolean;
-  onTapOnMap: () => void;
-  onByCoords: () => void;
-  onAtMyLocation: () => void;
+  onAddPlace: () => void;
+  onLogVisit: () => void;
   onSignIn: () => void;
   onOpenLog: () => void;
 };
 
 /** Bottom tab bar for phones: map, list, add, account. */
-export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, onAtMyLocation, onSignIn, onOpenLog }: Props) {
+export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn, onOpenLog }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
   const [sheet, setSheet] = useState<'add' | 'account' | null>(null);
   const pick = (fn: () => void) => () => { setSheet(null); fn(); };
@@ -32,13 +30,12 @@ export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, on
   return <>
     {sheet && (
       <div className="sheet-backdrop" onClick={() => setSheet(null)}>
-        <div className="sheet" role="dialog" aria-modal="true" aria-label={sheet === 'add' ? 'Add a place' : 'Account'}
+        <div className="sheet" role="dialog" aria-modal="true" aria-label={sheet === 'add' ? 'Add' : 'Account'}
              onClick={e => e.stopPropagation()}>
           {sheet === 'add' ? <>
-            <div className="sheet-title">Add a place</div>
-            <button type="button" autoFocus onClick={pick(onAtMyLocation)}>Here, at my current location</button>
-            <button type="button" onClick={pick(onTapOnMap)}>Tap a spot on the map</button>
-            <button type="button" onClick={pick(onByCoords)}>Type in coordinates</button>
+            <div className="sheet-title">Add</div>
+            <button type="button" className="sheet-primary" autoFocus onClick={pick(onLogVisit)}>Log a visit</button>
+            <button type="button" onClick={pick(onAddPlace)}>Add a place</button>
           </> : <>
             <div className="sheet-title">
               {profile?.username}{isAdmin && <span className="admin-badge">admin</span>}
@@ -59,8 +56,8 @@ export function MobileNav({ tab, onTab, stats, armed, onTapOnMap, onByCoords, on
         <NavIcon d="M4 6h16 M4 12h16 M4 18h16" />List
       </button>
       {session && (
-        <button type="button" className={`add${armed ? ' armed' : ''}`} onClick={() => (armed ? onTapOnMap() : setSheet('add'))}>
-          <span className="add-disc" aria-hidden="true">{armed ? '×' : '+'}</span>{armed ? 'Cancel' : 'Add'}
+        <button type="button" className="add" onClick={() => setSheet('add')}>
+          <span className="add-disc" aria-hidden="true">+</span>Add
         </button>
       )}
       <button type="button" onClick={() => (session ? setSheet('account') : onSignIn())}>

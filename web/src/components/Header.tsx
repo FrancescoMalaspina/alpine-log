@@ -4,9 +4,8 @@ export type Stats = { places: number; areas: number; visits: number };
 
 type Props = {
   isMobile: boolean;
-  armed: boolean;
-  onToggleArmed: () => void;
-  onAddByCoords: () => void;
+  onAddPlace: () => void;
+  onLogVisit: () => void;
   onSignIn: () => void;
   onOpenLog: () => void;
 };
@@ -21,7 +20,7 @@ export function Logo() {
   );
 }
 
-export function Header({ isMobile, armed, onToggleArmed, onAddByCoords, onSignIn, onOpenLog }: Props) {
+export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
 
   return (
@@ -31,14 +30,10 @@ export function Header({ isMobile, armed, onToggleArmed, onAddByCoords, onSignIn
         <h1 translate="no">Alpine Log</h1>
       </div>
 
-      {isMobile ? (
-        armed && <span className="header-hint" role="status">Tap the map to drop a pin</span>
-      ) : session ? (
+      {isMobile ? null : session ? (
         <div className="header-actions">
-          <button className="btn btn-quiet" type="button" onClick={onAddByCoords}>Add by coordinates</button>
-          <button className={`btn btn-primary${armed ? ' armed' : ''}`} type="button" onClick={onToggleArmed}>
-            {armed ? 'Cancel' : 'Add a place'}
-          </button>
+          <button className="btn btn-ghost" type="button" onClick={onAddPlace}>Add a place</button>
+          <button className="btn btn-primary" type="button" onClick={onLogVisit}>Log a visit</button>
           <div className="account">
             <button type="button" className="account-name" onClick={onOpenLog} title="Your visits and totals">
               My logbook

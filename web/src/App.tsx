@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth/useAuth';
 import { AreaView } from './components/AreaView';
 import { AuthModal, NewPasswordModal } from './components/AuthModal';
-import { CoordPicker } from './components/CoordPicker';
 import { Header } from './components/Header';
 import { MapView, type MapCommand } from './components/MapView';
 import { MobileNav, type MobileTab } from './components/MobileNav';
@@ -16,7 +15,7 @@ import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 import {
   attachmentUrl, fetchAreas, fetchAttachments, fetchMyPartners, fetchPlaces, fetchRocks, fetchVisits,
 } from './lib/api';
-import { currentPosition, type LatLng } from './lib/coords';
+import type { LatLng } from './lib/coords';
 import { parseGpx, type Track } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
@@ -150,10 +149,9 @@ export default function App() {
 
   // ---- map, panels & dialogs -------------------------------------------
   const [mobileTab, setMobileTab] = useState<MobileTab>('map');
-  const [armedState, setArmed] = useState(false);
-  const armed = armedState && !!userId;
-  const [pickerOpen, setPickerOpen] = useState(false);
   const [tempPin, setTempPin] = useState<LatLng | null>(null);
+  // While set, the open form is hidden and the next map click answers it.
+  const [picking, setPicking] = useState<{ label: string; apply: (at: LatLng) => void } | null>(null);
   const [focusedId, setFocusedId] = useState<number | null>(() => {
     const p = panelFromHash(window.location.hash);
     return p?.kind === 'place' ? p.placeId : null;
@@ -180,8 +178,8 @@ export default function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
-  const [placeModal, setPlaceModal] = useState<{ place: Place } | { at: LatLng } | null>(null);
-  const [visitModal, setVisitModal] = useState<{ placeId: number; visit?: VisitDetail } | null>(null);
+  const [placeModal, setPlaceModal] = useState<{ place?: Place } | null>(null);
+  const [visitModal, setVisitModal] = useState<{ placeId?: number; visit?: VisitDetail } | null>(null);
 
   // GPX tracks of the focused place, drawn on the map and summarised in its panel.
   const [tracks, setTracks] = useState<{ placeId: number; byId: Map<number, Track> } | null>(null);
@@ -229,39 +227,41 @@ export default function App() {
     if (!isMobile) showAreaOnMap(areaId);
   }, [isMobile, showAreaOnMap]);
 
-  const closePlaceModal = () => {
+  const closeForms = () => {
     setPlaceModal(null);
+    setVisitModal(null);
+    setPicking(null);
     setTempPin(null);
   };
-  const closePicker = () => {
-    setPickerOpen(false);
-    setTempPin(null);
-  };
+  const requireSignIn = (fn: () => void) => () => (userId ? fn() : setAuthOpen(true));
+  const openAddPlace = requireSignIn(() => setPlaceModal({}));
+  const openLogVisit = requireSignIn(() => setVisitModal({}));
   const openAddVisit = (place: Place) => {
     if (!userId) return setAuthOpen(true);
     setVisitModal({ placeId: place.id });
   };
-  const addAtMyLocation = async () => {
-    try {
-      setPlaceModal({ at: await currentPosition() });
-    } catch (e) {
-      setNotice(errorMessage(e));
-    }
+  const pickOnMap = useCallback((label: string, apply: (at: LatLng) => void) => {
+    setPicking({ label, apply });
+    if (isMobile) setMobileTab('map');
+  }, [isMobile]);
+  /** After a save, show the result: the place's panel, on its visits if one was logged. */
+  const showSaved = (placeId: number, visitLogged: boolean) => {
+    closeForms();
+    reload();
+    setFocusedId(placeId);
+    setPanel({ kind: 'place', placeId, tab: visitLogged ? 'visits' : 'info' });
+    setNotice(visitLogged ? 'Visit saved' : 'Place saved');
   };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      setArmed(false);
-      setPickerOpen(false);
+      if (picking) return setPicking(null);
       if (!placeModal && !visitModal) setPanel(null);
-      if (!placeModal) setTempPin(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [placeModal, visitModal]);
-
-  const visitModalPlace = visitModal && placeById.get(visitModal.placeId);
+  }, [placeModal, visitModal, picking]);
   const panelPlace = panel?.kind === 'place' ? placeById.get(panel.placeId) : undefined;
   const panelArea = panel?.kind === 'area' ? areas.find(a => a.id === panel.areaId) : undefined;
   const focusedPlace = focusedId != null ? placeById.get(focusedId) ?? null : null;
@@ -270,9 +270,8 @@ export default function App() {
     <>
       <Header
         isMobile={isMobile}
-        armed={armed}
-        onToggleArmed={() => { closePicker(); setArmed(a => !a); }}
-        onAddByCoords={() => { setArmed(false); closePlaceModal(); setPickerOpen(true); }}
+        onAddPlace={openAddPlace}
+        onLogVisit={openLogVisit}
         onSignIn={() => setAuthOpen(true)}
         onOpenLog={() => setPanel({ kind: 'log' })}
       />
@@ -312,15 +311,15 @@ export default function App() {
           focusedPlace={focusedPlace}
           tracks={trackList}
           tempPin={tempPin}
-          armed={armed}
+          armed={!!picking}
           command={command}
           visibleKey={`${isMobile}-${mobileTab}-${!!panel}`}
           insetRight={panel && !isMobile ? 460 : 0}
           signedIn={!!userId}
           onMapClick={at => {
-            if (armed) {
-              setArmed(false);
-              setPlaceModal({ at });
+            if (picking) {
+              picking.apply(at);
+              setPicking(null);
             } else if (panel?.kind !== 'place') {
               setFocusedId(null);
             }
@@ -331,17 +330,6 @@ export default function App() {
           onAddVisit={openAddVisit}
           onCenterChange={c => { mapCenter.current = c; }}
         />
-
-        {pickerOpen && userId && (
-          <CoordPicker
-            onPreview={at => {
-              setTempPin(at);
-              if (at) setCommand({ kind: 'fly', at, nonce: Date.now() });
-            }}
-            onNext={at => { setPickerOpen(false); setPlaceModal({ at }); }}
-            onClose={closePicker}
-          />
-        )}
 
         {panel?.kind === 'place' && panelPlace && (
           <PlaceView
@@ -403,46 +391,52 @@ export default function App() {
           tab={mobileTab}
           onTab={t => { setMobileTab(t); setPanel(null); }}
           stats={stats}
-          armed={armed}
-          onTapOnMap={() => { closePicker(); setPanel(null); setMobileTab('map'); setArmed(a => !a); }}
-          onByCoords={() => { setArmed(false); setPanel(null); setMobileTab('map'); setPickerOpen(true); }}
-          onAtMyLocation={addAtMyLocation}
+          onAddPlace={openAddPlace}
+          onLogVisit={openLogVisit}
           onSignIn={() => setAuthOpen(true)}
           onOpenLog={() => setPanel({ kind: 'log' })}
         />
       )}
 
-      {armed && !isMobile && (
-        <div className="toast show" role="status">Click the map where the place is. Press <kbd>Esc</kbd> to cancel.</div>
+      {picking && (
+        <div className="toast show picking" role="status">
+          <span>{isMobile ? 'Tap' : 'Click'} the map to set {picking.label}.</span>
+          <button type="button" className="link-btn invert" onClick={() => setPicking(null)}>Cancel</button>
+        </div>
       )}
       {notice && <div className="toast show notice" role="status">{notice}</div>}
 
       {placeModal && userId && (
         <PlaceModal
-          key={`place-${'place' in placeModal ? placeModal.place.id : 'new'}`}
-          target={placeModal}
+          key={`place-${placeModal.place?.id ?? 'new'}`}
+          place={placeModal.place}
           rocks={rocks}
           areas={areas}
-          canDelete={'place' in placeModal && canEdit(placeModal.place)}
+          partners={partners}
+          canDelete={!!placeModal.place && canEdit(placeModal.place)}
+          hidden={!!picking}
+          onPickOnMap={pickOnMap}
           onCoordsChange={setTempPin}
-          onClose={closePlaceModal}
-          onSaved={(id, thenAddVisit) => {
-            closePlaceModal();
-            reload();
-            if (thenAddVisit) setVisitModal({ placeId: id });
-          }}
-          onDeleted={() => { closePlaceModal(); setPanel(null); setFocusedId(null); reload(); }}
+          onClose={closeForms}
+          onSaved={showSaved}
+          onDeleted={() => { closeForms(); setPanel(null); setFocusedId(null); reload(); }}
         />
       )}
 
-      {visitModal && visitModalPlace && userId && (
+      {visitModal && userId && (
         <VisitModal
-          key={`visit-${visitModal.visit?.id ?? 'new'}`}
-          place={visitModalPlace}
+          key={`visit-${visitModal.visit?.id ?? 'new'}-${visitModal.placeId ?? ''}`}
+          placeId={visitModal.placeId}
           visit={visitModal.visit}
+          places={catalog}
+          areas={areas}
+          rocks={rocks}
           partners={partners}
-          onClose={() => setVisitModal(null)}
-          onSaved={() => { setVisitModal(null); reload(); }}
+          hidden={!!picking}
+          onPickOnMap={pickOnMap}
+          onCoordsChange={setTempPin}
+          onClose={closeForms}
+          onSaved={placeId => showSaved(placeId, true)}
         />
       )}
 

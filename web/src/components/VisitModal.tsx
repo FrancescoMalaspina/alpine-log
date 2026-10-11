@@ -1,80 +1,92 @@
-import { useState } from 'react';
-import { saveVisit } from '../lib/api';
-import { errorMessage, gradeSuggestions, isRouteLike, localToday } from '../lib/labels';
-import type { Partner, Place, VisitDetail, Visibility } from '../lib/types';
+import { useEffect, useMemo, useState } from 'react';
+import { savePlace } from '../lib/api';
+import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
+import { errorMessage, typesLabel } from '../lib/labels';
+import type { Area, Partner, Place, VisitDetail } from '../lib/types';
+import { PlaceFields } from './forms/PlaceFields';
+import { COORD_LABELS, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
+import { newSectorOptions, saveVisitAt } from './forms/save';
+import { VisitFields } from './forms/VisitFields';
+import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
+import type { PickOnMap } from './PlaceModal';
 
 type Props = {
-  place: Place;
+  /** Place to preselect (e.g. "Add visit" from a place); omitted from the header button. */
+  placeId?: number;
+  /** The visit to edit; its place can't be changed. */
   visit?: VisitDetail;
+  places: Place[];
+  areas: Area[];
+  rocks: string[];
   partners: Partner[];
+  hidden: boolean;
+  onPickOnMap: PickOnMap;
+  onCoordsChange: (at: LatLng | null) => void;
   onClose: () => void;
-  onSaved: (visitId: number) => void;
+  onSaved: (placeId: number, visitId: number) => void;
 };
 
-type AscentRow = { key: number; name: string; grade: string; sectorId: string; comment: string };
+const NEW = 'new';
 
-let nextKey = 1;
-const emptyAscent = (): AscentRow => ({ key: nextKey++, name: '', grade: '', sectorId: '', comment: '' });
-
-export function VisitModal({ place, visit, partners, onClose, onSaved }: Props) {
-  const routeLike = isRouteLike(place.types);
-  const hasSectors = place.sectors.length > 0;
-  const [date, setDate] = useState(visit ? visit.date ?? '' : localToday());
-  const [visibility, setVisibility] = useState<Visibility>(visit?.visibility ?? 'private');
-  const [withPeople, setWithPeople] = useState<string[]>(visit?.partners ?? []);
-  const [newPerson, setNewPerson] = useState('');
-  const [summary, setSummary] = useState(visit?.summary ?? '');
-  const [approach, setApproach] = useState(visit?.approach ?? '');
-  const [descent, setDescent] = useState(visit?.descent ?? '');
-  const [conditions, setConditions] = useState(visit?.conditions ?? '');
-  const [duration, setDuration] = useState(visit?.duration_hours?.toString() ?? '');
-  const [ascents, setAscents] = useState<AscentRow[]>(() => visit?.ascents.length
-    ? visit.ascents.map(a => ({
-      key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', sectorId: a.sector ? String(a.sector.id) : '', comment: a.comment ?? '',
-    }))
-    : [emptyAscent()]);
+/** Log a visit at an existing place, or at a new place created in the same save. */
+export function VisitModal({ placeId, visit, places, areas, rocks, partners, hidden, onPickOnMap, onCoordsChange, onClose, onSaved }: Props) {
+  const [choice, setChoice] = useState<string>(visit ? String(visit.place_id) : placeId ? String(placeId) : '');
+  const [newPlace, setNewPlace] = useState<PlaceValues>(() => placeValuesFrom());
+  // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.
+  const [savedPlaceId, setSavedPlaceId] = useState<number | undefined>();
+  const [values, setValues] = useState<VisitValues>(() => visitValuesFrom(visit));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  const isNew = choice === NEW;
+  const place = isNew ? undefined : places.find(p => String(p.id) === choice);
+  const types = isNew ? newPlace.types : place?.types ?? [];
+  const sectors = isNew
+    ? newSectorOptions(newPlace.sectors.map(s => s.name))
+    : (place?.sectors ?? []).map(s => ({ key: String(s.id), label: s.name }));
+
+  const change = (patch: Partial<VisitValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
+  const changePlace = (patch: Partial<PlaceValues>) => { setNewPlace(v => ({ ...v, ...patch })); setDirty(true); };
   const close = () => {
     if (!dirty || confirm('Discard this visit? What you typed will be lost.')) onClose();
   };
 
-  const knownNames = [...new Set([...partners.map(p => p.name), ...withPeople])].sort((a, b) => a.localeCompare(b));
-  const togglePerson = (n: string) => setWithPeople(ws => (ws.includes(n) ? ws.filter(x => x !== n) : [...ws, n]));
-  const addPerson = () => {
-    const n = newPerson.trim();
-    if (n && !withPeople.includes(n)) setWithPeople(ws => [...ws, n]);
-    setNewPerson('');
-  };
-  const updateAscent = (key: number, patch: Partial<AscentRow>) =>
-    setAscents(as => as.map(a => (a.key === key ? { ...a, ...patch } : a)));
+  useEffect(() => {
+    onCoordsChange(isNew ? parseCoordinates(newPlace.coords) : null);
+  }, [isNew, newPlace.coords, onCoordsChange]);
+
+  const pick = (field: CoordField) =>
+    onPickOnMap(COORD_LABELS[field], at => changePlace({ [field]: formatCoords(at.lat, at.lng) }));
+
+  // Places grouped by area for the picker; places without an area last.
+  const groups = useMemo(() => {
+    const byArea = new Map<string, Place[]>();
+    for (const p of places) {
+      const key = p.area?.name ?? '';
+      byArea.set(key, [...(byArea.get(key) ?? []), p]);
+    }
+    return [...byArea.entries()].sort(([a], [b]) => (!a ? 1 : !b ? -1 : a.localeCompare(b)));
+  }, [places]);
 
   async function save() {
     setError(null);
-    const filled = ascents.filter(a => a.name.trim() || a.grade.trim() || a.comment.trim() || a.sectorId);
-    if (!date && !summary.trim() && !withPeople.length && !filled.length) {
-      return setError('Fill in at least a date, who you were with, or a route first.');
-    }
+    if (!choice) return setError('Choose where you went, or pick "New place".');
+    const placeInput = isNew ? buildPlaceInput(newPlace, savedPlaceId) : null;
+    if (typeof placeInput === 'string') return setError(`The new place: ${placeInput}`);
+    const problem = visitProblem(values);
+    if (problem) return setError(problem);
+
     setBusy(true);
     try {
-      const id = await saveVisit({
-        id: visit?.id,
-        place_id: place.id,
-        date: date || null,
-        summary,
-        approach: routeLike ? approach : '',
-        descent: routeLike ? descent : '',
-        conditions: routeLike ? conditions : '',
-        duration_hours: routeLike && duration.trim() ? Number(duration) : null,
-        visibility,
-        partners: withPeople,
-        ascents: filled.map(a => ({
-          name: a.name, grade: a.grade, comment: a.comment, sector_id: a.sectorId ? +a.sectorId : null,
-        })),
-      });
-      onSaved(id);
+      let id = place?.id;
+      if (placeInput) {
+        id = await savePlace(placeInput);
+        setSavedPlaceId(id);
+      }
+      const visitId = await saveVisitAt(id!, values, types, visit?.id);
+      onSaved(id!, visitId);
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -83,103 +95,48 @@ export function VisitModal({ place, visit, partners, onClose, onSaved }: Props) 
 
   return (
     <Modal
-      title={visit ? 'Edit visit' : 'Add a visit'}
-      subtitle={<>
-        {visit ? 'Editing a visit to' : 'Log a visit to'} <b>{place.name}</b>.
-        {place.types.includes('crag') && !hasSectors && ' No sectors defined for this place yet.'}
-      </>}
+      title={visit ? 'Edit visit' : 'Log a visit'}
+      subtitle={visit && place ? <>At <b>{place.name}</b>.</> : 'Where you went, who with, and what you climbed or skied.'}
       onClose={close}
+      hidden={hidden}
       footer={<>
         <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
-        <button className="btn btn-add" type="button" disabled={busy} onClick={save}>Save visit</button>
+        <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
+          {isNew ? 'Save place and visit' : 'Save visit'}
+        </button>
       </>}
     >
-      <div className="visit-modal-body" onChange={() => setDirty(true)}>
-        <div className="visit-block">
-          <div className="visit-row">
-            <input type="date" className="visit-date" aria-label="Date" value={date} onChange={e => setDate(e.target.value)} />
-            <div className="segmented" role="radiogroup" aria-label="Who can see this visit">
-              {(['private', 'public'] as const).map(v => (
-                <button key={v} type="button" role="radio" aria-checked={visibility === v}
-                        className={visibility === v ? 'active' : ''} onClick={() => setVisibility(v)}>
-                  {v === 'private' ? 'Private' : 'Public'}
-                </button>
+      <div className="visit-modal-body">
+        {!visit && (
+          <div className="field">
+            <label htmlFor="visitPlace">Where</label>
+            <select id="visitPlace" value={choice} onChange={e => { setChoice(e.target.value); setDirty(true); }}>
+              <option value="" disabled>Choose a place…</option>
+              <option value={NEW}>New place…</option>
+              {groups.map(([area, list]) => (
+                <optgroup key={area || 'none'} label={area || 'Not in an area'}>
+                  {list.map(p => <option key={p.id} value={p.id}>{p.name} ({typesLabel(p.types)})</option>)}
+                </optgroup>
               ))}
-            </div>
+            </select>
           </div>
-          <div className="hint-block">
-            {visibility === 'private'
-              ? 'Only you (and admins) can see this visit.'
-              : 'Anyone, even without an account, can see this visit and the names of who you climbed with.'}
-          </div>
-
-          <div className="visit-with-group">
-            <span className="filter-label">Climbed with</span>
-            <div className="person-chip-list">
-              {knownNames.map(n => (
-                <label key={n} className="person-chip">
-                  <input type="checkbox" checked={withPeople.includes(n)} onChange={() => togglePerson(n)} />{n}
-                </label>
-              ))}
-            </div>
-            <div className="add-person-row">
-              <input type="text" placeholder="+ add someone new" value={newPerson}
-                     onChange={e => setNewPerson(e.target.value)}
-                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPerson(); } }} />
-              <button type="button" onClick={addPerson}>Add</button>
-            </div>
-          </div>
-
-          <textarea className="visit-summary" placeholder="Summary of the visit (optional)" value={summary}
-                    onChange={e => setSummary(e.target.value)} />
-          {routeLike && (
-            <div className="visit-row">
-              <input type="text" className="visit-conditions" placeholder="Conditions — snow, ice, weather (optional)"
-                     aria-label="Conditions" value={conditions} onChange={e => setConditions(e.target.value)} />
-              <label className="duration-field">
-                <input type="number" inputMode="decimal" min={0.5} max={999} step={0.5} placeholder="h"
-                       aria-label="Duration in hours" value={duration} onChange={e => setDuration(e.target.value)} />
-                <span>hours</span>
-              </label>
-            </div>
-          )}
-          {routeLike && (
-            <div className="visit-approach">
-              <textarea placeholder="Avvicinamento — how to reach the start (optional)" value={approach}
-                        onChange={e => setApproach(e.target.value)} />
-              <textarea placeholder="Discesa — how to get down (optional)" value={descent}
-                        onChange={e => setDescent(e.target.value)} />
-            </div>
-          )}
-
-          <div className="routes-list">
-            {ascents.map(a => (
-              <div key={a.key} className="route-row">
-                <input type="text" className="route-name" placeholder="Route name" value={a.name}
-                       onChange={e => updateAscent(a.key, { name: e.target.value })} />
-                <input type="text" className="route-grade mono" placeholder="Grade" value={a.grade} list="visitGradeOptions"
-                       onChange={e => updateAscent(a.key, { grade: e.target.value })} />
-                {hasSectors && (
-                  <select className="route-sector" value={a.sectorId} aria-label="Sector"
-                          onChange={e => updateAscent(a.key, { sectorId: e.target.value })}>
-                    <option value="">— sector —</option>
-                    {place.sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                )}
-                <input type="text" className="route-comment" placeholder="Comment" value={a.comment}
-                       onChange={e => updateAscent(a.key, { comment: e.target.value })} />
-                <button type="button" aria-label="Remove route"
-                        onClick={() => setAscents(as => as.filter(x => x.key !== a.key))}>×</button>
-              </div>
-            ))}
-          </div>
-          <datalist id="visitGradeOptions">{gradeSuggestions(place.types).map(g => <option key={g} value={g} />)}</datalist>
-          <button type="button" className="btn-add-route" onClick={() => setAscents(as => [...as, emptyAscent()])}>
-            + Add route
-          </button>
-        </div>
-        <ErrorText error={error} />
+        )}
       </div>
+
+      {isNew && (
+        <div className="form-section nested">
+          <h3 className="section-title">The new place</h3>
+          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} rocks={rocks} onPickOnMap={pick} />
+        </div>
+      )}
+
+      {(place || isNew) && (
+        <div className="visit-modal-body">
+          {isNew && <h3 className="section-title">The visit</h3>}
+          <VisitFields values={values} onChange={change} partners={partners} types={types} sectors={sectors} />
+        </div>
+      )}
+      <div className="form-error-row"><ErrorText error={error} /></div>
     </Modal>
   );
 }
