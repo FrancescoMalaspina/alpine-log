@@ -1,0 +1,637 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  public: {
+    Tables: {
+      areas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: number
+          lat: number | null
+          lng: number | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: never
+          lat?: number | null
+          lng?: number | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: never
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "areas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ascents: {
+        Row: {
+          comment: string | null
+          grade: string | null
+          grade_rank: number | null
+          id: number
+          name: string | null
+          position: number
+          sector_id: number | null
+          visit_id: number
+        }
+        Insert: {
+          comment?: string | null
+          grade?: string | null
+          grade_rank?: number | null
+          id?: never
+          name?: string | null
+          position?: number
+          sector_id?: number | null
+          visit_id: number
+        }
+        Update: {
+          comment?: string | null
+          grade?: string | null
+          grade_rank?: number | null
+          id?: never
+          name?: string | null
+          position?: number
+          sector_id?: number | null
+          visit_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ascents_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ascents_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ascents_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attachments: {
+        Row: {
+          area_id: number | null
+          created_at: string
+          created_by: string
+          id: number
+          kind: string
+          place_id: number | null
+          size_bytes: number | null
+          storage_path: string | null
+          title: string | null
+          url: string | null
+        }
+        Insert: {
+          area_id?: number | null
+          created_at?: string
+          created_by?: string
+          id?: never
+          kind: string
+          place_id?: number | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          title?: string | null
+          url?: string | null
+        }
+        Update: {
+          area_id?: number | null
+          created_at?: string
+          created_by?: string
+          id?: never
+          kind?: string
+          place_id?: number | null
+          size_bytes?: number | null
+          storage_path?: string | null
+          title?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partners: {
+        Row: {
+          id: number
+          linked_user_id: string | null
+          name: string
+          owner_id: string
+        }
+        Insert: {
+          id?: never
+          linked_user_id?: string | null
+          name: string
+          owner_id?: string
+        }
+        Update: {
+          id?: never
+          linked_user_id?: string | null
+          name?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partners_linked_user_id_fkey"
+            columns: ["linked_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partners_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      places: {
+        Row: {
+          area_id: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          elevation_gain: number | null
+          exposition: string[]
+          grade: string | null
+          id: number
+          lat: number
+          lng: number
+          location: unknown
+          max_altitude: number | null
+          name: string
+          parking_lat: number | null
+          parking_lng: number | null
+          rock: string | null
+          start_lat: number | null
+          start_lng: number | null
+          types: string[]
+          updated_at: string
+        }
+        Insert: {
+          area_id?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          elevation_gain?: number | null
+          exposition?: string[]
+          grade?: string | null
+          id?: never
+          lat: number
+          lng: number
+          location?: unknown
+          max_altitude?: number | null
+          name: string
+          parking_lat?: number | null
+          parking_lng?: number | null
+          rock?: string | null
+          start_lat?: number | null
+          start_lng?: number | null
+          types?: string[]
+          updated_at?: string
+        }
+        Update: {
+          area_id?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          elevation_gain?: number | null
+          exposition?: string[]
+          grade?: string | null
+          id?: never
+          lat?: number
+          lng?: number
+          location?: unknown
+          max_altitude?: number | null
+          name?: string
+          parking_lat?: number | null
+          parking_lng?: number | null
+          rock?: string | null
+          start_lat?: number | null
+          start_lng?: number | null
+          types?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "places_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "places_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          role: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          role?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      sectors: {
+        Row: {
+          id: number
+          name: string
+          place_id: number
+          position: number
+        }
+        Insert: {
+          id?: never
+          name: string
+          place_id: number
+          position?: number
+        }
+        Update: {
+          id?: never
+          name?: string
+          place_id?: number
+          position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sectors_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visit_partners: {
+        Row: {
+          partner_id: number
+          visit_id: number
+        }
+        Insert: {
+          partner_id: number
+          visit_id: number
+        }
+        Update: {
+          partner_id?: number
+          visit_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_partners_partner_id_fkey"
+            columns: ["partner_id"]
+            isOneToOne: false
+            referencedRelation: "partners"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_partners_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_partners_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visits: {
+        Row: {
+          approach: string | null
+          conditions: string | null
+          created_at: string
+          date: string | null
+          descent: string | null
+          duration_hours: number | null
+          id: number
+          place_id: number
+          summary: string | null
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          approach?: string | null
+          conditions?: string | null
+          created_at?: string
+          date?: string | null
+          descent?: string | null
+          duration_hours?: number | null
+          id?: never
+          place_id: number
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Update: {
+          approach?: string | null
+          conditions?: string | null
+          created_at?: string
+          date?: string | null
+          descent?: string | null
+          duration_hours?: number | null
+          id?: never
+          place_id?: number
+          summary?: string | null
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visits_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      visit_overview: {
+        Row: {
+          area_id: number | null
+          area_name: string | null
+          ascent_count: number | null
+          conditions: string | null
+          date: string | null
+          duration_hours: number | null
+          grades: string[] | null
+          id: number | null
+          max_grade_rank: number | null
+          partner_ids: number[] | null
+          partner_names: string[] | null
+          place_id: number | null
+          place_name: string | null
+          place_types: string[] | null
+          search_text: string | null
+          sector_names: string[] | null
+          summary: string | null
+          user_id: string | null
+          username: string | null
+          visibility: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "places_area_id_fkey"
+            columns: ["area_id"]
+            isOneToOne: false
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Functions: {
+      can_delete_place: { Args: { p_place_id: number }; Returns: boolean }
+      can_edit_area: { Args: { p_area_id: number }; Returns: boolean }
+      can_edit_place: { Args: { p_place_id: number }; Returns: boolean }
+      grade_rank: { Args: { grade: string }; Returns: number }
+      is_admin: { Args: never; Returns: boolean }
+      partner_on_readable_visit: {
+        Args: { p_partner_id: number }
+        Returns: boolean
+      }
+      places_within: {
+        Args: { p_lat: number; p_lng: number; radius_km: number }
+        Returns: {
+          distance_km: number
+          place_id: number
+        }[]
+      }
+      save_place: { Args: { p: Json }; Returns: number }
+      save_visit: { Args: { v: Json }; Returns: number }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const
+
