@@ -1,13 +1,21 @@
 # Alpine Log
 
-A shared map of crags and routes (sport climbing, multipitch, alpinism, ice
-climbing, ski mountaineering) with a personal logbook. Anyone can browse the
+A shared map of climbing and mountain spots (crags, multipitch, alpinism, ice
+climbing, deep water solo, indoor climbing, ski mountaineering, hiking, trail
+running) with a personal logbook. Anyone can browse the
 map; signed-in users log their own visits, which stay private unless they're
 marked public. Admins can see everything.
 
-- **Macroareas** group places: e.g. the route *Raggio di sole* lies in the area
-  *Albard*. Each crag or route is its own place with parking, a start point
-  (attacco), grade, altitude and elevation gain.
+- **Area → Spot → Visit.** An *area* is a geographic bucket (Albard,
+  Grignetta, Valsassina). A *spot* is one thing you go to, with exactly one
+  activity: a crag, a multipitch route, an icefall, a trail, a gym. A *visit*
+  is one time someone went there; spots can be visited again and again. (In
+  the database, spots are the `places` table.)
+- **Spots** have parking, a start point (attacco), grade, altitude, elevation
+  gain and distance where they make sense for the activity.
+- **Routes** at crags, deep water solo and gyms are logged as free text. A spot
+  can also have a shared route list that anyone can add to: a logged route
+  with a listed name is linked to it, so repeats are counted.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides
   and GPX approach tracks. GPX tracks are drawn on the map, with distance and
   ascent worked out from the file.
@@ -17,6 +25,10 @@ marked public. Admins can see everything.
 - **My logbook** shows each user's visits with totals per activity and year,
   and downloads them as CSV (one row per route), JSON (full backup) or GPX
   (visited places as waypoints).
+- **Photos** on places (public) and on visits (only visible to whoever can
+  see the visit). The browser shrinks each photo to a ~2000 px display copy
+  plus a thumbnail before uploading (a few hundred KB instead of several MB),
+  which also strips EXIF data such as GPS position.
 - **Phones** get their own layout: Map/List tabs, a bottom bar with "add here"
   (GPS), and full-screen panels and forms.
 
@@ -37,11 +49,22 @@ request may read or write (`supabase/migrations/`).
 
 | Data | Who can read | Who can write |
 |---|---|---|
-| areas, places, sectors | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
+| areas, spots, sectors, route lists | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
 | attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket) | any signed-in user adds; the uploader or an admin removes |
 | visits, their routes and partners | the owner, everyone if public, admins | the owner (admins may delete) |
 | climbing-partner list | the owner, plus names on visits you can read | the owner |
 | profiles (username, role) | everyone | own username only; the role changes only via SQL |
+
+Files live in Supabase Storage (S3-compatible, same project):
+
+| Bucket | Public | Holds |
+|---|---|---|
+| `place-files` | yes | GPX tracks and PDF guides |
+| `place-photos` | yes | photos of places |
+| `visit-photos` | no, signed URLs valid for 1 h | photos of visits, readable exactly when the visit is |
+
+The free plan has about 1 GB of file storage: roughly 2,500 photos at the
+sizes above. Check usage under Dashboard → Storage.
 
 A place holding someone else's visits can only be deleted by an admin, because
 deleting it deletes every visit there. Uploads go to `<user id>/…` in the

@@ -25,7 +25,7 @@ import {
 } from './lib/types';
 
 const hasPlaceFilters = (f: PlaceFilters) =>
-  !!(f.search.trim() || f.types.length || f.areaId || f.rock || f.exposition.length || f.near);
+  !!(f.search.trim() || f.activities.length || f.areaId || f.rock || f.exposition.length || f.near);
 
 const NO_TRACKS = new Map<number, Track>();
 
@@ -253,7 +253,7 @@ export default function App() {
     reload();
     setFocusedId(placeId);
     setPanel({ kind: 'place', placeId, tab: visitLogged ? 'visits' : 'info' });
-    setNotice(visitLogged ? 'Visit saved' : 'Place saved');
+    setNotice(visitLogged ? 'Visit saved' : 'Spot saved');
   };
 
   useEffect(() => {
@@ -450,6 +450,7 @@ export default function App() {
           visit={visitModal.visit}
           places={catalog}
           areas={areas}
+          userId={userId}
           rocks={rocks}
           partners={partners}
           hidden={!!picking}
@@ -467,7 +468,7 @@ export default function App() {
             setNewAreaOpen(false);
             reload();
             setPanel({ kind: 'area', areaId });
-            setNotice('Area created. Add places to it below.');
+            setNotice('Area created. Add spots to it below.');
           }}
         />
       )}

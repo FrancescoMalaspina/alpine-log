@@ -58,6 +58,7 @@ export type Database = {
           id: number
           name: string | null
           position: number
+          route_id: number | null
           sector_id: number | null
           visit_id: number
         }
@@ -68,6 +69,7 @@ export type Database = {
           id?: never
           name?: string | null
           position?: number
+          route_id?: number | null
           sector_id?: number | null
           visit_id: number
         }
@@ -78,10 +80,18 @@ export type Database = {
           id?: never
           name?: string | null
           position?: number
+          route_id?: number | null
           sector_id?: number | null
           visit_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ascents_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "routes"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ascents_sector_id_fkey"
             columns: ["sector_id"]
@@ -202,12 +212,85 @@ export type Database = {
           },
         ]
       }
+      photos: {
+        Row: {
+          caption: string | null
+          created_at: string
+          created_by: string
+          height: number | null
+          id: number
+          place_id: number | null
+          size_bytes: number | null
+          storage_path: string
+          thumb_path: string
+          visit_id: number | null
+          width: number | null
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          created_by?: string
+          height?: number | null
+          id?: never
+          place_id?: number | null
+          size_bytes?: number | null
+          storage_path: string
+          thumb_path: string
+          visit_id?: number | null
+          width?: number | null
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          created_by?: string
+          height?: number | null
+          id?: never
+          place_id?: number | null
+          size_bytes?: number | null
+          storage_path?: string
+          thumb_path?: string
+          visit_id?: number | null
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       places: {
         Row: {
+          activity: string
           area_id: number | null
           created_at: string
           created_by: string | null
           description: string | null
+          distance_km: number | null
           elevation_gain: number | null
           exposition: string[]
           grade: string | null
@@ -222,14 +305,15 @@ export type Database = {
           rock: string | null
           start_lat: number | null
           start_lng: number | null
-          types: string[]
           updated_at: string
         }
         Insert: {
+          activity?: string
           area_id?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          distance_km?: number | null
           elevation_gain?: number | null
           exposition?: string[]
           grade?: string | null
@@ -244,14 +328,15 @@ export type Database = {
           rock?: string | null
           start_lat?: number | null
           start_lng?: number | null
-          types?: string[]
           updated_at?: string
         }
         Update: {
+          activity?: string
           area_id?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
+          distance_km?: number | null
           elevation_gain?: number | null
           exposition?: string[]
           grade?: string | null
@@ -266,7 +351,6 @@ export type Database = {
           rock?: string | null
           start_lat?: number | null
           start_lng?: number | null
-          types?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -306,6 +390,61 @@ export type Database = {
           username?: string
         }
         Relationships: []
+      }
+      routes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          grade: string | null
+          grade_rank: number | null
+          id: number
+          name: string
+          place_id: number
+          sector_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          grade?: string | null
+          grade_rank?: number | null
+          id?: never
+          name: string
+          place_id: number
+          sector_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          grade?: string | null
+          grade_rank?: number | null
+          id?: never
+          name?: string
+          place_id?: number
+          sector_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "routes_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sectors: {
         Row: {
@@ -448,9 +587,9 @@ export type Database = {
           max_grade_rank: number | null
           partner_ids: number[] | null
           partner_names: string[] | null
+          place_activity: string | null
           place_id: number | null
           place_name: string | null
-          place_types: string[] | null
           search_text: string | null
           sector_names: string[] | null
           summary: string | null

@@ -8,7 +8,7 @@ type Props = {
   onCreated: (areaId: number) => void;
 };
 
-/** Creates an empty macroarea; places are added to it from its panel. */
+/** Creates an empty area; spots are added to it from its panel. */
 export function NewAreaModal({ onClose, onCreated }: Props) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -31,7 +31,7 @@ export function NewAreaModal({ onClose, onCreated }: Props) {
   return (
     <Modal
       title="New area"
-      subtitle="A macroarea groups crags and routes, like Albard, Grignetta or Valsassina. You'll add places to it next."
+      subtitle="An area groups nearby spots: crags, routes, icefalls, trails… like Albard, Grignetta or Valsassina. You'll add spots to it next."
       onClose={onClose}
       footer={<>
         <button className="btn btn-ghost" type="button" onClick={onClose}>Cancel</button>

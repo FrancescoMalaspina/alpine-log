@@ -32,7 +32,7 @@ export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog }
 
       {isMobile ? null : session ? (
         <div className="header-actions">
-          <button className="btn btn-ghost" type="button" onClick={onAddPlace}>Add a place</button>
+          <button className="btn btn-ghost" type="button" onClick={onAddPlace}>Add a spot</button>
           <button className="btn btn-primary" type="button" onClick={onLogVisit}>Log a visit</button>
           <div className="account">
             <button type="button" className="account-name" onClick={onOpenLog} title="Your visits and totals">

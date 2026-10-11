@@ -1,22 +1,24 @@
 import { useState } from 'react';
-import { gradeSuggestions, isRouteLike } from '../../lib/labels';
-import type { Partner, PlaceType } from '../../lib/types';
+import { ACTIVITIES, gradeSuggestions } from '../../lib/labels';
+import type { Activity, Partner, Route } from '../../lib/types';
 import { ascentRow, type AscentRow, type VisitValues } from './visitForm';
 
 type Props = {
   values: VisitValues;
   onChange: (patch: Partial<VisitValues>) => void;
   partners: Partner[];
-  /** Activities of the place, which decide the extra fields and grade hints. */
-  types: PlaceType[];
+  /** The spot's activity, which decides the extra fields and grade hints. */
+  activity: Activity;
   /** Sectors the routes can be filed under: key is an id or "name:<name>". */
   sectors: { key: string; label: string }[];
+  /** The spot's shared route list, offered while typing route names. */
+  routes?: Route[];
 };
 
-/** Every field of a visit. Used by "Log a visit" and by "Add a place" with a visit. */
-export function VisitFields({ values: v, onChange, partners, types, sectors }: Props) {
+/** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
+export function VisitFields({ values: v, onChange, partners, activity, sectors, routes = [] }: Props) {
   const [newPerson, setNewPerson] = useState('');
-  const routeLike = isRouteLike(types);
+  const f = ACTIVITIES[activity];
   const knownNames = [...new Set([...partners.map(p => p.name), ...v.withPeople])].sort((a, b) => a.localeCompare(b));
   const togglePerson = (n: string) =>
     onChange({ withPeople: v.withPeople.includes(n) ? v.withPeople.filter(x => x !== n) : [...v.withPeople, n] });
@@ -27,6 +29,14 @@ export function VisitFields({ values: v, onChange, partners, types, sectors }: P
   };
   const updateAscent = (key: number, patch: Partial<AscentRow>) =>
     onChange({ ascents: v.ascents.map(a => (a.key === key ? { ...a, ...patch } : a)) });
+  // Typing (or picking) a route from the spot's list fills in its grade and sector.
+  const setRouteName = (row: AscentRow, name: string) => {
+    const listed = routes.find(r => r.name.toLowerCase() === name.trim().toLowerCase());
+    updateAscent(row.key, listed
+      ? { name, grade: row.grade || listed.grade || '', sectorKey: row.sectorKey || (listed.sector_id ? String(listed.sector_id) : '') }
+      : { name });
+  };
+  const unlisted = v.ascents.some(a => a.name.trim() && !routes.some(r => r.name.toLowerCase() === a.name.trim().toLowerCase()));
 
   return (
     <div className="visit-block">
@@ -69,7 +79,7 @@ export function VisitFields({ values: v, onChange, partners, types, sectors }: P
 
       <textarea className="visit-summary" placeholder="How did it go? (optional)" aria-label="Summary" value={v.summary}
                 onChange={e => onChange({ summary: e.target.value })} />
-      {routeLike && <>
+      {f.conditions && (
         <div className="visit-row">
           <input type="text" className="visit-conditions" placeholder="Conditions: snow, ice, weather (optional)"
                  aria-label="Conditions" value={v.conditions} onChange={e => onChange({ conditions: e.target.value })} />
@@ -79,20 +89,23 @@ export function VisitFields({ values: v, onChange, partners, types, sectors }: P
             <span>hours</span>
           </label>
         </div>
+      )}
+      {f.approach && (
         <div className="visit-approach">
           <textarea placeholder="Avvicinamento: how to reach the start (optional)" aria-label="Approach" value={v.approach}
                     onChange={e => onChange({ approach: e.target.value })} />
           <textarea placeholder="Discesa: how to get down (optional)" aria-label="Descent" value={v.descent}
                     onChange={e => onChange({ descent: e.target.value })} />
         </div>
-      </>}
+      )}
 
-      <span className="field-label">Routes</span>
+      {f.routes && <>
+      <span className="field-label">{f.isRoute ? 'The route' : 'Routes'}</span>
       <div className="routes-list">
         {v.ascents.map(a => (
           <div key={a.key} className="route-row">
             <input type="text" className="route-name" placeholder="Route name" aria-label="Route name" value={a.name}
-                   onChange={e => updateAscent(a.key, { name: e.target.value })} />
+                   list={routes.length ? 'spotRouteOptions' : undefined} onChange={e => setRouteName(a, e.target.value)} />
             <input type="text" className="route-grade num" placeholder="Grade" aria-label="Grade" value={a.grade}
                    list="visitGradeOptions" onChange={e => updateAscent(a.key, { grade: e.target.value })} />
             {sectors.length > 0 && (
@@ -109,10 +122,22 @@ export function VisitFields({ values: v, onChange, partners, types, sectors }: P
           </div>
         ))}
       </div>
-      <datalist id="visitGradeOptions">{gradeSuggestions(types).map(g => <option key={g} value={g} />)}</datalist>
+      <datalist id="visitGradeOptions">{gradeSuggestions(activity).map(g => <option key={g} value={g} />)}</datalist>
+      {routes.length > 0 && (
+        <datalist id="spotRouteOptions">
+          {routes.map(r => <option key={r.id} value={r.name}>{r.grade ?? ''}</option>)}
+        </datalist>
+      )}
       <button type="button" className="btn-add-route" onClick={() => onChange({ ascents: [...v.ascents, ascentRow()] })}>
-        Add a route
+        {f.isRoute ? 'Add another route' : 'Add a route'}
       </button>
+      {f.sectors && unlisted && (
+        <label className="switch small">
+          <input type="checkbox" checked={v.addRoutes} onChange={e => onChange({ addRoutes: e.target.checked })} />
+          Add new route names to this spot's shared list
+        </label>
+      )}
+      </>}
     </div>
   );
 }

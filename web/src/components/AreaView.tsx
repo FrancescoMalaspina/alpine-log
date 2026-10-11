@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { deleteArea, setPlacesArea, updateArea } from '../lib/api';
-import { errorMessage, plural, typesLabel } from '../lib/labels';
+import { activityLabel, errorMessage, plural } from '../lib/labels';
 import type { Area, Place } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Attachments } from './Attachments';
@@ -10,7 +10,7 @@ import { ErrorText } from './Modal';
 type Props = {
   area: Area;
   places: Place[];
-  /** Every place, to pick the ones to add. */
+  /** Every spot, to pick the ones to add. */
   allPlaces: Place[];
   canEditPlace: (place: Place) => boolean;
   userId: string | null;
@@ -31,7 +31,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   const [adding, setAdding] = useState(false);
 
   async function removePlace(p: Place) {
-    if (!confirm(`Take "${p.name}" out of ${area.name}? The place itself stays.`)) return;
+    if (!confirm(`Take "${p.name}" out of ${area.name}? The spot itself stays.`)) return;
     setError(null);
     try {
       if (!(await setPlacesArea([p.id], null))) throw new Error(`You can't change "${p.name}": only its creator or an admin can.`);
@@ -54,7 +54,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   }
 
   async function remove() {
-    if (!confirm(`Delete the area "${area.name}"? Its ${plural(places.length, 'place')} stay, just without an area.`)) return;
+    if (!confirm(`Delete the area "${area.name}"? Its ${plural(places.length, 'spot')} stay, just without an area.`)) return;
     try {
       await deleteArea(area.id);
       onDeleted();
@@ -66,7 +66,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   return (
     <Drawer
       title={area.name}
-      meta={<span className="meta-item">Macroarea with {plural(places.length, 'place')}</span>}
+      meta={<span className="meta-item">Area with {plural(places.length, 'spot')}</span>}
       onClose={onClose}
       footer={<>
         {canEdit && !editing && <button className="btn btn-danger" type="button" onClick={remove}>Delete area</button>}
@@ -88,13 +88,13 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
       ) : area.description && <p className="place-description">{area.description}</p>}
       <ErrorText error={error} />
 
-      <h3 className="section-title">Places</h3>
+      <h3 className="section-title">Spots</h3>
       <div className="area-places">
         {places.map(p => (
           <div key={p.id} className="area-place-row">
             <button type="button" className="area-place" onClick={() => onOpenPlace(p)}>
-              <span className="row-title"><ActivityBadge types={p.types} />{p.name}</span>
-              <span className="row-meta">{[typesLabel(p.types), p.grade].filter(Boolean).join(', ')}</span>
+              <span className="row-title"><ActivityBadge activity={p.activity} />{p.name}</span>
+              <span className="row-meta">{[activityLabel(p.activity), p.grade].filter(Boolean).join(', ')}</span>
             </button>
             {canEditPlace(p) && (
               <button type="button" className="link-btn remove-place" onClick={() => removePlace(p)}
@@ -102,19 +102,19 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
             )}
           </div>
         ))}
-        {!places.length && !adding && <div className="empty">No places in this area yet.</div>}
+        {!places.length && !adding && <div className="empty">No spots in this area yet.</div>}
       </div>
       {userId && (adding
         ? <AddPlaces area={area} allPlaces={allPlaces} canEditPlace={canEditPlace}
                      onDone={changed => { setAdding(false); if (changed) onChanged(); }} />
-        : <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>Add places</button>)}
+        : <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>Add spots</button>)}
 
       <Attachments owner={{ areaId: area.id }} userId={userId} isAdmin={isAdmin} />
     </Drawer>
   );
 }
 
-/** Checklist of places outside this area; the ones you may edit can be moved in. */
+/** Checklist of spots outside this area; the ones you may edit can be moved in. */
 function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
   area: Area; allPlaces: Place[]; canEditPlace: (p: Place) => boolean; onDone: (changed: boolean) => void;
 }) {
@@ -128,7 +128,7 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
     return allPlaces
       .filter(p => p.area_id !== area.id)
       .filter(p => !q || p.name.toLowerCase().includes(q) || p.area?.name.toLowerCase().includes(q))
-      // Places without an area first: they're the likely ones to add.
+      // Spots without an area first: they're the likely ones to add.
       .sort((a, b) => Number(!!a.area) - Number(!!b.area) || a.name.localeCompare(b.name));
   }, [allPlaces, area.id, query]);
 
@@ -140,7 +140,7 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
     try {
       const changed = await setPlacesArea(picked, area.id);
       if (changed < picked.length) {
-        setError(`Only ${changed} of ${picked.length} could be moved: you can only change places you created.`);
+        setError(`Only ${changed} of ${picked.length} could be moved: you can only change spots you created.`);
         setBusy(false);
         return;
       }
@@ -153,7 +153,7 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
 
   return (
     <div className="add-places">
-      <input type="search" placeholder="Find a place" aria-label="Find a place" value={query}
+      <input type="search" placeholder="Find a spot" aria-label="Find a spot" value={query}
              onChange={e => setQuery(e.target.value)} />
       <ul className="add-places-list">
         {candidates.map(p => {
@@ -162,7 +162,7 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
             <li key={p.id}>
               <label className={editable ? '' : 'disabled'}>
                 <input type="checkbox" checked={picked.includes(p.id)} disabled={!editable} onChange={() => toggle(p.id)} />
-                <ActivityBadge types={p.types} />
+                <ActivityBadge activity={p.activity} />
                 <span className="add-places-name">{p.name}</span>
                 <span className="add-places-meta">
                   {!editable ? 'added by someone else' : p.area ? `now in ${p.area.name}` : ''}
@@ -171,13 +171,13 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
             </li>
           );
         })}
-        {!candidates.length && <li className="empty">No other places match.</li>}
+        {!candidates.length && <li className="empty">No other spots match.</li>}
       </ul>
       <ErrorText error={error} />
       <div className="area-edit-actions">
         <button className="btn btn-ghost" type="button" onClick={() => onDone(false)}>Cancel</button>
         <button className="btn btn-primary" type="button" disabled={!picked.length || busy} onClick={save}>
-          {picked.length ? `Add ${plural(picked.length, 'place')}` : 'Add places'}
+          {picked.length ? `Add ${plural(picked.length, 'spot')}` : 'Add spots'}
         </button>
       </div>
     </div>

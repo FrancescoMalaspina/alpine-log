@@ -12,13 +12,13 @@ insert into ids select 'albard', id from public.areas where name = 'Albard';
 insert into ids select 'butch', id from public.places where name = 'Muro del Butch';
 
 -- ---------------------------------------------------------------- seed / migration shape
-select is((select count(*) from public.places where area_id = (select v from ids where k = 'albard')), 2::bigint,
-          'multipitch routes became places inside an area named after their parent');
+select is((select array_agg(name order by name) from public.places where area_id = (select v from ids where k = 'albard')),
+          array['Ozzy'], 'Albard is an area holding its route; the old Albard place is gone');
 select ok((select count(*) from public.attachments where kind = 'link') > 0, 'guide links became attachments');
 
 -- ---------------------------------------------------------------- anon
 set local role anon;
-select is((select count(*) from public.areas), 2::bigint, 'anon reads areas');
+select is((select count(*) from public.areas), 10::bigint, 'anon reads areas');
 select ok((select count(*) from public.attachments) > 0, 'anon reads attachments');
 select throws_ok($$insert into public.areas (name) values ('Nope')$$, '42501', null, 'anon cannot add an area');
 
@@ -47,12 +47,12 @@ select throws_ok(format($$insert into storage.objects (bucket_id, name) values (
                  '42501', null, 'only gpx and pdf files');
 
 select is(public.save_place(jsonb_build_object(
-  'name', 'Raggio di sole', 'types', '["multipitch"]'::jsonb, 'lat', 45.7, 'lng', 7.7,
+  'name', 'Raggio di sole', 'activity', 'multipitch', 'lat', 45.7, 'lng', 7.7,
   'area_name', 'albard', 'start_lat', 45.71, 'start_lng', 7.71, 'grade', '6a+ (5c obbl.)')) is not null,
   true, 'save_place files a new route under an existing area, matched case-insensitively');
 select is((select area_id from public.places where name = 'Raggio di sole'), (select v from ids where k = 'albard'),
           'the route is in Albard');
-select lives_ok($$select public.save_place('{"name": "Pizzo Tre Signori", "types": ["ski"], "lat": 46.0, "lng": 9.5,
+select lives_ok($$select public.save_place('{"name": "Pizzo Tre Signori", "activity": "ski", "lat": 46.0, "lng": 9.5,
                   "area_name": "Valsassina", "max_altitude": 2554, "elevation_gain": 1400}')$$,
                 'a ski tour with a new area');
 

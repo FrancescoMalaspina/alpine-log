@@ -35,7 +35,7 @@ export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn,
           {sheet === 'add' ? <>
             <div className="sheet-title">Add</div>
             <button type="button" className="sheet-primary" autoFocus onClick={pick(onLogVisit)}>Log a visit</button>
-            <button type="button" onClick={pick(onAddPlace)}>Add a place</button>
+            <button type="button" onClick={pick(onAddPlace)}>Add a spot</button>
           </> : <>
             <div className="sheet-title">
               {profile?.username}{isAdmin && <span className="admin-badge">admin</span>}

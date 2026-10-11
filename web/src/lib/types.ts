@@ -2,17 +2,19 @@ import type { Database } from './database.types';
 
 type Tables = Database['public']['Tables'];
 
-export type PlaceType = 'crag' | 'multipitch' | 'alpine' | 'ice' | 'ski';
+/** What a spot is for. A spot has exactly one. */
+export type Activity = 'crag' | 'multipitch' | 'alpine' | 'ice' | 'ski' | 'trail' | 'hike' | 'dws' | 'indoor';
 export type Exposition = 'Nord' | 'Sud' | 'Est' | 'Ovest';
 export type Visibility = 'private' | 'public';
 
-export const PLACE_TYPES: PlaceType[] = ['crag', 'multipitch', 'alpine', 'ice', 'ski'];
+export const ACTIVITY_ORDER: Activity[] = ['crag', 'multipitch', 'alpine', 'ice', 'dws', 'indoor', 'ski', 'hike', 'trail'];
 export const EXPOSITIONS: Exposition[] = ['Nord', 'Sud', 'Est', 'Ovest'];
 
 export type Sector = Pick<Tables['sectors']['Row'], 'id' | 'name' | 'position'>;
 
-export type Place = Omit<Tables['places']['Row'], 'location' | 'types' | 'exposition'> & {
-  types: PlaceType[];
+/** A spot: one crag, route, icefall, trail, gym… (table "places"). */
+export type Place = Omit<Tables['places']['Row'], 'location' | 'activity' | 'exposition'> & {
+  activity: Activity;
   exposition: Exposition[];
   sectors: Sector[];
   area: { id: number; name: string } | null;
@@ -42,7 +44,7 @@ export type VisitSummary = {
   username: string | null;
   place_id: number;
   place_name: string;
-  place_types: PlaceType[];
+  place_activity: Activity;
   area_id: number | null;
   area_name: string | null;
   date: string | null;
@@ -58,8 +60,22 @@ export type VisitSummary = {
   partner_names: string[];
 };
 
+/** A route in a spot's shared list. */
+export type Route = {
+  id: number;
+  place_id: number;
+  sector_id: number | null;
+  name: string;
+  grade: string | null;
+  grade_rank: number | null;
+  created_by: string | null;
+  /** Ascents of it you can see (yours, public ones, everything for admins). */
+  ascent_count: number;
+};
+
 export type Ascent = {
   id: number;
+  route_id: number | null;
   name: string | null;
   grade: string | null;
   comment: string | null;
@@ -93,7 +109,7 @@ export type PlaceInput = {
   id?: number;
   area_name: string;
   name: string;
-  types: PlaceType[];
+  activity: Activity;
   lat: number;
   lng: number;
   parking_lat: number | null;
@@ -106,6 +122,7 @@ export type PlaceInput = {
   grade: string;
   max_altitude: number | null;
   elevation_gain: number | null;
+  distance_km: number | null;
   sectors: { id?: number; name: string }[];
 };
 
@@ -121,14 +138,16 @@ export type VisitInput = {
   duration_hours: number | null;
   visibility: Visibility;
   partners: string[];
-  ascents: { name: string; grade: string; sector_id: number | null; comment: string }[];
+  /** Add the visit's route names to the spot's shared route list. */
+  add_routes: boolean;
+  ascents: { name: string; grade: string; sector_id: number | null; route_id: number | null; comment: string }[];
 };
 
 export type VisitScope = 'mine' | 'public' | 'all';
 
 export type PlaceFilters = {
   search: string;
-  types: PlaceType[];
+  activities: Activity[];
   areaId: number | null;
   rock: string;
   exposition: Exposition[];
@@ -143,12 +162,12 @@ export type VisitFilters = {
   from: string;
   to: string;
   minGradeRank: number | null;
-  placeType: PlaceType | '';
+  activity: Activity | '';
 };
 
 export const EMPTY_PLACE_FILTERS: PlaceFilters = {
-  search: '', types: [], areaId: null, rock: '', exposition: [], near: null,
+  search: '', activities: [], areaId: null, rock: '', exposition: [], near: null,
 };
 export const EMPTY_VISIT_FILTERS: VisitFilters = {
-  search: '', scope: 'all', partnerId: null, areaId: null, from: '', to: '', minGradeRank: null, placeType: '',
+  search: '', scope: 'all', partnerId: null, areaId: null, from: '', to: '', minGradeRank: null, activity: '',
 };

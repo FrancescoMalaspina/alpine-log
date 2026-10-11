@@ -4,8 +4,8 @@ import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap
 import { badgeSvg, pinSvg, plainPinSvg } from '../lib/activityIcons';
 import type { LatLng } from '../lib/coords';
 import type { Track } from '../lib/gpx';
-import { ACTIVITIES, primaryType, typeLabel, typesLabel } from '../lib/labels';
-import type { Place, PlaceType } from '../lib/types';
+import { ACTIVITIES, activityLabel } from '../lib/labels';
+import type { Activity, Place } from '../lib/types';
 
 export type MapCommand =
   | { kind: 'focus'; place: Place; nonce: number }
@@ -44,8 +44,8 @@ const badgeIcon = (label: string, cls: string) => L.divIcon({
 });
 
 const PLACE_ICONS = Object.fromEntries(
-  (Object.keys(ACTIVITIES) as PlaceType[]).map(t => [t, pinIcon(pinSvg(t))]),
-) as Record<PlaceType, L.DivIcon>;
+  (Object.keys(ACTIVITIES) as Activity[]).map(t => [t, pinIcon(pinSvg(t))]),
+) as Record<Activity, L.DivIcon>;
 const TEMP_ICON = pinIcon(plainPinSvg('#D7261E'), 'temp');
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -218,7 +218,7 @@ export function MapView(props: Props) {
         <Marker
           key={p.id}
           position={positions.get(p.id)!}
-          icon={PLACE_ICONS[primaryType(p.types)]}
+          icon={PLACE_ICONS[p.activity]}
           ref={m => {
             if (m) markers.current.set(p.id, m);
             else markers.current.delete(p.id);
@@ -240,7 +240,7 @@ export function MapView(props: Props) {
             <div className="pop">
               <h3>{p.name}</h3>
               {p.area && <div className="pop-area">in {p.area.name}</div>}
-              <Row k="type" v={typesLabel(p.types)} />
+              <Row k="activity" v={activityLabel(p.activity)} />
               {p.grade && <Row k="grade" v={p.grade} />}
               {p.max_altitude != null && <Row k="altitude" v={`${p.max_altitude} m`} />}
               {p.elevation_gain != null && <Row k="gain" v={`${p.elevation_gain} m`} />}
@@ -277,7 +277,7 @@ export function MapView(props: Props) {
               <div className="pop-area num">{props.searchPin.lat.toFixed(5)}, {props.searchPin.lng.toFixed(5)}</div>
               {signedIn && (
                 <div className="pop-actions">
-                  <button type="button" className="primary" onClick={() => props.onAddPlaceAt(props.searchPin!)}>Add a place here</button>
+                  <button type="button" className="primary" onClick={() => props.onAddPlaceAt(props.searchPin!)}>Add a spot here</button>
                 </div>
               )}
             </div>
@@ -302,10 +302,10 @@ function Legend() {
     <details ref={el} className="map-legend" open={!window.matchMedia('(max-width: 820px)').matches}>
       <summary>Legend</summary>
       <ul>
-        {(Object.keys(ACTIVITIES) as PlaceType[]).map(t => (
+        {(Object.keys(ACTIVITIES) as Activity[]).map(t => (
           <li key={t}>
             <span className="activity-badge" dangerouslySetInnerHTML={{ __html: badgeSvg(t) }} />
-            {typeLabel(t)}
+            {activityLabel(t)}
           </li>
         ))}
         <li><span className="map-badge small parking" aria-hidden="true">P</span>Parking</li>

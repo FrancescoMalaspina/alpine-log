@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { GRADE_OPTIONS } from '../lib/grades';
-import { formatDate, formatHours, plural, typeLabel, typesLabel } from '../lib/labels';
+import { activityLabel, formatDate, formatHours, plural } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
 import { LocationResults } from './LocationResults';
 import type { Location } from '../lib/geocode';
 import type { LatLng } from '../lib/coords';
 import {
-  EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS, PLACE_TYPES,
+  ACTIVITY_ORDER, EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS,
   type Area, type Partner, type Place, type PlaceFilters, type VisitFilters, type VisitScope, type VisitSummary,
 } from '../lib/types';
 
@@ -41,19 +41,19 @@ type Props = {
 };
 
 function countPlaceFilters(f: PlaceFilters) {
-  return f.types.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0);
+  return f.activities.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0);
 }
 function countVisitFilters(f: VisitFilters) {
   return (f.scope !== 'all' ? 1 : 0) + (f.partnerId ? 1 : 0) + (f.areaId ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0)
-    + (f.minGradeRank != null ? 1 : 0) + (f.placeType ? 1 : 0);
+    + (f.minGradeRank != null ? 1 : 0) + (f.activity ? 1 : 0);
 }
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
 const SEARCH_PLACEHOLDER: Record<ListMode, string> = {
-  places: 'Search places, peaks, huts, villages…',
+  places: 'Search spots, peaks, huts, villages…',
   areas: 'Search areas…',
-  visits: 'Search by place, person, or route…',
+  visits: 'Search by spot, person, or route…',
 };
 
 export function Sidebar(props: Props) {
@@ -76,7 +76,7 @@ export function Sidebar(props: Props) {
         {(['places', 'areas', 'visits'] as const).map(m => (
           <button key={m} type="button" role="tab" aria-selected={mode === m}
                   className={`list-mode-tab${mode === m ? ' active' : ''}`} onClick={() => props.onModeChange(m)}>
-            {m === 'places' ? 'Places' : m === 'areas' ? 'Areas' : 'Visits'}
+            {m === 'places' ? 'Spots' : m === 'areas' ? 'Areas' : 'Visits'}
             <span className="tab-count">{m === 'visits' && props.loading ? '' : counts[m]}</span>
           </button>
         ))}
@@ -104,7 +104,7 @@ export function Sidebar(props: Props) {
 
       <div className="list" aria-busy={visitsLoading}>
         <p className="visually-hidden" aria-live="polite">
-          {visitsLoading ? '' : `${count} ${mode === 'places' ? 'places' : mode === 'areas' ? 'areas' : 'visits'} shown`}
+          {visitsLoading ? '' : `${count} ${mode === 'places' ? 'spots' : mode === 'areas' ? 'areas' : 'visits'} shown`}
         </p>
         {props.error && <div className="list-empty form-error">{props.error}</div>}
         {!props.error && !visitsLoading && count === 0 && !(mode === 'places' && search.trim().length >= 3) && (
@@ -112,7 +112,7 @@ export function Sidebar(props: Props) {
             {mode === 'visits' && !props.userId
               ? 'No public visits match. Sign in to see your own.'
               : mode === 'areas' && !props.areaSearch
-                ? 'No areas yet. Create one with New area, or type one in a place\'s "Macroarea" field.'
+                ? 'No areas yet. Create one with New area, or type one in a spot\'s "Area" field.'
                 : 'Nothing matches. Try clearing the search or filters.'}
           </div>
         )}
@@ -131,7 +131,7 @@ export function Sidebar(props: Props) {
               <li key={a.id} className="row-item">
                 <button type="button" className="row-main" onClick={() => props.onAreaClick(a.id)}>
                   <span className="row-title">{a.name}</span>
-                  <span className="row-meta">{plural(a.place_count, 'place')}</span>
+                  <span className="row-meta">{plural(a.place_count, 'spot')}</span>
                   {a.description && <span className="row-summary">{a.description}</span>}
                 </button>
               </li>
@@ -150,7 +150,7 @@ export function Sidebar(props: Props) {
   );
 }
 
-/** Places grouped under their macroarea; the area heading opens the area. */
+/** Spots grouped under their area; the area heading opens the area. */
 function PlaceGroups(props: Props) {
   const groups = new Map<string, { areaId: number | null; places: Place[] }>();
   for (const p of props.places) {
@@ -182,7 +182,8 @@ function PlaceGroups(props: Props) {
 
 function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }: { place: Place } & Props) {
   const facts = [
-    typesLabel(p.types),
+    activityLabel(p.activity),
+    p.distance_km != null ? `${p.distance_km} km` : null,
     p.grade,
     p.rock,
     p.exposition.length ? `faces ${p.exposition.join('/')}` : null,
@@ -192,7 +193,7 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
   return (
     <li className="row-item">
       <button type="button" className="row-main" onClick={() => onPlaceClick(p)}>
-        <span className="row-title"><ActivityBadge types={p.types} />{p.name}</span>
+        <span className="row-title"><ActivityBadge activity={p.activity} />{p.name}</span>
         <span className="row-meta">{facts.join(', ')}</span>
       </button>
       <div className="row-actions">
@@ -218,7 +219,7 @@ export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; min
           {!mine && v.username && <span> by {v.username}</span>}
           <VisibilityPill visibility={v.visibility} />
         </span>
-        <span className="row-title"><ActivityBadge types={v.place_types} />{v.place_name}</span>
+        <span className="row-title"><ActivityBadge activity={v.place_activity} />{v.place_name}</span>
         {v.area_name && <span className="row-meta">{v.area_name}</span>}
         {facts.length > 0 && <span className="row-meta">{facts.join('; ')}</span>}
         {v.summary && <span className="row-summary">{v.summary}</span>}
@@ -251,10 +252,11 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter }: {
       <div className="filter-group">
         <span className="filter-label">Activity</span>
         <div className="chip-row">
-          {PLACE_TYPES.map(t => (
+          {ACTIVITY_ORDER.map(t => (
             <label key={t} className="type-option small">
-              <input type="checkbox" checked={f.types.includes(t)} onChange={() => onChange({ ...f, types: toggle(f.types, t) })} />
-              {typeLabel(t)}
+              <input type="checkbox" checked={f.activities.includes(t)}
+                     onChange={() => onChange({ ...f, activities: toggle(f.activities, t) })} />
+              {activityLabel(t)}
             </label>
           ))}
         </div>
@@ -330,11 +332,11 @@ function VisitFiltersPanel({ f, onChange, partners, areas, signedIn, isAdmin }: 
       )}
       <div className="filter-row-2">
         <div className="filter-group">
-          <label className="filter-label" htmlFor="placeTypeFilter">Activity</label>
-          <select id="placeTypeFilter" value={f.placeType}
-                  onChange={e => onChange({ ...f, placeType: e.target.value as VisitFilters['placeType'] })}>
+          <label className="filter-label" htmlFor="activityFilter">Activity</label>
+          <select id="activityFilter" value={f.activity}
+                  onChange={e => onChange({ ...f, activity: e.target.value as VisitFilters['activity'] })}>
             <option value="">Any</option>
-            {PLACE_TYPES.map(t => <option key={t} value={t}>{typeLabel(t)}</option>)}
+            {ACTIVITY_ORDER.map(t => <option key={t} value={t}>{activityLabel(t)}</option>)}
           </select>
         </div>
         <div className="filter-group">

@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { deleteVisit, fetchPlaceVisits } from '../lib/api';
+import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchRoutes } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { Track } from '../lib/gpx';
-import { directionsUrl, errorMessage, formatDate, formatHours, plural, typeLabel, typesLabel } from '../lib/labels';
+import { ACTIVITIES, activityLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions, plural } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
-import type { Place, VisitDetail } from '../lib/types';
+import type { Place, Route, VisitDetail } from '../lib/types';
 import { Attachments } from './Attachments';
+import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
 import { VisibilityPill } from './Sidebar';
@@ -38,23 +39,24 @@ export function PlaceView(props: Props) {
     <Drawer
       title={p.name}
       meta={<>
-        <span className="meta-item"><ActivityBadge types={p.types} />{typesLabel(p.types)}</span>
+        <span className="meta-item"><ActivityBadge activity={p.activity} />{activityLabel(p.activity)}</span>
         {p.area && (
           <button type="button" className="meta-item link-btn" onClick={() => props.onOpenArea(p.area!.id)}>
             in {p.area.name}
           </button>
         )}
+        {p.distance_km != null && <span className="meta-item num">{formatKm(p.distance_km)}</span>}
         {p.max_altitude != null && <span className="meta-item num">{p.max_altitude} m</span>}
         {p.grade && <span className="meta-item num">{p.grade}</span>}
       </>}
       onClose={props.onClose}
       footer={<>
         {props.isMobile && <button className="btn btn-ghost" type="button" onClick={props.onShowOnMap}>Show on map</button>}
-        {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>Edit place</button>}
+        {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>Edit spot</button>}
         {props.userId && <button className="btn btn-add" type="button" onClick={props.onAddVisit}>Add visit</button>}
       </>}
     >
-      <div className="list-mode-tabs drawer-tabs" role="tablist" aria-label="Place sections">
+      <div className="list-mode-tabs drawer-tabs" role="tablist" aria-label="Spot sections">
         <button type="button" role="tab" aria-selected={tab === 'info'}
                 className={`list-mode-tab${tab === 'info' ? ' active' : ''}`} onClick={() => props.onTab('info')}>
           Info
@@ -69,15 +71,16 @@ export function PlaceView(props: Props) {
   );
 }
 
-function PlaceInfo({ place: p, userId, isAdmin, tracks, onChanged }: Props) {
+function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onChanged }: Props) {
   const rows: [string, React.ReactNode][] = [];
-  rows.push(['Activity', p.types.map(typeLabel).join(', ')]);
+  rows.push(['Activity', activityLabel(p.activity)]);
   if (p.grade) rows.push(['Grade', p.grade]);
+  if (p.distance_km != null) rows.push(['Distance', formatKm(p.distance_km)]);
   if (p.max_altitude != null) rows.push(['Altitude', `${p.max_altitude} m`]);
   if (p.elevation_gain != null) rows.push(['Elevation gain', `${p.elevation_gain} m`]);
   if (p.rock) rows.push(['Rock', p.rock]);
   if (p.exposition.length) rows.push(['Faces', p.exposition.join(', ')]);
-  if (p.sectors.length) rows.push(['Sectors', p.sectors.map(s => s.name).join(', ')]);
+  if (p.sectors.length) rows.push([p.activity === 'indoor' ? 'Walls' : 'Sectors', p.sectors.map(s => s.name).join(', ')]);
 
   return (
     <div className="place-info">
@@ -92,6 +95,14 @@ function PlaceInfo({ place: p, userId, isAdmin, tracks, onChanged }: Props) {
         <Waypoint label="Parking" icon="P" lat={p.parking_lat} lng={p.parking_lng} />
         <Waypoint label="Start (attacco)" icon="⚑" lat={p.start_lat} lng={p.start_lng} />
       </div>
+
+      {ACTIVITIES[p.activity].sectors && (
+        <RouteList spot={p} userId={userId} isAdmin={isAdmin} canEditSpot={canEdit} reloadKey={reloadKey} />
+      )}
+
+      <h3 className="section-title">Photos</h3>
+      <PhotoGallery owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} canAdd={!!userId}
+                    emptyText="No photos of this spot yet." />
 
       <Attachments owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} tracks={tracks} onChange={onChanged} />
     </div>
@@ -155,6 +166,10 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
         {!visits && !error && <div className="empty">Loading…</div>}
         {visits && !selected && <div className="empty">No visits you can see yet.</div>}
         {selected && <VisitDetailBody visit={selected} mine={mine} />}
+        {selected && (
+          <PhotoGallery key={selected.id} owner={{ visitId: selected.id }} userId={userId} isAdmin={isAdmin} canAdd={mine}
+                        emptyText={mine ? 'No photos from this day yet.' : 'No photos from this day.'} />
+        )}
       </div>
       {selected && (mine || isAdmin) && (
         <div className="visit-detail-actions">
@@ -199,4 +214,101 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
       </ul>
     ) : <div className="empty">No routes logged for this visit.</div>}
   </>;
+}
+
+/**
+ * The spot's shared route list, by sector. Optional: visits can always log
+ * routes as free text; a listed route links them, so repeats add up.
+ */
+function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
+  spot: Place; userId: string | null; isAdmin: boolean; canEditSpot: boolean; reloadKey: number;
+}) {
+  const [routes, setRoutes] = useState<Route[] | null>(null);
+  const [mine, setMine] = useState(0);
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [grade, setGrade] = useState('');
+  const [sectorId, setSectorId] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchRoutes(spot.id)
+      .then(r => { if (!cancelled) setRoutes(r); })
+      .catch(e => { if (!cancelled) setError(errorMessage(e)); });
+    return () => { cancelled = true; };
+  }, [spot.id, reloadKey, mine]);
+
+  async function add(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      await addRoute(spot.id, { name, grade, sectorId: sectorId ? +sectorId : null });
+      setName('');
+      setGrade('');
+      setMine(n => n + 1);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  async function remove(r: Route) {
+    if (!confirm(`Remove "${r.name}" from the list? Logged ascents keep their name.`)) return;
+    try {
+      await deleteRoute(r.id);
+      setMine(n => n + 1);
+    } catch (err) {
+      setError(errorMessage(err));
+    }
+  }
+
+  const bySector = new Map<number | null, Route[]>();
+  for (const r of routes ?? []) bySector.set(r.sector_id, [...(bySector.get(r.sector_id) ?? []), r]);
+  const sectorName = (id: number | null) => spot.sectors.find(s => s.id === id)?.name ?? 'Other';
+  const order = [...spot.sectors.map(s => s.id as number | null), null].filter(id => bySector.has(id));
+
+  return (
+    <section className="route-list">
+      <h3 className="section-title">Routes</h3>
+      {routes && !routes.length && (
+        <div className="empty">No shared route list yet. Visits can still log any route by name; add routes here so repeats are counted.</div>
+      )}
+      {order.map(id => (
+        <div key={id ?? 'other'} className="route-group">
+          {(spot.sectors.length > 0) && <h4>{sectorName(id)}</h4>}
+          <ul>
+            {bySector.get(id)!.map(r => (
+              <li key={r.id}>
+                <span className="route-line-name">{r.name}</span>
+                {r.grade && <span className="num route-line-grade">{r.grade}</span>}
+                <span className="route-line-count">{r.ascent_count ? `logged ${r.ascent_count}×` : ''}</span>
+                {(r.created_by === userId || canEditSpot || isAdmin) && (
+                  <button type="button" className="icon-btn small" aria-label={`Remove ${r.name}`} onClick={() => remove(r)}>×</button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <ErrorText error={error} />
+      {userId && (adding ? (
+        <form className="route-add" onSubmit={add}>
+          <input required placeholder="Route name" aria-label="Route name" value={name} onChange={e => setName(e.target.value)} />
+          <input className="num" placeholder="Grade" aria-label="Grade" list="routeGradeOptions" value={grade}
+                 onChange={e => setGrade(e.target.value)} />
+          <datalist id="routeGradeOptions">{gradeSuggestions(spot.activity).map(g => <option key={g} value={g} />)}</datalist>
+          {spot.sectors.length > 0 && (
+            <select aria-label="Sector" value={sectorId} onChange={e => setSectorId(e.target.value)}>
+              <option value="">No sector</option>
+              {spot.sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
+          <button type="submit" className="btn btn-ghost">Add</button>
+          <button type="button" className="link-btn" onClick={() => setAdding(false)}>Done</button>
+        </form>
+      ) : (
+        <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>Add routes to the list</button>
+      ))}
+    </section>
+  );
 }

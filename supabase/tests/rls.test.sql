@@ -19,7 +19,7 @@ insert into ids select 'fra_partner', min(id) from public.partners;
 set local role anon;
 set local request.jwt.claims to '{"role":"anon"}';
 
-select is((select count(*) from public.places), 25::bigint, 'anon sees the whole place catalog');
+select is((select count(*) from public.places), 26::bigint, 'anon sees the whole spot catalog');
 select is((select count(*) from public.visits), 0::bigint, 'anon sees no private visits');
 select is((select count(*) from public.visit_overview), 0::bigint, 'anon sees no private visits in the overview');
 select is((select count(*) from public.partners), 0::bigint, 'anon sees no partners');

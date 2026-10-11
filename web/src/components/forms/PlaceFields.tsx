@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { currentPosition, formatCoords, parseCoordinates } from '../../lib/coords';
-import { errorMessage, gradeSuggestions, isRouteLike, isTouchLayout, typeLabel } from '../../lib/labels';
-import { EXPOSITIONS, PLACE_TYPES, type Area, type Exposition, type PlaceType, type Sector } from '../../lib/types';
+import { ACTIVITIES, activityLabel, errorMessage, gradeSuggestions, isTouchLayout } from '../../lib/labels';
+import { ACTIVITY_ORDER, EXPOSITIONS, type Area, type Exposition, type Sector } from '../../lib/types';
+import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
-import { hasRock, sectorRow, type CoordField, type PlaceValues } from './placeForm';
+import { sectorRow, type CoordField, type PlaceValues } from './placeForm';
+
+const NAME_HINT: Record<PlaceValues['activity'], string> = {
+  crag: 'Muro del Butch', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
+  dws: 'Mallorca, Cala Barques', indoor: 'Manga Climbing Milano', ski: 'Pizzo dei Tre Signori',
+  hike: 'Sentiero delle Grigne', trail: 'Giro del Resegone',
+};
 
 type Props = {
   values: PlaceValues;
@@ -19,10 +26,10 @@ type Props = {
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
-/** Every field of a place. Used by "Add a place" and by "Log a visit" in a new place. */
+/** Every field of a spot. Used by "Add a spot" and by "Log a visit" at a new spot. */
 export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, originalSectors, autoFocusName }: Props) {
   const [locateError, setLocateError] = useState<string | null>(null);
-  const routeLike = isRouteLike(v.types);
+  const f = ACTIVITIES[v.activity];
   const isNewArea = v.areaName.trim() && !areas.some(a => a.name.toLowerCase() === v.areaName.trim().toLowerCase());
   const removedSector = originalSectors?.some(s => !v.sectors.some(r => r.id === s.id));
 
@@ -45,12 +52,12 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
   return (
     <div className="place-form">
       <div className="field full">
-        <span className="field-label">Activity <span className="hint">(pick all that apply)</span></span>
-        <div className="type-group">
-          {PLACE_TYPES.map(t => (
-            <label key={t} className="type-option">
-              <input type="checkbox" checked={v.types.includes(t)}
-                     onChange={() => onChange({ types: toggle<PlaceType>(v.types, t) })} /> {typeLabel(t)}
+        <span className="field-label" id="activityLabel">Activity</span>
+        <div className="type-group activity-choice" role="radiogroup" aria-labelledby="activityLabel">
+          {ACTIVITY_ORDER.map(a => (
+            <label key={a} className="type-option">
+              <input type="radio" name="spotActivity" checked={v.activity === a} onChange={() => onChange({ activity: a })} />
+              <ActivityBadge activity={a} /> {activityLabel(a)}
             </label>
           ))}
         </div>
@@ -58,10 +65,10 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
       <div className="field full">
         <label htmlFor="placeName">Name</label>
         <input id="placeName" required autoFocus={autoFocusName && !isTouchLayout()} value={v.name}
-               placeholder={routeLike ? 'Via Raggio di sole' : 'Muro del Butch'} onChange={e => onChange({ name: e.target.value })} />
+               placeholder={NAME_HINT[v.activity]} onChange={e => onChange({ name: e.target.value })} />
       </div>
       <div className="field full">
-        <label htmlFor="placeArea">Macroarea <span className="hint">(optional, e.g. Albard, Grignetta)</span></label>
+        <label htmlFor="placeArea">Area <span className="hint">(optional, e.g. Albard, Grignetta, Valsassina)</span></label>
         <input id="placeArea" list="areaOptions" value={v.areaName} placeholder="Pick one or type a new one"
                onChange={e => onChange({ areaName: e.target.value })} />
         <datalist id="areaOptions">{areas.map(a => <option key={a.id} value={a.name} />)}</datalist>
@@ -76,17 +83,24 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
       <div className="field">
         <label htmlFor="placeGrade">Grade <span className="hint">(optional)</span></label>
         <input id="placeGrade" className="num" list="placeGradeOptions" value={v.grade}
-               placeholder={routeLike ? '6a+ (5c obbl.)' : '5b–7a'} onChange={e => onChange({ grade: e.target.value })} />
-        <datalist id="placeGradeOptions">{gradeSuggestions(v.types).map(g => <option key={g} value={g} />)}</datalist>
+               placeholder={f.isRoute ? '6a+ (5c obbl.)' : f.sectors ? '5b–7a' : ''} onChange={e => onChange({ grade: e.target.value })} />
+        <datalist id="placeGradeOptions">{gradeSuggestions(v.activity).map(g => <option key={g} value={g} />)}</datalist>
       </div>
-      {hasRock(v.types) ? (
+      {f.rock ? (
         <div className="field">
           <label htmlFor="placeRock">Rock <span className="hint">(optional)</span></label>
           <input id="placeRock" list="rockOptions" value={v.rock} placeholder="Limestone" onChange={e => onChange({ rock: e.target.value })} />
           <datalist id="rockOptions">{rocks.map(r => <option key={r} value={r} />)}</datalist>
         </div>
       ) : <div />}
-      {routeLike && <>
+      {f.distance && (
+        <div className="field">
+          <label htmlFor="placeDistance">Distance <span className="hint">(km)</span></label>
+          <input id="placeDistance" type="number" inputMode="decimal" min={0.1} max={999} step={0.1} value={v.distance}
+                 onChange={e => onChange({ distance: e.target.value })} />
+        </div>
+      )}
+      {f.altitude && <>
         <div className="field">
           <label htmlFor="placeAltitude">Max altitude <span className="hint">(m)</span></label>
           <input id="placeAltitude" type="number" inputMode="numeric" min={-500} max={9000} value={v.altitude}
@@ -116,9 +130,9 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
                   onChange={e => onChange({ description: e.target.value })} />
       </div>
 
-      {v.types.includes('crag') && (
+      {f.sectors && (
         <div className="field full">
-          <span className="field-label">Sectors <span className="hint">(optional)</span></span>
+          <span className="field-label">{v.activity === 'indoor' ? 'Walls' : 'Sectors'} <span className="hint">(optional)</span></span>
           <div className="sectors-list">
             {v.sectors.map(s => (
               <div key={s.key} className="sector-row">

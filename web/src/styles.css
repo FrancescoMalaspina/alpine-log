@@ -437,6 +437,71 @@ aside {
 .download-name { font-weight: 600; }
 .download-use { font-size: 13.5px; color: var(--slate); }
 
+/* Photos */
+.photos { display: flex; flex-direction: column; gap: 10px; }
+.photo-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.photo-grid li { position: relative; }
+.photo-thumb { display: block; width: 100%; padding: 0; border: none; background: var(--paper); border-radius: 4px; overflow: hidden; cursor: zoom-in; }
+.photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 4px; }
+.photo-thumb:hover img { opacity: .9; }
+.unstage {
+  position: absolute; top: 4px; right: 4px; width: 26px; height: 26px; border-radius: 50%; border: none; cursor: pointer;
+  background: rgba(35, 43, 48, .75); color: #fff; font-size: 17px; line-height: 1;
+}
+.add-photos { position: relative; align-self: flex-start; overflow: hidden; }
+.add-photos input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.add-photos:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
+.add-photos.busy { opacity: .7; cursor: progress; }
+.lightbox {
+  position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center;
+  padding: 16px 16px 72px; background: rgba(16, 20, 23, .94); overscroll-behavior: contain;
+}
+.lightbox img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 2px; }
+.lightbox-bar {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); color: #E8ECEA;
+}
+.lightbox-info { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.lightbox-bar button {
+  padding: 8px 14px; border-radius: var(--radius); border: 1px solid rgba(255, 255, 255, .3);
+  background: none; color: #fff; font-weight: 600; cursor: pointer;
+}
+.lightbox-bar button:hover { background: rgba(255, 255, 255, .12); }
+.lightbox-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); width: 48px; height: 64px; border: none; border-radius: var(--radius);
+  background: rgba(0, 0, 0, .35); color: #fff; font-size: 36px; cursor: pointer;
+}
+.lightbox-nav:hover { background: rgba(0, 0, 0, .6); }
+.lightbox-nav.prev { left: 12px; }
+.lightbox-nav.next { right: 12px; }
+
+/* Activity choice in the spot form */
+.activity-choice .type-option { gap: 7px; padding-left: 8px; }
+.activity-choice .type-option input { position: absolute; opacity: 0; pointer-events: none; }
+.activity-choice .type-option { position: relative; }
+.switch.small { font-weight: 500; font-size: 14px; }
+
+/* Shared route list */
+.route-list { display: flex; flex-direction: column; gap: 8px; }
+.route-group h4 { margin: 6px 0 2px; font-size: 13.5px; font-weight: 600; color: var(--slate); }
+.route-group ul { list-style: none; margin: 0; padding: 0; }
+.route-group li { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--rule); }
+.route-line-name { font-weight: 600; }
+.route-line-grade { font-weight: 600; color: var(--slate); }
+.route-line-count { margin-left: auto; font-size: 13px; color: var(--slate); }
+.icon-btn.small { width: 28px; height: 28px; font-size: 18px; }
+.route-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.route-add input, .route-add select { min-width: 0; padding: 7px 9px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--plate); }
+.route-add input:first-child { flex: 1 1 160px; }
+.route-add input.num { width: 80px; }
+
+/* Collapsible download section */
+.downloads-panel > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; justify-content: space-between; }
+.downloads-panel > summary::-webkit-details-marker { display: none; }
+.downloads-panel > summary::after { content: 'Show'; font-family: var(--font); font-size: 13.5px; font-weight: 600; color: var(--slate); }
+.downloads-panel[open] > summary::after { content: 'Hide'; }
+.downloads-panel[open] > summary { margin-bottom: 10px; }
+
 /* Segmented controls */
 .segmented { display: inline-flex; align-self: flex-start; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--plate); }
 .segmented button { padding: 6px 12px; background: none; border: none; cursor: pointer; font-weight: 600; color: var(--slate); }

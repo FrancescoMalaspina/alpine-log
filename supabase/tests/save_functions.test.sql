@@ -58,7 +58,7 @@ select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
   'id', (select v from ids where k = 'fra_visit'))),
   '42501', null, 'vale cannot edit fra''s visit through save_visit');
 select throws_ok(format($$select public.save_place(%L)$$, jsonb_build_object(
-  'id', (select v from ids where k = 'butch'), 'name', 'x', 'types', '["crag"]'::jsonb, 'lat', 1, 'lng', 1)),
+  'id', (select v from ids where k = 'butch'), 'name', 'x', 'activity', 'crag', 'lat', 1, 'lng', 1)),
   '42501', null, 'vale cannot edit fra''s place through save_place');
 
 -- ---------------------------------------------------------------- fra renames a sector
@@ -67,7 +67,7 @@ set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :fra, 'role', 'authenticated')::text, true);
 
 select lives_ok(format($$select public.save_place(%L)$$, jsonb_build_object(
-  'id', (select v from ids where k = 'butch'), 'name', 'Muro del Butch', 'types', '["crag"]'::jsonb,
+  'id', (select v from ids where k = 'butch'), 'name', 'Muro del Butch', 'activity', 'crag',
   'lat', 45.908774, 'lng', 9.434212,
   'sectors', jsonb_build_array(
     jsonb_build_object('id', (select v from ids where k = 'butch_sector'), 'name', 'Scala dei Sogni (renamed)'),

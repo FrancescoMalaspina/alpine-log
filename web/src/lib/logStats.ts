@@ -1,33 +1,35 @@
 import { gradeRank } from './grades';
-import { ACTIVITIES, primaryType } from './labels';
-import { PLACE_TYPES, type PlaceType, type VisitSummary } from './types';
+import { ACTIVITIES } from './labels';
+import { ACTIVITY_ORDER, type Activity, type VisitSummary } from './types';
 
 export type Tally = { days: number; routes: number };
-export type ActivityTally = Tally & { type: PlaceType; hardest: string | null };
+export type ActivityTally = Tally & { type: Activity; hardest: string | null };
 export type LogStats = {
   totals: Tally & { places: number; areas: number; first: string | null; last: string | null };
   byActivity: ActivityTally[];
   byYear: (Tally & { year: string })[];
 };
 
+const CLIMBING: Activity[] = ['crag', 'multipitch', 'dws', 'indoor'];
+
 /**
- * How hard a grade is within an activity. Climbing grades (French, UIAA) use
- * the shared rank; alpine, ice and ski grades use the order of their scale.
+ * How hard a grade is within an activity. Climbing grades (French, UIAA,
+ * Font) use the shared rank; other scales use the order of their list.
  */
-function difficulty(type: PlaceType, grade: string): number | null {
-  if (type === 'crag' || type === 'multipitch') return gradeRank(grade);
+function difficulty(type: Activity, grade: string): number | null {
+  if (CLIMBING.includes(type)) return gradeRank(grade);
   const i = ACTIVITIES[type].grades.findIndex(g => g.toUpperCase() === grade.trim().toUpperCase());
   return i === -1 ? null : i;
 }
 
-/** A "day" is one visit; a visit counts toward the most specific activity of its place. */
+/** A "day" is one visit, counted toward its spot's activity. */
 export function computeStats(visits: VisitSummary[]): LogStats {
   const dates = visits.map(v => v.date).filter((d): d is string => !!d).sort();
-  const acts = new Map<PlaceType, ActivityTally & { best: number }>();
+  const acts = new Map<Activity, ActivityTally & { best: number }>();
   const years = new Map<string, Tally>();
 
   for (const v of visits) {
-    const type = primaryType(v.place_types);
+    const type = v.place_activity;
     const a = acts.get(type) ?? { type, days: 0, routes: 0, hardest: null, best: -Infinity };
     a.days += 1;
     a.routes += v.ascent_count;
@@ -53,7 +55,7 @@ export function computeStats(visits: VisitSummary[]): LogStats {
       first: dates[0] ?? null,
       last: dates[dates.length - 1] ?? null,
     },
-    byActivity: PLACE_TYPES.filter(t => acts.has(t)).map(t => {
+    byActivity: ACTIVITY_ORDER.filter(t => acts.has(t)).map(t => {
       const { best: _best, ...tally } = acts.get(t)!;
       return tally;
     }),

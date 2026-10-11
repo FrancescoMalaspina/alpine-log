@@ -68,7 +68,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
     try {
       id = await savePlace(input);
       setSavedId(id);
-      if (logVisit) await saveVisitAt(id, visit, values.types);
+      if (logVisit) await saveVisitAt(id, visit, values.activity);
       onSaved(id, logVisit);
     } catch (e) {
       setError(id && logVisit && !place ? `The place is saved, but the visit isn't: ${errorMessage(e)}` : errorMessage(e));
@@ -94,17 +94,17 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
 
   return (
     <Modal
-      title={place ? 'Edit place' : 'Add a place'}
+      title={place ? 'Edit spot' : 'Add a spot'}
       subtitle={place
-        ? 'Places are shared: everyone sees them, only you (and admins) can change this one.'
-        : 'A crag or a single route. Everyone sees places; your visits stay private unless you make them public.'}
+        ? 'Spots are shared: everyone sees them, only you (and admins) can change this one.'
+        : 'One crag, route, icefall, trail or gym. Everyone sees spots; your visits stay private unless you make them public.'}
       onClose={close}
       hidden={hidden}
       footer={<>
         {place && canDelete && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>Delete</button>}
         <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
         <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
-          {place ? 'Save changes' : logVisit ? 'Save place and visit' : 'Save place'}
+          {place ? 'Save changes' : logVisit ? 'Save spot and visit' : 'Save spot'}
         </button>
       </>}
     >
@@ -119,12 +119,12 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
               Log a visit here too
             </label>
             {logVisit && (
-              <VisitFields values={visit} onChange={changeVisit} partners={partners} types={values.types}
+              <VisitFields values={visit} onChange={changeVisit} partners={partners} activity={values.activity}
                            sectors={newSectorOptions(values.sectors.map(s => s.name))} />
             )}
           </div>
         )}
-        {place && <p className="form-note">Guide links, PDFs and the approach GPX are added from the place's Details panel.</p>}
+        {place && <p className="form-note">Photos, guide links, PDFs and the approach GPX are added from the spot's Details panel.</p>}
         <div className="form-error-row"><ErrorText error={error} /></div>
         <button type="submit" hidden />
       </form>

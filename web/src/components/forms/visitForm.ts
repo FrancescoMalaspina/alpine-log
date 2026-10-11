@@ -1,5 +1,5 @@
-import { isRouteLike, localToday } from '../../lib/labels';
-import type { PlaceType, Visibility, VisitDetail, VisitInput } from '../../lib/types';
+import { ACTIVITIES, localToday } from '../../lib/labels';
+import type { Activity, Place, Visibility, VisitDetail, VisitInput } from '../../lib/types';
 
 /**
  * A route row. `sectorKey` is a sector id for an existing place, or
@@ -17,12 +17,23 @@ export type VisitValues = {
   conditions: string;
   duration: string;
   ascents: AscentRow[];
+  /** Add new route names to the spot's shared list. */
+  addRoutes: boolean;
 };
 
 let nextKey = 1;
 export const ascentRow = (): AscentRow => ({ key: nextKey++, name: '', grade: '', sectorKey: '', comment: '' });
 
-export function visitValuesFrom(visit?: VisitDetail): VisitValues {
+/**
+ * Empty or existing visit values. For a new visit at a spot that is itself a
+ * route (multipitch, alpine, ice), the first route row is that route.
+ */
+export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' | 'grade' | 'activity'>): VisitValues {
+  const first = ascentRow();
+  if (!visit && spot && ACTIVITIES[spot.activity].isRoute) {
+    first.name = spot.name;
+    first.grade = spot.grade ?? '';
+  }
   return {
     date: visit ? visit.date ?? '' : localToday(),
     visibility: visit?.visibility ?? 'private',
@@ -37,7 +48,8 @@ export function visitValuesFrom(visit?: VisitDetail): VisitValues {
         key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '',
         sectorKey: a.sector ? String(a.sector.id) : '',
       }))
-      : [ascentRow()],
+      : [first],
+    addRoutes: false,
   };
 }
 
@@ -53,22 +65,24 @@ export function visitProblem(v: VisitValues): string | null {
 
 /** The save_visit payload. `sectorId` resolves a row's sectorKey to a real sector id. */
 export function buildVisitInput(
-  v: VisitValues, placeId: number, types: PlaceType[], sectorId: (key: string) => number | null, id?: number,
+  v: VisitValues, placeId: number, activity: Activity, sectorId: (key: string) => number | null, id?: number,
 ): VisitInput {
-  const routeLike = isRouteLike(types);
+  const f = ACTIVITIES[activity];
   return {
     id,
     place_id: placeId,
     date: v.date || null,
     summary: v.summary,
-    approach: routeLike ? v.approach : '',
-    descent: routeLike ? v.descent : '',
-    conditions: routeLike ? v.conditions : '',
-    duration_hours: routeLike && v.duration.trim() ? Number(v.duration) : null,
+    approach: f.approach ? v.approach : '',
+    descent: f.approach ? v.descent : '',
+    conditions: f.conditions ? v.conditions : '',
+    duration_hours: f.conditions && v.duration.trim() ? Number(v.duration) : null,
     visibility: v.visibility,
     partners: v.withPeople,
-    ascents: filledAscents(v).map(a => ({
-      name: a.name, grade: a.grade, comment: a.comment, sector_id: a.sectorKey ? sectorId(a.sectorKey) : null,
+    add_routes: f.sectors && v.addRoutes,
+    ascents: (f.routes ? filledAscents(v) : []).map(a => ({
+      name: a.name, grade: a.grade, comment: a.comment, route_id: null,
+      sector_id: a.sectorKey ? sectorId(a.sectorKey) : null,
     })),
   };
 }

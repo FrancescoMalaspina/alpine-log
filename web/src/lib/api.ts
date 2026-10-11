@@ -4,7 +4,7 @@
  */
 import { supabase } from './supabase';
 import type {
-  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
 } from './types';
 
 /** Public storage bucket for GPX tracks and PDF guides (supabase/migrations). */
@@ -21,8 +21,8 @@ const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, ' ').trim();
 // ---------------------------------------------------------------- places
 
 const PLACE_COLUMNS = `
-  id, created_by, area_id, name, types, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
-  rock, exposition, description, grade, max_altitude, elevation_gain, created_at, updated_at,
+  id, created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  rock, exposition, description, grade, max_altitude, elevation_gain, distance_km, created_at, updated_at,
   area:areas (id, name),
   sectors (id, name, position),
   visits (count)
@@ -46,7 +46,7 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
 
   const s = cleanSearch(f.search);
   if (s) q = q.or(`name.ilike.%${s}%,rock.ilike.%${s}%,description.ilike.%${s}%,grade.ilike.%${s}%`);
-  if (f.types.length) q = q.overlaps('types', f.types);
+  if (f.activities.length) q = q.in('activity', f.activities);
   if (f.areaId) q = q.eq('area_id', f.areaId);
   if (f.rock) q = q.eq('rock', f.rock);
   if (f.exposition.length) q = q.overlaps('exposition', f.exposition);
@@ -54,7 +54,7 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
 
   return unwrap(await q).map(({ visits, ...p }) => ({
     ...p,
-    types: p.types as Place['types'],
+    activity: p.activity as Place['activity'],
     exposition: p.exposition as Place['exposition'],
     visit_count: visits[0]?.count ?? 0,
   }));
@@ -68,6 +68,31 @@ export async function fetchRocks(): Promise<string[]> {
 
 export async function savePlace(input: PlaceInput): Promise<number> {
   return unwrap(await supabase.rpc('save_place', { p: input }));
+}
+
+// ---------------------------------------------------------------- shared route lists
+
+export async function fetchRoutes(placeId: number): Promise<Route[]> {
+  const rows = unwrap(await supabase
+    .from('routes')
+    .select('id, place_id, sector_id, name, grade, grade_rank, created_by, ascents (count)')
+    .eq('place_id', placeId)
+    .order('name'));
+  return rows.map(({ ascents, ...r }) => ({ ...r, ascent_count: ascents[0]?.count ?? 0 }));
+}
+
+export async function addRoute(placeId: number, route: { name: string; grade: string; sectorId: number | null }): Promise<void> {
+  const { error } = await supabase.from('routes').insert({
+    place_id: placeId, name: route.name.trim(), grade: route.grade.trim() || null, sector_id: route.sectorId,
+  });
+  if (error) {
+    throw new Error(error.code === '23505' ? `"${route.name.trim()}" is already in the list.` : error.message);
+  }
+}
+
+export async function deleteRoute(id: number): Promise<void> {
+  const rows = unwrap(await supabase.from('routes').delete().eq('id', id).select('id'));
+  if (!rows.length) throw new Error('Only whoever added this route, or whoever can edit the spot, can remove it.');
 }
 
 export async function fetchSectors(placeId: number): Promise<{ id: number; name: string }[]> {
@@ -197,7 +222,7 @@ export async function fetchVisits(f: VisitFilters, userId: string | null): Promi
   if (f.from) q = q.gte('date', f.from);
   if (f.to) q = q.lte('date', f.to);
   if (f.minGradeRank != null) q = q.gte('max_grade_rank', f.minGradeRank);
-  if (f.placeType) q = q.contains('place_types', [f.placeType]);
+  if (f.activity) q = q.eq('place_activity', f.activity);
   const s = cleanSearch(f.search).toLowerCase();
   if (s) q = q.ilike('search_text', `%${s}%`);
 
@@ -210,7 +235,7 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
     .select(`
       id, user_id, place_id, date, summary, approach, descent, conditions, duration_hours, visibility,
       profile:profiles (username),
-      ascents (id, name, grade, comment, position, sector:sectors (id, name)),
+      ascents (id, route_id, name, grade, comment, position, sector:sectors (id, name)),
       visit_partners (partner:partners (name))
     `)
     .eq('place_id', placeId)
@@ -231,7 +256,7 @@ export async function fetchLogbook(userId: string) {
     .from('visits')
     .select(`
       id, date, summary, approach, descent, conditions, duration_hours, visibility, created_at,
-      place:places (id, name, types, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
+      place:places (id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
                     area:areas (name)),
       ascents (name, grade, comment, position, sector:sectors (name)),
       visit_partners (partner:partners (name))

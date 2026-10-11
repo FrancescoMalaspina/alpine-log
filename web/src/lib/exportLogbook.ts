@@ -3,16 +3,16 @@
  * spreadsheets, JSON as a complete backup, GPX waypoints for GPS apps.
  */
 import type { LogbookVisit } from './api';
-import { localToday, typeLabel } from './labels';
-import type { PlaceType } from './types';
+import { activityLabel, localToday } from './labels';
+import type { Activity } from './types';
 
 export type ExportFormat = 'csv' | 'json' | 'gpx';
 
-const typesOf = (v: LogbookVisit) => (v.place?.types ?? []) as PlaceType[];
+const activityOf = (v: LogbookVisit) => (v.place ? activityLabel(v.place.activity as Activity) : '');
 
 // ---------------------------------------------------------------- CSV
 const CSV_COLUMNS = [
-  'date', 'place', 'area', 'activities', 'latitude', 'longitude', 'visibility', 'with', 'duration_hours',
+  'date', 'spot', 'area', 'activity', 'latitude', 'longitude', 'visibility', 'with', 'duration_hours',
   'conditions', 'summary', 'approach', 'descent', 'route', 'grade', 'sector', 'route_comment',
 ] as const;
 
@@ -25,7 +25,7 @@ const cell = (v: unknown) => {
 function toCsv(visits: LogbookVisit[]): string {
   const rows = visits.flatMap(v => {
     const base = [
-      v.date, v.place?.name, v.place?.area?.name, typesOf(v).map(typeLabel).join('; '),
+      v.date, v.place?.name, v.place?.area?.name, activityOf(v),
       v.place?.lat, v.place?.lng, v.visibility, v.partners.join('; '), v.duration_hours,
       v.conditions, v.summary, v.approach, v.descent,
     ];
@@ -39,7 +39,7 @@ function toCsv(visits: LogbookVisit[]): string {
 // ---------------------------------------------------------------- JSON
 function toJson(visits: LogbookVisit[], username: string): string {
   return JSON.stringify({
-    format: 'alpine-log/v1',
+    format: 'alpine-log/v2',
     exported_at: new Date().toISOString(),
     user: username,
     visits: visits.map(v => ({
@@ -51,10 +51,10 @@ function toJson(visits: LogbookVisit[], username: string): string {
       summary: v.summary,
       approach: v.approach,
       descent: v.descent,
-      place: v.place && {
+      spot: v.place && {
         name: v.place.name,
         area: v.place.area?.name ?? null,
-        activities: v.place.types,
+        activity: v.place.activity,
         grade: v.place.grade,
         max_altitude: v.place.max_altitude,
         pin: { lat: v.place.lat, lng: v.place.lng },
@@ -69,7 +69,7 @@ function toJson(visits: LogbookVisit[], username: string): string {
 // ---------------------------------------------------------------- GPX
 const xml = (s: unknown) => String(s ?? '').replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]!));
 
-/** One waypoint per place visited, listing the visit dates. */
+/** One waypoint per spot visited, listing the visit dates. */
 function toGpx(visits: LogbookVisit[], username: string): string {
   const byPlace = new Map<number, { place: NonNullable<LogbookVisit['place']>; dates: string[]; routes: number }>();
   for (const v of visits) {
@@ -81,14 +81,14 @@ function toGpx(visits: LogbookVisit[], username: string): string {
   }
   const wpts = [...byPlace.values()].map(({ place: p, dates, routes }) => {
     const desc = [
-      p.area?.name, (p.types as PlaceType[]).map(typeLabel).join(', '), p.grade,
+      p.area?.name, activityLabel(p.activity as Activity), p.grade,
       `${dates.length || 'undated'} visit${dates.length === 1 ? '' : 's'}${dates.length ? `: ${dates.sort().join(', ')}` : ''}`,
       routes ? `${routes} routes` : null,
     ].filter(Boolean).join(' — ');
     return `  <wpt lat="${p.lat}" lon="${p.lng}">
     <name>${xml(p.name)}</name>
     <desc>${xml(desc)}</desc>
-    <type>${xml((p.types as PlaceType[]).map(typeLabel).join(', '))}</type>
+    <type>${xml(activityLabel(p.activity as Activity))}</type>
   </wpt>`;
   });
   return `<?xml version="1.0" encoding="UTF-8"?>
