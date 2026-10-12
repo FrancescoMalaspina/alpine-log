@@ -176,6 +176,38 @@ export type Database = {
           },
         ]
       }
+      imports: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: number
+          summary: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          id?: never
+          summary?: Json
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: never
+          summary?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "imports_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partners: {
         Row: {
           id: number
@@ -521,6 +553,7 @@ export type Database = {
           descent: string | null
           duration_hours: number | null
           id: number
+          import_id: number | null
           place_id: number
           summary: string | null
           updated_at: string
@@ -535,6 +568,7 @@ export type Database = {
           descent?: string | null
           duration_hours?: number | null
           id?: never
+          import_id?: number | null
           place_id: number
           summary?: string | null
           updated_at?: string
@@ -549,6 +583,7 @@ export type Database = {
           descent?: string | null
           duration_hours?: number | null
           id?: never
+          import_id?: number | null
           place_id?: number
           summary?: string | null
           updated_at?: string
@@ -556,6 +591,13 @@ export type Database = {
           visibility?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "visits_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "imports"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "visits_place_id_fkey"
             columns: ["place_id"]
@@ -627,7 +669,21 @@ export type Database = {
       can_edit_area: { Args: { p_area_id: number }; Returns: boolean }
       can_edit_place: { Args: { p_place_id: number }; Returns: boolean }
       grade_rank: { Args: { grade: string }; Returns: number }
+      import_logbook: { Args: { p: Json }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      match_places: {
+        Args: { min_similarity?: number; names: string[] }
+        Returns: {
+          activity: string
+          area_name: string
+          lat: number
+          lng: number
+          name: string
+          place_id: number
+          query: string
+          similarity: number
+        }[]
+      }
       partner_on_readable_visit: {
         Args: { p_partner_id: number }
         Returns: boolean
@@ -641,6 +697,10 @@ export type Database = {
       }
       save_place: { Args: { p: Json }; Returns: number }
       save_visit: { Args: { v: Json }; Returns: number }
+      set_user_role: {
+        Args: { p_role: string; p_user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

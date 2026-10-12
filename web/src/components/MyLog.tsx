@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchLogbook, fetchVisits } from '../lib/api';
+import { createPortal } from 'react-dom';
+import { deleteImport, fetchImports, fetchLogbook, fetchVisits, type ImportRecord } from '../lib/api';
 import { downloadLogbook, type ExportFormat } from '../lib/exportLogbook';
-import { activityLabel, errorMessage, formatDate } from '../lib/labels';
+import { activityLabel, errorMessage, formatDate, plural } from '../lib/labels';
 import { computeStats } from '../lib/logStats';
 import { EMPTY_VISIT_FILTERS, type Activity, type VisitSummary } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
+import { ImportWizard } from './import/ImportWizard';
 import { VisitRow } from './Sidebar';
 
 type Props = {
@@ -14,6 +16,8 @@ type Props = {
   username: string;
   reloadKey: number;
   onClose: () => void;
+  /** Visits were imported or an import was undone. */
+  onChanged: () => void;
   onOpenVisit: (visit: VisitSummary) => void;
 };
 
@@ -26,11 +30,29 @@ const EXPORTS: { format: ExportFormat; name: string; use: string }[] = [
 ];
 
 /** The signed-in user's own logbook: every visit they logged, with simple totals. */
-export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Props) {
+export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenVisit }: Props) {
   const [visits, setVisits] = useState<VisitSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [only, setOnly] = useState<Activity | null>(null);
   const [exporting, setExporting] = useState<ExportFormat | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [undoing, setUndoing] = useState<number | null>(null);
+
+  async function undo(imp: ImportRecord) {
+    const n = imp.summary.visits ?? 0;
+    if (!window.confirm(`Delete the ${plural(n, 'visit')} imported from “${imp.file_name}”? Spots it created stay on the map.`)) return;
+    setError(null);
+    setUndoing(imp.id);
+    try {
+      await deleteImport(imp.id);
+      onChanged();
+    } catch (e) {
+      setError(`Couldn't undo the import: ${errorMessage(e)}`);
+    } finally {
+      setUndoing(null);
+    }
+  }
 
   async function download(format: ExportFormat) {
     setError(null);
@@ -49,6 +71,9 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Pro
     fetchVisits(MINE, userId)
       .then(v => { if (!cancelled) setVisits(v); })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
+    fetchImports()
+      .then(i => { if (!cancelled) setImports(i); })
+      .catch(() => { /* the list of imports is secondary */ });
     return () => { cancelled = true; };
   }, [userId, reloadKey]);
 
@@ -77,7 +102,10 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Pro
       <ErrorText error={error} />
       {!visits && !error && <div className="empty">Loading your visits…</div>}
       {visits && !visits.length && (
-        <div className="empty">Nothing logged yet. Use Log a visit to start your logbook.</div>
+        <div className="empty">
+          Nothing logged yet. Use Log a visit to start your logbook, or{' '}
+          <button type="button" className="btn-link" onClick={() => setImporting(true)}>import it from a spreadsheet</button>.
+        </div>
       )}
 
       {stats && visits!.length > 0 && <>
@@ -96,6 +124,27 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Pro
                 <span className="download-name">{exporting === x.format ? 'Preparing…' : x.name}</span>
                 <span className="download-use">{x.use}</span>
               </button>
+            ))}
+          </div>
+        </details>
+
+        <details className="downloads-panel">
+          <summary className="section-title">Import visits</summary>
+          <div className="downloads">
+            <button type="button" className="download" onClick={() => setImporting(true)}>
+              <span className="download-name">From a file</span>
+              <span className="download-use">Excel, CSV or JSON, in any layout: you check every column before anything is saved</span>
+            </button>
+            {imports.map(imp => (
+              <div key={imp.id} className="import-record">
+                <span>
+                  <strong>{imp.file_name}</strong>
+                  <span className="hint"> · {formatDate(imp.created_at.slice(0, 10))} · {plural(imp.summary.visits ?? 0, 'visit')}</span>
+                </span>
+                <button type="button" className="btn btn-quiet" disabled={undoing === imp.id} onClick={() => undo(imp)}>
+                  {undoing === imp.id ? 'Undoing…' : 'Undo'}
+                </button>
+              </div>
             ))}
           </div>
         </details>
@@ -154,6 +203,8 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenVisit }: Pro
           </section>
         ))}
       </>}
+      {/* Portalled: inside the drawer it would sit below the map's controls. */}
+      {importing && createPortal(<ImportWizard onClose={() => setImporting(false)} onImported={onChanged} />, document.body)}
     </Drawer>
   );
 }

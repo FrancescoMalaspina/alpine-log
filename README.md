@@ -25,6 +25,8 @@ marked public. Admins can see everything.
 - **My logbook** shows each user's visits with totals per activity and year,
   and downloads them as CSV (one row per route), JSON (full backup) or GPX
   (visited places as waypoints).
+- **Import** (My logbook → Import visits) reads Excel/ODS/CSV/JSON files in any
+  layout: see [Importing logbooks](#importing-logbooks).
 - **Photos** on places (public) and on visits (only visible to whoever can
   see the visit). The browser shrinks each photo to a ~2000 px display copy
   plus a thumbnail before uploading (a few hundred KB instead of several MB),
@@ -79,6 +81,7 @@ Needs Docker and the [Supabase CLI](https://supabase.com/docs/guides/cli).
 supabase start            # Postgres, Auth, Storage and Studio in Docker
 supabase db reset         # apply migrations + seed (re-run any time to start fresh)
 supabase test db          # RLS and function tests
+(cd web && npm test)      # import parsing and mapping (vitest)
 
 cd web
 npm install
@@ -145,6 +148,65 @@ After changing the schema, regenerate the TypeScript types with
 
    The import refuses to run if the `places` table isn't empty, and it imports
    every visit as private. Pass `--visibility public` to publish them all.
+
+## Importing logbooks
+
+Users can import their own spreadsheets, whatever the columns are called. All
+parsing runs in the browser (`web/src/lib/import/`); the database only sees the
+final, reviewed result.
+
+1. **Parse** (`parse.ts`): every sheet of a workbook (SheetJS, loaded on demand),
+   a CSV, or the largest list of records in a JSON file becomes a plain table.
+   Our own JSON backup (`alpine-log/v2`) skips the mapping step.
+2. **Map** (`automap.ts`, `fields.ts`): each column is matched to a field by its
+   header (synonyms in Italian, English, French, German, Spanish) and by its
+   values (dates, grades, URLs, numbers). Columns like `Date (2)` become a second
+   visit per row. The activity comes from the sheet name (`Falesie`, `Vie
+   Lunghe`…) or an activity column. The user reviews every column, and the
+   confirmed mapping is remembered in the browser for files with the same headers.
+3. **Read values** (`transforms.ts`, `rows.ts`): `06/06/02026`, `N/A`,
+   `Fra. Japo, Vale`, `5c, 6a (ok), 6a+ (no)` and so on. Columns with no field of
+   their own are kept in the visit notes as `Column: value`.
+4. **Place spots** (`resolve.ts`): `match_places()` (pg_trgm) suggests existing
+   spots with similar names. New spots get a pin from Photon, using the town,
+   area or name, and searching near the spots already known. The user checks the
+   pins on a map and can drag them.
+5. **Save**: `import_logbook()` writes everything in one transaction through
+   `save_place`/`save_visit`. It skips visits the user already has (same spot
+   and day), and records the import so it can be undone from the logbook. Undo
+   deletes the imported visits; spots stay, because they are shared.
+
+### AI column mapping (optional)
+
+The column step has a *Suggest with AI* button. It calls the Edge Function
+`supabase/functions/import-assist`, which asks Google Gemini to map the columns.
+The function sends only headers and five example rows per sheet, with partner
+names hidden by default. On Gemini's free tier, Google may use prompts to
+improve its models, and the wizard says so next to the button. Each signed-in
+user gets 10 calls per hour per function instance. When Gemini's free quota
+runs out, the button reports it and the manual mapping still works.
+
+```sh
+# key from https://aistudio.google.com/apikey
+echo "GEMINI_API_KEY=..." > supabase/functions/.env.local      # gitignored
+supabase functions serve import-assist --env-file supabase/functions/.env.local
+
+# hosted, by hand (needs SUPABASE_ACCESS_TOKEN of the project owner)
+supabase secrets set GEMINI_API_KEY=...         # optionally GEMINI_MODEL=...
+supabase functions deploy import-assist
+```
+
+The key can also be added in the dashboard (Edge Functions → Secrets).
+`.github/workflows/deploy-functions.yml` deploys every function under
+`supabase/functions/` on each push to `main` that changes them (or by hand from
+the Actions tab). It needs the repository secret `SUPABASE_ACCESS_TOKEN`
+(Account → Access Tokens, from the account that owns the project) and reads the
+project ref from the `VITE_SUPABASE_URL` variable. If the repository also has a
+`GEMINI_API_KEY` secret, the workflow copies it to Supabase; without one, the
+secret already set in Supabase stays as it is.
+
+`GEMINI_MODEL` defaults to `gemini-2.5-flash`. All the Gemini code is in one
+function, `proposeMapping()`, so another provider can replace it there.
 
 ## Grades
 

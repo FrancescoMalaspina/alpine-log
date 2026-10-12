@@ -377,6 +377,7 @@ export default function App() {
             username={profile?.username ?? 'Your'}
             reloadKey={reloadKey}
             onClose={() => setPanel(null)}
+            onChanged={reload}
             onOpenVisit={v => {
               const place = placeById.get(v.place_id);
               if (place) openPlace(place, 'visits', v.id);

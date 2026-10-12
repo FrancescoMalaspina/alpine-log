@@ -7,13 +7,15 @@ type Props = {
   closeOnBackdrop?: boolean;
   /** Kept mounted but out of sight, e.g. while the user picks a point on the map. */
   hidden?: boolean;
+  /** Extra class on the dialog, e.g. "modal-wide". */
+  className?: string;
   footer: ReactNode;
   children: ReactNode;
 };
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export function Modal({ title, subtitle, onClose, closeOnBackdrop, hidden, footer, children }: Props) {
+export function Modal({ title, subtitle, onClose, closeOnBackdrop, hidden, className, footer, children }: Props) {
   const dialog = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const close = useRef(onClose);
@@ -51,7 +53,7 @@ export function Modal({ title, subtitle, onClose, closeOnBackdrop, hidden, foote
 
   return (
     <div className="overlay" hidden={hidden} onClick={e => { if (closeOnBackdrop && e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={dialog}>
+      <div className={className ? `modal ${className}` : 'modal'} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={dialog}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
           {subtitle && <p>{subtitle}</p>}

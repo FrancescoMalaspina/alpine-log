@@ -2,6 +2,7 @@
  * Every database call the app makes. Permissions are enforced by row level
  * security in Postgres; these functions only shape requests and results.
  */
+import type { Json } from './database.types';
 import { supabase } from './supabase';
 import type {
   Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
@@ -288,4 +289,55 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
   const escaped = username.replace(/[\\%_]/g, c => `\\${c}`);
   const rows = unwrap(await supabase.from('profiles').select('id').ilike('username', escaped).limit(1));
   return rows.length > 0;
+}
+
+// ---------------------------------------------------------------- imports
+
+/** An existing spot whose name looks like an imported one. */
+export type PlaceMatch = {
+  query: string;
+  place_id: number;
+  name: string;
+  activity: string;
+  area_name: string | null;
+  lat: number;
+  lng: number;
+  similarity: number;
+  distance_km?: number | null;
+};
+
+export async function matchPlaces(names: string[]): Promise<PlaceMatch[]> {
+  if (!names.length) return [];
+  return unwrap(await supabase.rpc('match_places', { names }));
+}
+
+export type ImportResult = { import_id: number | null; visits: number; skipped: number; new_spots: number };
+
+/** Writes a whole import in one transaction. */
+export async function importLogbook(payload: object): Promise<ImportResult> {
+  return unwrap(await supabase.rpc('import_logbook', { p: payload as Json })) as ImportResult;
+}
+
+export type ImportRecord = { id: number; file_name: string; created_at: string; summary: Record<string, number> };
+
+export async function fetchImports(): Promise<ImportRecord[]> {
+  const rows = unwrap(await supabase.from('imports').select('id, file_name, created_at, summary').order('created_at', { ascending: false }));
+  return rows.map(r => ({ ...r, summary: (r.summary ?? {}) as Record<string, number> }));
+}
+
+/** Undoes an import: deletes the visits it added (the spots stay). */
+export async function deleteImport(id: number): Promise<void> {
+  const rows = unwrap(await supabase.from('imports').delete().eq('id', id).select('id'));
+  if (!rows.length) throw new Error("You can't undo this import.");
+}
+
+/** Asks the import-assist Edge Function (Gemini) to map a file's columns. */
+export async function askImportAssist<T>(body: object): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('import-assist', { body });
+  if (error) {
+    const status = (error as { context?: Response }).context?.status;
+    if (status === 429) throw new Error('The AI helper is busy (free quota reached). Try again in a minute, or map the columns yourself.');
+    throw new Error(`The AI helper didn't answer: ${error.message}`);
+  }
+  return data as T;
 }
