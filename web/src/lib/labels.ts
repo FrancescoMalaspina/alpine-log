@@ -76,6 +76,12 @@ export const activityLabel = (a: Activity) => ACTIVITIES[a].label;
 export const gradeSuggestions = (a: Activity) => ACTIVITIES[a].grades;
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const PRIORITY_LABELS: Record<1 | 2 | 3, string> = { 1: 'High', 2: 'Normal', 3: 'Low' };
+export const seasonLabel = (s: string) => s[0].toUpperCase() + s.slice(1);
+
+/** Same rule as the profiles.username check constraint. */
+export const USERNAME_RE = /^[A-Za-z0-9_.-]{3,30}$/;
+export const USERNAME_HINT = 'Usernames are 3–30 letters, digits, dots, dashes or underscores.';
 export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export const formatHours = (h: number) => {
   const whole = Math.floor(h);

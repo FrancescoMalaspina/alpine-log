@@ -8,6 +8,8 @@ export type AuthValue = {
   isAdmin: boolean;
   /** True after following a password-reset link, until a new password is set. */
   recovering: boolean;
+  /** Reloads the profile, e.g. after a rename. */
+  refreshProfile: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   /** Resolves to true when the user must confirm their email before signing in. */
   signUp: (email: string, password: string, username: string) => Promise<boolean>;

@@ -565,7 +565,7 @@ aside {
 .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .field.full { grid-column: 1 / -1; }
 .field input, .field textarea, .field select,
-.visit-block input, .visit-block textarea, .visit-block select, .area-edit input, .area-edit textarea {
+.visit-block input, .visit-block textarea, .visit-block select, .area-edit input, .area-edit textarea, .users-search, .user-rename input {
   min-width: 0; padding: 9px 11px;
   background: var(--plate); border: 1px solid var(--rule); border-radius: var(--radius);
 }
@@ -601,6 +601,40 @@ aside {
 .user-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .user-name { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .user-email { font-size: 13.5px; color: var(--slate); overflow-wrap: anywhere; }
+.user-actions { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.user-actions .btn, .wish-actions .btn { min-height: 32px; padding: 0 10px; font-size: 14px; }
+.user-delete { color: var(--blaze-deep); }
+.user-rename { display: flex; gap: 6px; flex: 1; }
+.user-rename input { flex: 1; min-width: 0; }
+.users-search { width: 100%; }
+
+/* ---------------------------------------------------------------- account panel */
+.account-section { display: flex; flex-direction: column; gap: 10px; }
+.account-section + .account-section { padding-top: 14px; border-top: 1px solid var(--rule); }
+.account-profile { display: flex; flex-direction: column; gap: 10px; }
+.account-profile .field-inline input { flex: 1; min-width: 0; }
+.account-profile input[readonly] { background: var(--paper); color: var(--slate); }
+.danger-zone .btn-danger { align-self: flex-start; margin-right: 0; }
+
+.wish-list { list-style: none; margin: 0; padding: 0; }
+.wish-row { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px solid var(--rule); }
+.wish-row.done { flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.wish-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wish-name { font-weight: 600; text-align: left; }
+.wish-priority { font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--rule); color: var(--slate); }
+.wish-priority.p1 { background: var(--blaze); color: #fff; box-shadow: none; }
+.wish-facts { font-size: 13.5px; }
+.wish-notes { margin: 0; white-space: pre-line; }
+.wish-actions { display: flex; gap: 6px; }
+.wish-btn.on { border-color: var(--granite); }
+.wish-tick { font-weight: 600; }
+.wishlist-filter { align-self: flex-start; }
+
+/* ---------------------------------------------------------------- confirm dialog */
+.confirm-message p { margin: 0 0 8px; }
+.confirm-message p:last-child { margin-bottom: 0; }
+.btn-danger.confirm-danger { margin-right: 0; background: var(--blaze-deep); color: #fff; border-color: var(--blaze-deep); }
+.btn-danger.confirm-danger:hover:not(:disabled) { background: #8f1812; border-color: #8f1812; }
 .form-error { color: var(--blaze-deep); font-weight: 500; }
 .form-info { padding: 10px 12px; border-radius: var(--radius); background: var(--paper); }
 

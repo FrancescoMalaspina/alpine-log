@@ -2,10 +2,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { isUsernameTaken } from '../lib/api';
+import { USERNAME_HINT, USERNAME_RE } from '../lib/labels';
 import type { Profile } from '../lib/types';
 import { AuthContext, type AuthValue } from './useAuth';
-
-const USERNAME_RE = /^[A-Za-z0-9_.-]{3,30}$/;
 
 const redirectUrl = () => window.location.origin + import.meta.env.BASE_URL;
 
@@ -13,6 +12,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loadedProfile, setLoadedProfile] = useState<Profile | null>(null);
   const [recovering, setRecovering] = useState(false);
+  const [profileVersion, setProfileVersion] = useState(0);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -30,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.from('profiles').select('id, username, role').eq('id', userId).single()
       .then(({ data }) => { if (!cancelled) setLoadedProfile(data as Profile | null); });
     return () => { cancelled = true; };
-  }, [userId]);
+  }, [userId, profileVersion]);
   const profile = loadedProfile && loadedProfile.id === userId ? loadedProfile : null;
 
   const value: AuthValue = {
@@ -38,13 +38,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     profile,
     isAdmin: profile?.role === 'admin',
     recovering,
+    refreshProfile: () => setProfileVersion(n => n + 1),
     async signIn(email, password) {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
     },
     async signUp(email, password, username) {
       if (!USERNAME_RE.test(username)) {
-        throw new Error('Usernames are 3–30 letters, digits, dots, dashes or underscores.');
+        throw new Error(USERNAME_HINT);
       }
       if (await isUsernameTaken(username)) throw new Error(`"${username}" is already taken.`);
       const { data, error } = await supabase.auth.signUp({

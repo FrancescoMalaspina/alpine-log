@@ -6,7 +6,9 @@ import type { Json } from './database.types';
 import { supabase } from './supabase';
 import type {
   Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Wish, WishInput,
 } from './types';
+import { USERNAME_HINT, USERNAME_RE } from './labels';
 
 /** Public storage bucket for GPX tracks and PDF guides (supabase/migrations). */
 const BUCKET = 'place-files';
@@ -352,4 +354,87 @@ export async function fetchUsers(): Promise<UserRow[]> {
 
 export async function setUserRole(userId: string, role: Profile['role']): Promise<void> {
   unwrap(await supabase.rpc('set_user_role', { p_user_id: userId, p_role: role }));
+}
+
+// ---------------------------------------------------------------- account
+
+/** Renames yourself, or anyone when you are an admin. */
+export async function renameUser(userId: string, username: string): Promise<void> {
+  const name = username.trim();
+  if (!USERNAME_RE.test(name)) throw new Error(USERNAME_HINT);
+  const escaped = name.replace(/[\\%_]/g, c => `\\${c}`);
+  const taken = unwrap(await supabase.from('profiles').select('id').ilike('username', escaped).neq('id', userId).limit(1));
+  if (taken.length) throw new Error(`"${name}" is already taken.`);
+  const rows = unwrap(await supabase.from('profiles').update({ username: name }).eq('id', userId).select('id'));
+  if (!rows.length) throw new Error("You can't rename this user.");
+}
+
+const removeFiles = async (bucket: string, paths: string[]) => {
+  for (let i = 0; i < paths.length; i += 500) {
+    const { error } = await supabase.storage.from(bucket).remove(paths.slice(i, i + 500));
+    if (error) throw new Error(error.message);
+  }
+};
+
+/**
+ * Deletes an account: your own, or anyone's as an admin. Storage files can't be
+ * removed from SQL, so they go first, once the database has agreed to the delete.
+ * Spots, areas and routes the user added stay, without an owner.
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  unwrap(await supabase.rpc('delete_user', { p_user_id: userId, p_check_only: true }));
+  const files = unwrap(await supabase.from('attachments').select('storage_path')
+    .eq('created_by', userId).not('storage_path', 'is', null));
+  const photos = unwrap(await supabase.from('photos').select('place_id, storage_path, thumb_path').eq('created_by', userId));
+  await removeFiles('place-files', files.map(f => f.storage_path!));
+  await removeFiles('place-photos', photos.filter(p => p.place_id != null).flatMap(p => [p.storage_path, p.thumb_path]));
+  await removeFiles('visit-photos', photos.filter(p => p.place_id == null).flatMap(p => [p.storage_path, p.thumb_path]));
+  unwrap(await supabase.rpc('delete_user', { p_user_id: userId }));
+}
+
+// ---------------------------------------------------------------- wishlist
+
+const WISH_COLUMNS = `
+  id, user_id, place_id, priority, seasons, with_people, notes, visibility, done_at, done_visit_id, created_at,
+  done_visit:visits!wishlist_done_visit_id_fkey (date)
+` as const;
+
+/** Your wishlist: open items and resolved ones. */
+export async function fetchMyWishes(userId: string): Promise<Wish[]> {
+  return unwrap(await supabase.from('wishlist').select(WISH_COLUMNS).eq('user_id', userId)
+    .order('created_at', { ascending: false })) as Wish[];
+}
+
+/** Usernames with this place on their public, open wishlist. */
+export async function fetchPlaceWishers(placeId: number): Promise<string[]> {
+  const rows = unwrap(await supabase.from('wishlist').select('profile:profiles (username)')
+    .eq('place_id', placeId).eq('visibility', 'public').is('done_at', null));
+  return rows.map(r => r.profile?.username).filter((n): n is string => !!n);
+}
+
+export async function saveWish(w: WishInput): Promise<void> {
+  const fields = {
+    priority: w.priority, seasons: w.seasons, with_people: w.with_people,
+    notes: w.notes?.trim() || null, visibility: w.visibility,
+  };
+  if (w.id) {
+    const rows = unwrap(await supabase.from('wishlist').update(fields).eq('id', w.id).select('id'));
+    if (!rows.length) throw new Error('You can only edit your own wishlist.');
+  } else {
+    const { error } = await supabase.from('wishlist').insert({ ...fields, place_id: w.place_id });
+    if (error?.code === '23505') throw new Error('This place is already on your wishlist.');
+    if (error) throw new Error(error.message);
+  }
+}
+
+export async function deleteWish(id: number): Promise<void> {
+  unwrap(await supabase.from('wishlist').delete().eq('id', id));
+}
+
+export async function completeWish(wishId: number, visitId: number): Promise<void> {
+  unwrap(await supabase.rpc('complete_wish', { p_wish_id: wishId, p_visit_id: visitId }));
+}
+
+export async function reopenWish(id: number): Promise<void> {
+  unwrap(await supabase.rpc('reopen_wish', { p_wish_id: id }));
 }

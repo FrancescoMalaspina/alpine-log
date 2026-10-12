@@ -104,6 +104,28 @@ export type Partner = { id: number; name: string };
 
 export type Profile = { id: string; username: string; role: 'user' | 'admin' };
 
+export const SEASONS = ['winter', 'spring', 'summer', 'autumn'] as const;
+export type Season = typeof SEASONS[number];
+
+/** A place on someone's wishlist (public.wishlist). Done once a visit resolves it. */
+export type Wish = {
+  id: number;
+  user_id: string;
+  place_id: number;
+  priority: 1 | 2 | 3;
+  seasons: Season[];
+  with_people: string[];
+  notes: string | null;
+  visibility: Visibility;
+  done_at: string | null;
+  done_visit_id: number | null;
+  created_at: string;
+  /** Date of the visit that resolved it, when that visit still exists. */
+  done_visit: { date: string | null } | null;
+};
+
+export type WishInput = Pick<Wish, 'place_id' | 'priority' | 'seasons' | 'with_people' | 'notes' | 'visibility'> & { id?: number };
+
 /** Payload of public.save_place (see supabase/migrations). */
 export type PlaceInput = {
   id?: number;
@@ -152,6 +174,8 @@ export type PlaceFilters = {
   rock: string;
   exposition: Exposition[];
   near: { lat: number; lng: number; km: number } | null;
+  /** Only places on your open wishlist (filtered in the browser). */
+  wishlist: boolean;
 };
 
 export type VisitFilters = {
@@ -166,7 +190,7 @@ export type VisitFilters = {
 };
 
 export const EMPTY_PLACE_FILTERS: PlaceFilters = {
-  search: '', activities: [], areaId: null, rock: '', exposition: [], near: null,
+  search: '', activities: [], areaId: null, rock: '', exposition: [], near: null, wishlist: false,
 };
 export const EMPTY_VISIT_FILTERS: VisitFilters = {
   search: '', scope: 'all', partnerId: null, areaId: null, from: '', to: '', minGradeRank: null, activity: '',

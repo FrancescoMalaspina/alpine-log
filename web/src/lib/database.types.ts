@@ -614,6 +614,77 @@ export type Database = {
           },
         ]
       }
+      wishlist: {
+        Row: {
+          created_at: string
+          done_at: string | null
+          done_visit_id: number | null
+          id: number
+          notes: string | null
+          place_id: number
+          priority: number
+          seasons: string[]
+          user_id: string
+          visibility: string
+          with_people: string[]
+        }
+        Insert: {
+          created_at?: string
+          done_at?: string | null
+          done_visit_id?: number | null
+          id?: never
+          notes?: string | null
+          place_id: number
+          priority?: number
+          seasons?: string[]
+          user_id?: string
+          visibility?: string
+          with_people?: string[]
+        }
+        Update: {
+          created_at?: string
+          done_at?: string | null
+          done_visit_id?: number | null
+          id?: never
+          notes?: string | null
+          place_id?: number
+          priority?: number
+          seasons?: string[]
+          user_id?: string
+          visibility?: string
+          with_people?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wishlist_done_visit_id_fkey"
+            columns: ["done_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wishlist_done_visit_id_fkey"
+            columns: ["done_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wishlist_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wishlist_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       visit_overview: {
@@ -668,6 +739,14 @@ export type Database = {
       can_delete_place: { Args: { p_place_id: number }; Returns: boolean }
       can_edit_area: { Args: { p_area_id: number }; Returns: boolean }
       can_edit_place: { Args: { p_place_id: number }; Returns: boolean }
+      complete_wish: {
+        Args: { p_visit_id: number; p_wish_id: number }
+        Returns: undefined
+      }
+      delete_user: {
+        Args: { p_check_only?: boolean; p_user_id: string }
+        Returns: undefined
+      }
       grade_rank: { Args: { grade: string }; Returns: number }
       import_logbook: { Args: { p: Json }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
@@ -705,6 +784,7 @@ export type Database = {
           place_id: number
         }[]
       }
+      reopen_wish: { Args: { p_wish_id: number }; Returns: undefined }
       save_place: { Args: { p: Json }; Returns: number }
       save_visit: { Args: { v: Json }; Returns: number }
       set_user_role: {

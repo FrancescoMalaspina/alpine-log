@@ -8,7 +8,7 @@ type Props = {
   onLogVisit: () => void;
   onSignIn: () => void;
   onOpenLog: () => void;
-  onOpenUsers: () => void;
+  onOpenAccount: () => void;
 };
 
 /** Two peaks, the higher one snow-capped. */
@@ -21,7 +21,7 @@ export function Logo() {
   );
 }
 
-export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenUsers }: Props) {
+export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenAccount }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
 
   return (
@@ -40,8 +40,9 @@ export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, 
               My logbook
               {isAdmin && <span className="admin-badge">admin</span>}
             </button>
-            <span className="account-user">{profile?.username ?? '…'}</span>
-            {isAdmin && <button className="link-btn" type="button" onClick={onOpenUsers}>Users</button>}
+            <button type="button" className="link-btn account-user" onClick={onOpenAccount} title="Your account and wishlist">
+              {profile?.username ?? '…'}
+            </button>
             <button className="link-btn" type="button" onClick={() => signOut()}>Sign out</button>
           </div>
         </div>

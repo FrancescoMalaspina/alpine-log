@@ -12,11 +12,11 @@ type Props = {
   onLogVisit: () => void;
   onSignIn: () => void;
   onOpenLog: () => void;
-  onOpenUsers: () => void;
+  onOpenAccount: () => void;
 };
 
 /** Bottom tab bar for phones: map, list, add, account. */
-export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenUsers }: Props) {
+export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenAccount }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
   const [sheet, setSheet] = useState<'add' | 'account' | null>(null);
   const pick = (fn: () => void) => () => { setSheet(null); fn(); };
@@ -43,7 +43,7 @@ export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn,
             </div>
             <StatsLine stats={stats} />
             <button type="button" autoFocus onClick={pick(onOpenLog)}>My logbook</button>
-            {isAdmin && <button type="button" onClick={pick(onOpenUsers)}>Users</button>}
+            <button type="button" onClick={pick(onOpenAccount)}>Account &amp; wishlist</button>
             <button type="button" onClick={pick(() => signOut())}>Sign out</button>
           </>}
           <button type="button" className="sheet-cancel" onClick={() => setSheet(null)}>Cancel</button>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth/useAuth';
+import { AccountPanel } from './components/AccountPanel';
 import { AreaView } from './components/AreaView';
 import { AuthModal, NewPasswordModal } from './components/AuthModal';
 import { Header } from './components/Header';
@@ -10,19 +11,19 @@ import { NewAreaModal } from './components/NewAreaModal';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
 import { Sidebar, type ListMode } from './components/Sidebar';
-import { UsersModal } from './components/UsersModal';
 import { VisitModal } from './components/VisitModal';
+import { WishModal } from './components/WishModal';
 import { useDebounced } from './hooks/useDebounced';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 import {
-  attachmentUrl, fetchAreas, fetchAttachments, fetchMyPartners, fetchPlaces, fetchRocks, fetchVisits,
+  attachmentUrl, fetchAreas, fetchAttachments, fetchMyPartners, fetchMyWishes, fetchPlaces, fetchRocks, fetchVisits,
 } from './lib/api';
 import type { LatLng } from './lib/coords';
 import { parseGpx, type Track } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS,
-  type Area, type Partner, type Place, type PlaceFilters, type VisitDetail, type VisitSummary,
+  type Area, type Partner, type Place, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
 } from './lib/types';
 
 const hasPlaceFilters = (f: PlaceFilters) =>
@@ -33,13 +34,15 @@ const NO_TRACKS = new Map<number, Track>();
 type Panel =
   | { kind: 'place'; placeId: number; tab: PlaceTab; visitId?: number }
   | { kind: 'area'; areaId: number }
-  | { kind: 'log' };
+  | { kind: 'log' }
+  | { kind: 'account' };
 
-/** The open panel lives in the URL hash (#place-12, #area-3, #log): shareable, and Back closes it. */
+/** The open panel lives in the URL hash (#place-12, #area-3, #log, #account): shareable, and Back closes it. */
 const panelHash = (p: Panel | null) =>
-  !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}` : '#log';
+  !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}` : `#${p.kind}`;
 function panelFromHash(hash: string): Panel | null {
   if (hash === '#log') return { kind: 'log' };
+  if (hash === '#account') return { kind: 'account' };
   const m = hash.match(/^#(place|area)-(\d+)$/);
   if (!m) return null;
   return m[1] === 'place' ? { kind: 'place', placeId: +m[2], tab: 'info' } : { kind: 'area', areaId: +m[2] };
@@ -60,7 +63,7 @@ async function loadTracks(placeId: number): Promise<Map<number, Track>> {
 }
 
 export default function App() {
-  const { session, profile, isAdmin, recovering } = useAuth();
+  const { session, profile, isAdmin, recovering, signOut } = useAuth();
   const userId = session?.user.id ?? null;
   const isMobile = useMediaQuery(MOBILE_QUERY);
 
@@ -81,6 +84,7 @@ export default function App() {
   const [visits, setVisits] = useState<{ key: string; rows: VisitSummary[] } | null>(null);
   const [rocks, setRocks] = useState<string[]>([]);
   const [myPartners, setMyPartners] = useState<Partner[]>([]);
+  const [myWishes, setMyWishes] = useState<Wish[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -129,13 +133,28 @@ export default function App() {
   }, [userId, reloadKey]);
   const partners = userId ? myPartners : [];
 
+  const [wishesKey, setWishesKey] = useState(0);
+  const reloadWishes = useCallback(() => setWishesKey(k => k + 1), []);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchMyWishes(userId).then(w => { if (!cancelled) setMyWishes(w); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId, reloadKey, wishesKey]);
+  const wishes = useMemo(() => (userId ? myWishes.filter(w => w.user_id === userId) : []), [userId, myWishes]);
+  const openWishByPlace = useMemo(
+    () => new Map(wishes.filter(w => !w.done_at).map(w => [w.place_id, w])), [wishes]);
+
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 4000);
     return () => clearTimeout(t);
   }, [notice]);
 
-  const places = (hasPlaceFilters(debouncedPlaceFilters) && filteredPlaces) || catalog;
+  const searched = (hasPlaceFilters(debouncedPlaceFilters) && filteredPlaces) || catalog;
+  const places = useMemo(
+    () => (placeFilters.wishlist && userId ? searched.filter(p => openWishByPlace.has(p.id)) : searched),
+    [placeFilters.wishlist, userId, searched, openWishByPlace]);
   const visitRows = useMemo(() => visits?.rows ?? [], [visits]);
   const placeById = useMemo(() => new Map(catalog.map(p => [p.id, p])), [catalog]);
   const shownAreas = useMemo(() => {
@@ -165,7 +184,6 @@ export default function App() {
 
   const [authOpen, setAuthOpen] = useState(false);
   const [newAreaOpen, setNewAreaOpen] = useState(false);
-  const [usersOpen, setUsersOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(() => panelFromHash(window.location.hash));
 
   useEffect(() => {
@@ -184,7 +202,8 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
   const [placeModal, setPlaceModal] = useState<{ place?: Place; at?: LatLng } | null>(null);
-  const [visitModal, setVisitModal] = useState<{ placeId?: number; visit?: VisitDetail } | null>(null);
+  const [visitModal, setVisitModal] = useState<{ placeId?: number; visit?: VisitDetail; withPeople?: string[] } | null>(null);
+  const [wishModal, setWishModal] = useState<{ place: Place; wish?: Wish } | null>(null);
 
   // GPX tracks of the focused place, drawn on the map and summarised in its panel.
   const [tracks, setTracks] = useState<{ placeId: number; byId: Map<number, Track> } | null>(null);
@@ -262,11 +281,11 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (picking) return setPicking(null);
-      if (!placeModal && !visitModal) setPanel(null);
+      if (!placeModal && !visitModal && !wishModal) setPanel(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [placeModal, visitModal, picking]);
+  }, [placeModal, visitModal, wishModal, picking]);
   const panelPlace = panel?.kind === 'place' ? placeById.get(panel.placeId) : undefined;
   const panelArea = panel?.kind === 'area' ? areas.find(a => a.id === panel.areaId) : undefined;
   const focusedPlace = focusedId != null ? placeById.get(focusedId) ?? null : null;
@@ -279,7 +298,7 @@ export default function App() {
         onLogVisit={openLogVisit}
         onSignIn={() => setAuthOpen(true)}
         onOpenLog={() => setPanel({ kind: 'log' })}
-        onOpenUsers={() => setUsersOpen(true)}
+        onOpenAccount={() => setPanel({ kind: 'account' })}
       />
 
       <div className={`stage${isMobile ? ` mobile show-${mobileTab}` : ''}`}>
@@ -369,6 +388,8 @@ export default function App() {
             onOpenArea={openArea}
             onEdit={() => setPlaceModal({ place: panelPlace })}
             onAddVisit={() => openAddVisit(panelPlace)}
+            wish={openWishByPlace.get(panelPlace.id)}
+            onWish={() => requireSignIn(() => setWishModal({ place: panelPlace, wish: openWishByPlace.get(panelPlace.id) }))()}
             onEditVisit={visit => setVisitModal({ placeId: panelPlace.id, visit })}
             onChanged={reload}
           />
@@ -384,6 +405,26 @@ export default function App() {
             onOpenVisit={v => {
               const place = placeById.get(v.place_id);
               if (place) openPlace(place, 'visits', v.id);
+            }}
+          />
+        )}
+
+        {panel?.kind === 'account' && userId && (
+          <AccountPanel
+            userId={userId}
+            wishes={wishes}
+            placeById={placeById}
+            onClose={() => setPanel(null)}
+            onEditWish={(place, wish) => setWishModal({ place, wish })}
+            onLogVisit={place => setVisitModal({ placeId: place.id, withPeople: openWishByPlace.get(place.id)?.with_people })}
+            onOpenPlace={place => openPlace(place)}
+            onOpenVisit={(place, visitId) => openPlace(place, 'visits', visitId)}
+            onWishesChanged={reloadWishes}
+            onDeleted={() => {
+              setPanel(null);
+              void signOut();
+              setNotice('Your account has been deleted.');
+              reload();
             }}
           />
         )}
@@ -418,7 +459,7 @@ export default function App() {
           onLogVisit={openLogVisit}
           onSignIn={() => setAuthOpen(true)}
           onOpenLog={() => setPanel({ kind: 'log' })}
-          onOpenUsers={() => setUsersOpen(true)}
+          onOpenAccount={() => setPanel({ kind: 'account' })}
         />
       )}
 
@@ -458,11 +499,27 @@ export default function App() {
           userId={userId}
           rocks={rocks}
           partners={partners}
+          openWishByPlace={openWishByPlace}
+          initialWithPeople={visitModal.withPeople}
           hidden={!!picking}
           onPickOnMap={pickOnMap}
           onCoordsChange={setTempPin}
           onClose={closeForms}
-          onSaved={placeId => showSaved(placeId, true)}
+          onSaved={(placeId, wishResolved) => {
+            showSaved(placeId, true);
+            if (wishResolved) setNotice('Visit saved, and ticked off your wishlist');
+          }}
+        />
+      )}
+
+      {wishModal && userId && (
+        <WishModal
+          key={`wish-${wishModal.place.id}-${wishModal.wish?.id ?? 'new'}`}
+          place={wishModal.place}
+          wish={wishModal.wish}
+          partners={partners}
+          onClose={() => setWishModal(null)}
+          onSaved={message => { setWishModal(null); reloadWishes(); setNotice(message); }}
         />
       )}
 
@@ -477,8 +534,6 @@ export default function App() {
           }}
         />
       )}
-
-      {usersOpen && isAdmin && <UsersModal onClose={() => setUsersOpen(false)} />}
 
       {authOpen && !session && <AuthModal onClose={() => setAuthOpen(false)} />}
       {recovering && session && <NewPasswordModal />}

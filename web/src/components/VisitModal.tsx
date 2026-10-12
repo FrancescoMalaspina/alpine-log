@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { uploadPhoto } from '../lib/photos';
-import { fetchRoutes, savePlace } from '../lib/api';
+import { completeWish, fetchRoutes, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
-import type { Area, Partner, Place, Route, VisitDetail } from '../lib/types';
+import type { Area, Partner, Place, Route, VisitDetail, Wish } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
 import { COORD_LABELS, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
 import { newSectorOptions, saveVisitAt } from './forms/save';
@@ -22,23 +22,32 @@ type Props = {
   userId: string;
   rocks: string[];
   partners: Partner[];
+  /** Your open wishes: a new visit at one of these places can tick it off. */
+  openWishByPlace: Map<number, Wish>;
+  /** People to preselect, e.g. from the wish the visit was started from. */
+  initialWithPeople?: string[];
   hidden: boolean;
   onPickOnMap: PickOnMap;
   onCoordsChange: (at: LatLng | null) => void;
   onClose: () => void;
-  onSaved: (placeId: number, visitId: number) => void;
+  onSaved: (placeId: number, wishResolved: boolean) => void;
 };
 
 const NEW = 'new';
 
 /** Log a visit at an existing place, or at a new place created in the same save. */
-export function VisitModal({ placeId, visit, places, areas, userId, rocks, partners, hidden, onPickOnMap, onCoordsChange, onClose, onSaved }: Props) {
+export function VisitModal({
+  placeId, visit, places, areas, userId, rocks, partners, openWishByPlace, initialWithPeople, hidden, onPickOnMap, onCoordsChange, onClose, onSaved,
+}: Props) {
   const [choice, setChoice] = useState<string>(visit ? String(visit.place_id) : placeId ? String(placeId) : '');
   const [newPlace, setNewPlace] = useState<PlaceValues>(() => placeValuesFrom());
   // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.
   const [savedPlaceId, setSavedPlaceId] = useState<number | undefined>();
-  const [values, setValues] = useState<VisitValues>(
-    () => visitValuesFrom(visit, places.find(p => p.id === (visit?.place_id ?? placeId))));
+  const [values, setValues] = useState<VisitValues>(() => {
+    const v = visitValuesFrom(visit, places.find(p => p.id === (visit?.place_id ?? placeId)));
+    return initialWithPeople?.length ? { ...v, withPeople: initialWithPeople } : v;
+  });
+  const [tickOff, setTickOff] = useState(true);
   const [routeList, setRouteList] = useState<{ placeId: number; routes: Route[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -46,7 +55,7 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
   const [photos, setPhotos] = useState<File[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
   // Set when the visit is saved but some photos failed: the form then only offers "Done".
-  const [savedVisit, setSavedVisit] = useState<{ placeId: number; visitId: number } | null>(null);
+  const [savedVisit, setSavedVisit] = useState<{ placeId: number; wishResolved: boolean } | null>(null);
   const previews = useMemo(() => photos.map(f => URL.createObjectURL(f)), [photos]);
   useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews]);
 
@@ -54,6 +63,7 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
   const place = isNew ? undefined : places.find(p => String(p.id) === choice);
   const activity = isNew ? newPlace.activity : place?.activity ?? 'crag';
   const routes = place && routeList?.placeId === place.id ? routeList.routes : [];
+  const wish = !visit && place ? openWishByPlace.get(place.id) : undefined;
 
   // The chosen spot's shared route list, for suggestions and linking.
   useEffect(() => {
@@ -120,6 +130,15 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
         : { id: id!, name: place!.name, grade: place!.grade, activity: place!.activity };
       const visitId = await saveVisitAt(spot, values, visit?.id);
       const failed: string[] = [];
+      let wishResolved = false;
+      if (wish && tickOff) {
+        try {
+          await completeWish(wish.id, visitId);
+          wishResolved = true;
+        } catch (e) {
+          failed.push(`Couldn't tick it off your wishlist: ${errorMessage(e)}`);
+        }
+      }
       for (const [i, f] of photos.entries()) {
         setProgress(`Uploading photo ${i + 1} of ${photos.length}…`);
         try {
@@ -130,13 +149,13 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
       }
       setProgress(null);
       if (failed.length) {
-        setSavedVisit({ placeId: id!, visitId });
-        setError(`The visit is saved, but ${failed.length} photo(s) didn't upload: ${failed[0]} `
-          + 'You can add them later from the visit.');
+        setSavedVisit({ placeId: id!, wishResolved });
+        setError(`The visit is saved, but ${failed.length} thing(s) went wrong: ${failed[0]} `
+          + 'You can add photos later from the visit.');
         setBusy(false);
         return;
       }
-      onSaved(id!, visitId);
+      onSaved(id!, wishResolved);
     } catch (e) {
       setError(errorMessage(e));
       setBusy(false);
@@ -152,7 +171,7 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
       footer={<>
         <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
         {savedVisit ? (
-          <button className="btn btn-primary" type="button" onClick={() => onSaved(savedVisit.placeId, savedVisit.visitId)}>Done</button>
+          <button className="btn btn-primary" type="button" onClick={() => onSaved(savedVisit.placeId, savedVisit.wishResolved)}>Done</button>
         ) : (
           <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
             {progress ?? (isNew ? 'Save spot and visit' : 'Save visit')}
@@ -188,6 +207,12 @@ export function VisitModal({ placeId, visit, places, areas, userId, rocks, partn
         <div className="visit-modal-body">
           {isNew && <h3 className="section-title">The visit</h3>}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity} sectors={sectors} routes={routes} />
+          {wish && (
+            <label className="field-inline wish-tick">
+              <input type="checkbox" checked={tickOff} onChange={e => setTickOff(e.target.checked)} />
+              Tick off from my wishlist
+            </label>
+          )}
           {!visit && (
             <div className="field">
               <span className="field-label">Photos <span className="hint">(optional, shrunk before upload)</span></span>

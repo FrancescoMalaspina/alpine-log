@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { PeopleField } from './PeopleField';
 import { ACTIVITIES, gradeSuggestions } from '../../lib/labels';
 import type { Activity, Partner, Route } from '../../lib/types';
 import { ascentRow, type AscentRow, type VisitValues } from './visitForm';
@@ -17,16 +17,7 @@ type Props = {
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
 export function VisitFields({ values: v, onChange, partners, activity, sectors, routes = [] }: Props) {
-  const [newPerson, setNewPerson] = useState('');
   const f = ACTIVITIES[activity];
-  const knownNames = [...new Set([...partners.map(p => p.name), ...v.withPeople])].sort((a, b) => a.localeCompare(b));
-  const togglePerson = (n: string) =>
-    onChange({ withPeople: v.withPeople.includes(n) ? v.withPeople.filter(x => x !== n) : [...v.withPeople, n] });
-  const addPerson = () => {
-    const n = newPerson.trim();
-    if (n && !v.withPeople.includes(n)) onChange({ withPeople: [...v.withPeople, n] });
-    setNewPerson('');
-  };
   const updateAscent = (key: number, patch: Partial<AscentRow>) =>
     onChange({ ascents: v.ascents.map(a => (a.key === key ? { ...a, ...patch } : a)) });
   // Typing (or picking) a route from the spot's list fills in its grade and sector.
@@ -60,22 +51,8 @@ export function VisitFields({ values: v, onChange, partners, activity, sectors, 
           : 'Anyone, even without an account, can see this visit and the names of who you were with.'}
       </div>
 
-      <div className="visit-with-group">
-        <span className="field-label">Who you were with</span>
-        <div className="person-chip-list">
-          {knownNames.map(n => (
-            <label key={n} className="person-chip">
-              <input type="checkbox" checked={v.withPeople.includes(n)} onChange={() => togglePerson(n)} />{n}
-            </label>
-          ))}
-        </div>
-        <div className="add-person-row">
-          <input type="text" placeholder="Add someone new" aria-label="Add someone new" value={newPerson}
-                 onChange={e => setNewPerson(e.target.value)}
-                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPerson(); } }} />
-          <button type="button" onClick={addPerson}>Add</button>
-        </div>
-      </div>
+      <PeopleField label="Who you were with" partners={partners} value={v.withPeople}
+                   onChange={withPeople => onChange({ withPeople })} />
 
       <textarea className="visit-summary" placeholder="How did it go? (optional)" aria-label="Summary" value={v.summary}
                 onChange={e => onChange({ summary: e.target.value })} />

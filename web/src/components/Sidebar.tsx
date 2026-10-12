@@ -41,7 +41,7 @@ type Props = {
 };
 
 function countPlaceFilters(f: PlaceFilters) {
-  return f.activities.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0);
+  return f.activities.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0) + (f.wishlist ? 1 : 0);
 }
 function countVisitFilters(f: VisitFilters) {
   return (f.scope !== 'all' ? 1 : 0) + (f.partnerId ? 1 : 0) + (f.areaId ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0)
@@ -95,7 +95,7 @@ export function Sidebar(props: Props) {
 
       {filtersOpen && mode === 'places' && (
         <PlaceFiltersPanel f={pf} onChange={props.onPlaceFilters} rocks={props.rocks} areas={props.areas}
-                           getMapCenter={props.getMapCenter} />
+                           getMapCenter={props.getMapCenter} signedIn={!!props.userId} />
       )}
       {filtersOpen && mode === 'visits' && (
         <VisitFiltersPanel f={vf} onChange={props.onVisitFilters} partners={props.partners} areas={props.areas}
@@ -244,11 +244,17 @@ function AreaSelect({ id, value, areas, onChange }:
   );
 }
 
-function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter }: {
-  f: PlaceFilters; onChange: (f: PlaceFilters) => void; rocks: string[]; areas: Area[]; getMapCenter: () => LatLng;
+function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }: {
+  f: PlaceFilters; onChange: (f: PlaceFilters) => void; rocks: string[]; areas: Area[]; getMapCenter: () => LatLng; signedIn: boolean;
 }) {
   return (
     <div className="filters">
+      {signedIn && (
+        <label className="type-option small wishlist-filter">
+          <input type="checkbox" checked={f.wishlist} onChange={() => onChange({ ...f, wishlist: !f.wishlist })} />
+          ★ Only my wishlist
+        </label>
+      )}
       <div className="filter-group">
         <span className="filter-label">Activity</span>
         <div className="chip-row">

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchRoutes } from '../lib/api';
+import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { Track } from '../lib/gpx';
 import { ACTIVITIES, activityLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions, plural } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
-import type { Place, Route, VisitDetail } from '../lib/types';
+import type { Place, Route, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
 import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
@@ -29,6 +29,9 @@ type Props = {
   onOpenArea: (areaId: number) => void;
   onEdit: () => void;
   onAddVisit: () => void;
+  /** Your open wish for this place, if any. */
+  wish?: Wish;
+  onWish: () => void;
   onEditVisit: (visit: VisitDetail) => void;
   onChanged: () => void;
 };
@@ -53,6 +56,12 @@ export function PlaceView(props: Props) {
       footer={<>
         {props.isMobile && <button className="btn btn-ghost" type="button" onClick={props.onShowOnMap}>Show on map</button>}
         {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>Edit spot</button>}
+        {props.userId && (
+          <button className={`btn btn-ghost wish-btn${props.wish ? ' on' : ''}`} type="button" onClick={props.onWish}
+                  aria-pressed={!!props.wish}>
+            {props.wish ? '★ On your wishlist' : '☆ Add to wishlist'}
+          </button>
+        )}
         {props.userId && <button className="btn btn-add" type="button" onClick={props.onAddVisit}>Add visit</button>}
       </>}
     >
@@ -71,7 +80,14 @@ export function PlaceView(props: Props) {
   );
 }
 
-function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onChanged }: Props) {
+function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish, onChanged }: Props) {
+  const [wishers, setWishers] = useState<string[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchPlaceWishers(p.id).then(w => { if (!cancelled) setWishers(w); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [p.id, reloadKey, wish]);
+
   const rows: [string, React.ReactNode][] = [];
   rows.push(['Activity', activityLabel(p.activity)]);
   if (p.grade) rows.push(['Grade', p.grade]);
@@ -88,6 +104,7 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onCh
         {rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
       {p.description && <p className="place-description">{p.description}</p>}
+      {wishers.length > 0 && <p className="hint-block">On the wishlist of {wishers.join(', ')}.</p>}
 
       <h3 className="section-title">Getting there</h3>
       <div className="waypoints">
