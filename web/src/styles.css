@@ -630,6 +630,88 @@ aside {
 .wish-tick { font-weight: 600; }
 .wishlist-filter { align-self: flex-start; }
 
+.account-users-btn { align-self: flex-start; }
+
+/* ---------------------------------------------------------------- logbook */
+.log-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.log-action {
+  display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 10px; row-gap: 2px;
+  align-items: center; padding: 12px; text-align: left; cursor: pointer;
+  background: var(--plate); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--granite);
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.log-action:hover:not(:disabled) { border-color: var(--granite); background: var(--tint); }
+.log-action:disabled { opacity: .5; cursor: not-allowed; }
+.log-action-icon { grid-row: 1 / 3; width: 26px; height: 26px; padding: 6px; box-sizing: content-box;
+  border-radius: 50%; background: var(--paper); color: var(--blaze-deep); }
+.log-action-name { font-weight: 700; }
+.log-action-use { font-size: 13px; color: var(--slate); line-height: 1.3; }
+.stats-heading { margin: 4px 0 2px; font-size: 14px; font-weight: 600; color: var(--slate); }
+.stats-heading ~ .stats-heading { margin-top: 14px; }
+
+/* ---------------------------------------------------------------- full-page views (Users) */
+.page {
+  position: absolute; inset: 0; z-index: 1100; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--paper);
+}
+.page-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 2px;
+  padding: 14px 24px 12px; background: var(--plate); border-bottom: 1px solid var(--rule);
+}
+.page-back { align-self: center; padding: 0 10px; min-height: 32px; }
+.page-title { margin: 0; font-family: var(--font-sign); font-weight: 700; font-size: 30px; line-height: 1.1; }
+.page-meta { margin: 0; color: var(--slate); }
+.page-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 16px 24px 32px;
+  display: flex; flex-direction: column; gap: 12px; }
+.users-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.users-toolbar .users-search { flex: 1 1 220px; max-width: 320px; padding-top: 7px; padding-bottom: 7px; }
+.users-filter { display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--slate); }
+.users-filter select { padding: 6px 8px; font-size: 14px; color: var(--granite); background: var(--plate);
+  border: 1px solid var(--rule); border-radius: var(--radius); }
+.users-count { margin-left: auto; display: flex; gap: 10px; font-size: 13.5px; color: var(--slate); white-space: nowrap; }
+
+/* Dense rows: one line per user, so a screen holds a few dozen. */
+.users-table-wrap { background: var(--plate); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--rule); }
+.users-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.users-table th, .users-table td { padding: 4px 10px; height: 34px; text-align: left; border-bottom: 1px solid var(--rule);
+  vertical-align: middle; white-space: nowrap; }
+.users-table th.num, .users-table td.num { text-align: right; }
+.users-table tbody tr:last-child td { border-bottom: none; }
+.users-table tbody tr:hover { background: var(--tint); }
+.users-table thead th { position: sticky; top: 0; z-index: 1; background: var(--plate); font-size: 12.5px; font-weight: 600; color: var(--slate); }
+.users-table .user-email { max-width: 260px; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+.users-table .admin-badge { font-size: 10.5px; padding: 2px 5px; }
+.users-table .user-actions .btn { min-height: 26px; padding: 0 8px; font-size: 13px; }
+.users-table .user-rename .btn { min-height: 28px; padding: 0 10px; }
+.users-table .user-rename input { padding: 4px 8px; }
+.sort-btn { padding: 0; background: none; border: none; font: inherit; color: inherit; cursor: pointer; }
+.sort-btn:hover { color: var(--granite); }
+th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { color: var(--granite); }
+.user-actions-cell { width: 1%; }
+.users-table .user-actions { flex-wrap: nowrap; }
+
+@media (max-width: 820px) {
+  .page { bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); }
+  .page-head, .page-body { padding-left: 16px; padding-right: 16px; }
+  .users-toolbar .users-search { max-width: none; flex-basis: 100%; }
+  .users-count { margin-left: 0; }
+  .users-table-wrap { background: none; box-shadow: none; overflow: visible; }
+  .users-table td { height: auto; white-space: normal; }
+  .users-table .user-email { max-width: none; }
+  /* Each user becomes a card: label on the left, value on the right. */
+  .users-table, .users-table tbody, .users-table tr, .users-table td { display: block; }
+  .users-table td.num { text-align: right; }
+  .users-table { background: none; box-shadow: none; }
+  .users-table thead { display: none; }
+  .users-table tr { margin-bottom: 10px; padding: 6px 0; background: var(--plate); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--rule); }
+  .users-table td { display: flex; justify-content: space-between; gap: 12px; padding: 6px 12px; border: none; }
+  .users-table td[data-label]::before { content: attr(data-label); color: var(--slate); font-size: 13.5px; }
+  .users-table td[data-label="User"]::before { content: none; }
+  .user-actions-cell { width: auto; white-space: normal; }
+  .users-table .user-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .log-actions { grid-template-columns: 1fr; }
+}
+
 /* ---------------------------------------------------------------- confirm dialog */
 .confirm-message p { margin: 0 0 8px; }
 .confirm-message p:last-child { margin-bottom: 0; }

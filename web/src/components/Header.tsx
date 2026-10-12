@@ -36,11 +36,11 @@ export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, 
           <button className="btn btn-ghost" type="button" onClick={onAddPlace}>Add a spot</button>
           <button className="btn btn-primary" type="button" onClick={onLogVisit}>Log a visit</button>
           <div className="account">
-            <button type="button" className="account-name" onClick={onOpenLog} title="Your visits and totals">
+            <button type="button" className="account-name" onClick={onOpenLog} title="Your visits, wishlist and totals">
               My logbook
               {isAdmin && <span className="admin-badge">admin</span>}
             </button>
-            <button type="button" className="link-btn account-user" onClick={onOpenAccount} title="Your account and wishlist">
+            <button type="button" className="link-btn account-user" onClick={onOpenAccount} title="Your account">
               {profile?.username ?? '…'}
             </button>
             <button className="link-btn" type="button" onClick={() => signOut()}>Sign out</button>

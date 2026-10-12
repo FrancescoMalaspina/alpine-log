@@ -11,6 +11,7 @@ import { NewAreaModal } from './components/NewAreaModal';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
 import { Sidebar, type ListMode } from './components/Sidebar';
+import { UsersPage } from './components/UsersPage';
 import { VisitModal } from './components/VisitModal';
 import { WishModal } from './components/WishModal';
 import { useDebounced } from './hooks/useDebounced';
@@ -35,14 +36,16 @@ type Panel =
   | { kind: 'place'; placeId: number; tab: PlaceTab; visitId?: number }
   | { kind: 'area'; areaId: number }
   | { kind: 'log' }
-  | { kind: 'account' };
+  | { kind: 'account' }
+  | { kind: 'users' };
 
-/** The open panel lives in the URL hash (#place-12, #area-3, #log, #account): shareable, and Back closes it. */
+/** The open panel lives in the URL hash (#place-12, #area-3, #log, #account, #users): shareable, and Back closes it. */
 const panelHash = (p: Panel | null) =>
   !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}` : `#${p.kind}`;
 function panelFromHash(hash: string): Panel | null {
   if (hash === '#log') return { kind: 'log' };
   if (hash === '#account') return { kind: 'account' };
+  if (hash === '#users') return { kind: 'users' };
   const m = hash.match(/^#(place|area)-(\d+)$/);
   if (!m) return null;
   return m[1] === 'place' ? { kind: 'place', placeId: +m[2], tab: 'info' } : { kind: 'area', areaId: +m[2] };
@@ -402,24 +405,25 @@ export default function App() {
             reloadKey={reloadKey}
             onClose={() => setPanel(null)}
             onChanged={reload}
-            onOpenVisit={v => {
+            onOpenLoggedVisit={v => {
               const place = placeById.get(v.place_id);
               if (place) openPlace(place, 'visits', v.id);
             }}
+            wishes={wishes}
+            placeById={placeById}
+            onEditWish={(place, wish) => setWishModal({ place, wish })}
+            onLogVisit={place => setVisitModal({ placeId: place.id, withPeople: openWishByPlace.get(place.id)?.with_people })}
+            onOpenPlace={place => openPlace(place)}
+            onOpenVisit={(place, visitId) => openPlace(place, 'visits', visitId)}
+            onWishesChanged={reloadWishes}
           />
         )}
 
         {panel?.kind === 'account' && userId && (
           <AccountPanel
             userId={userId}
-            wishes={wishes}
-            placeById={placeById}
             onClose={() => setPanel(null)}
-            onEditWish={(place, wish) => setWishModal({ place, wish })}
-            onLogVisit={place => setVisitModal({ placeId: place.id, withPeople: openWishByPlace.get(place.id)?.with_people })}
-            onOpenPlace={place => openPlace(place)}
-            onOpenVisit={(place, visitId) => openPlace(place, 'visits', visitId)}
-            onWishesChanged={reloadWishes}
+            onOpenUsers={() => setPanel({ kind: 'users' })}
             onDeleted={() => {
               setPanel(null);
               void signOut();
@@ -427,6 +431,10 @@ export default function App() {
               reload();
             }}
           />
+        )}
+
+        {panel?.kind === 'users' && userId && isAdmin && (
+          <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })} />
         )}
 
         {panel?.kind === 'area' && panelArea && (

@@ -1,36 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { deleteUser, renameUser, reopenWish } from '../lib/api';
-import { PRIORITY_LABELS, errorMessage, formatDate, seasonLabel } from '../lib/labels';
-import type { Place, Wish } from '../lib/types';
+import { deleteUser, renameUser } from '../lib/api';
+import { errorMessage } from '../lib/labels';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
-import { UsersSection } from './UsersSection';
-import { VisibilityPill } from './Sidebar';
 
 type Props = {
   userId: string;
-  wishes: Wish[];
-  placeById: Map<number, Place>;
   onClose: () => void;
-  onEditWish: (place: Place, wish: Wish) => void;
-  onLogVisit: (place: Place) => void;
-  onOpenPlace: (place: Place) => void;
-  onOpenVisit: (place: Place, visitId: number) => void;
-  onWishesChanged: () => void;
+  /** Admins only: the full-page list of users. */
+  onOpenUsers: () => void;
   onDeleted: () => void;
 };
 
-/** Your profile, your wishlist, and (for admins) everyone's accounts. */
+/** Your profile and account; admins also reach the Users page from here. */
 export function AccountPanel(props: Props) {
-  const { userId, wishes, placeById } = props;
+  const { userId } = props;
   const { session, profile, isAdmin, refreshProfile } = useAuth();
   const [username, setUsername] = useState<string | null>(null);
   const [renameState, setRenameState] = useState<{ busy: boolean; error: string | null; saved: boolean }>(
     { busy: false, error: null, saved: false });
   const [deleting, setDeleting] = useState(false);
-  const [wishError, setWishError] = useState<string | null>(null);
 
   const name = username ?? profile?.username ?? '';
   const changed = !!profile && name.trim() !== profile.username;
@@ -46,26 +37,6 @@ export function AccountPanel(props: Props) {
       setRenameState({ busy: false, error: null, saved: true });
     } catch (err) {
       setRenameState({ busy: false, error: errorMessage(err), saved: false });
-    }
-  }
-
-  // Wishes whose place still exists, open ones by priority then name.
-  const [open, done] = useMemo(() => {
-    const withPlace = wishes.filter(w => placeById.has(w.place_id));
-    const byName = (a: Wish, b: Wish) => placeById.get(a.place_id)!.name.localeCompare(placeById.get(b.place_id)!.name);
-    return [
-      withPlace.filter(w => !w.done_at).sort((a, b) => a.priority - b.priority || byName(a, b)),
-      withPlace.filter(w => w.done_at).sort((a, b) => b.done_at!.localeCompare(a.done_at!)),
-    ];
-  }, [wishes, placeById]);
-
-  async function reopen(w: Wish) {
-    setWishError(null);
-    try {
-      await reopenWish(w.id);
-      props.onWishesChanged();
-    } catch (err) {
-      setWishError(errorMessage(err));
     }
   }
 
@@ -91,67 +62,13 @@ export function AccountPanel(props: Props) {
         </form>
       </section>
 
-      <section className="account-section">
-        <h3 className="section-title">Wishlist</h3>
-        <ErrorText error={wishError} />
-        {!open.length && (
-          <p className="hint-block">
-            Places you want to go to. Open a spot and choose <strong>Add to wishlist</strong>; logging a visit there ticks it off.
-          </p>
-        )}
-        {open.length > 0 && (
-          <ul className="wish-list">
-            {open.map(w => {
-              const place = placeById.get(w.place_id)!;
-              return (
-                <li key={w.id} className="wish-row">
-                  <div className="wish-head">
-                    <button type="button" className="wish-name link-btn" onClick={() => props.onOpenPlace(place)}>{place.name}</button>
-                    <span className={`wish-priority p${w.priority}`}>{PRIORITY_LABELS[w.priority]}</span>
-                    <VisibilityPill visibility={w.visibility} />
-                  </div>
-                  <div className="wish-facts hint">
-                    {[place.area?.name, w.seasons.map(seasonLabel).join(', '), w.with_people.length ? `with ${w.with_people.join(', ')}` : '']
-                      .filter(Boolean).join(' · ')}
-                  </div>
-                  {w.notes && <p className="wish-notes">{w.notes}</p>}
-                  <div className="wish-actions">
-                    <button type="button" className="btn btn-quiet" onClick={() => props.onEditWish(place, w)}>Edit</button>
-                    <button type="button" className="btn btn-ghost" onClick={() => props.onLogVisit(place)}>Log visit</button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {done.length > 0 && (
-          <details className="downloads-panel">
-            <summary className="section-title">Done ({done.length})</summary>
-            <ul className="wish-list">
-              {done.map(w => {
-                const place = placeById.get(w.place_id)!;
-                return (
-                  <li key={w.id} className="wish-row done">
-                    <div className="wish-head">
-                      <span className="wish-name">{place.name}</span>
-                      {w.done_visit_id && w.done_visit
-                        ? <button type="button" className="link-btn hint" onClick={() => props.onOpenVisit(place, w.done_visit_id!)}>
-                            visited {w.done_visit.date ? formatDate(w.done_visit.date) : ''}
-                          </button>
-                        : <span className="hint">done {formatDate(w.done_at!.slice(0, 10))}</span>}
-                    </div>
-                    <div className="wish-actions">
-                      <button type="button" className="btn btn-quiet" onClick={() => reopen(w)}>Reopen</button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </details>
-        )}
-      </section>
-
-      {isAdmin && <UsersSection myId={userId} />}
+      {isAdmin && (
+        <section className="account-section">
+          <h3 className="section-title">Users</h3>
+          <p className="hint-block">Everyone who signed up: when they were last active and how much they logged.</p>
+          <button type="button" className="btn btn-ghost account-users-btn" onClick={props.onOpenUsers}>Manage users</button>
+        </section>
+      )}
 
       <section className="account-section danger-zone">
         <h3 className="section-title">Delete account</h3>

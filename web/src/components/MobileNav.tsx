@@ -43,7 +43,7 @@ export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn,
             </div>
             <StatsLine stats={stats} />
             <button type="button" autoFocus onClick={pick(onOpenLog)}>My logbook</button>
-            <button type="button" onClick={pick(onOpenAccount)}>Account &amp; wishlist</button>
+            <button type="button" onClick={pick(onOpenAccount)}>Account</button>
             <button type="button" onClick={pick(() => signOut())}>Sign out</button>
           </>}
           <button type="button" className="sheet-cancel" onClick={() => setSheet(null)}>Cancel</button>

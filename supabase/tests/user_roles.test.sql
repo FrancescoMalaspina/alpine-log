@@ -1,7 +1,7 @@
 -- Admins manage roles: list_users, set_user_role. Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(10);
+select plan(11);
 
 \set fra  '\'11111111-1111-4111-8111-111111111111\''
 \set vale '\'22222222-2222-4222-8222-222222222222\''
@@ -27,6 +27,8 @@ select set_config('request.jwt.claims', json_build_object('sub', :fra, 'role', '
 
 select ok((select count(*) from public.list_users() where email = 'friend@example.com') = 1,
           'an admin lists users with their emails');
+select is((select visits from public.list_users() where username = 'fra'),
+          (select count(*) from public.visits where user_id = :fra::uuid), 'with how many visits they logged');
 select lives_ok(format('select public.set_user_role(%L, %L)', :vale, 'admin'), 'an admin promotes vale');
 select is((select role from public.profiles where id = :vale::uuid), 'admin', 'vale is now an admin');
 select throws_ok(format('select public.set_user_role(%L, %L)', :fra, 'user'),

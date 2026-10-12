@@ -95,6 +95,18 @@ export const formatKm = (km: number) => `${km.toLocaleString(undefined, { maximu
 const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 /** "11 Jul 2026" in the reader's locale, from an ISO date (yyyy-mm-dd). */
 export const formatDate = (iso: string) => DATE_FORMAT.format(new Date(`${iso}T00:00:00`));
+
+/** "just now", "5 minutes ago", "3 days ago"… for a timestamp in the past. */
+export function timeAgo(iso: string, now = Date.now()) {
+  const minutes = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
+  if (minutes < 2) return 'just now';
+  if (minutes < 60) return `${minutes} minutes ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return hours === 1 ? 'an hour ago' : `${hours} hours ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return days === 1 ? 'yesterday' : `${days} days ago`;
+  return formatDate(iso.slice(0, 10));
+}
 /** Today's date as yyyy-mm-dd in local time (toISOString would give the UTC day). */
 export const localToday = () => {
   const d = new Date();

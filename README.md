@@ -56,7 +56,7 @@ request may read or write (`supabase/migrations/`).
 | visits, their routes and partners | the owner, everyone if public, admins | the owner (admins may delete) |
 | climbing-partner list | the owner, plus names on visits you can read | the owner |
 | wishlist (places you want to go to) | the owner, everyone if public, admins | the owner (admins may delete); a visit there ticks it off |
-| profiles (username, role) | everyone (emails: admins only, via `list_users()`) | own username; admins rename, delete and change roles of others from *Account → Users*, never their own role |
+| profiles (username, role) | everyone (emails: admins only, via `list_users()`) | own username; admins rename, delete and change roles of others from *Account → Manage users*, never their own role |
 
 Files live in Supabase Storage (S3-compatible, same project):
 
@@ -74,7 +74,7 @@ deleting it deletes every visit there. Uploads go to `<user id>/…` in the
 bucket, and storage policies only allow `.gpx` and `.pdf` files, up to 20 MB,
 in your own folder.
 
-Deleting an account (yourself from *Account*, or an admin from *Account → Users*)
+Deleting an account (yourself from *Account*, or an admin from *Account → Manage users*)
 removes that user's visits, photos, attachments, imports, wishlist and their
 storage files. Spots, areas and routes they added stay, without an owner, so
 only admins can edit them afterwards. The last admin can't be deleted.
@@ -153,7 +153,7 @@ After changing the schema, regenerate the TypeScript types with
    ```
 
    That first admin is set with SQL; after that, admins promote others from
-   *Account → Users* (click your username in the header, or the account sheet on phones).
+   *Account → Manage users* (click your username in the header, or the account sheet on phones).
 
    The import refuses to run if the `places` table isn't empty, and it imports
    every visit as private. Pass `--visibility public` to publish them all.

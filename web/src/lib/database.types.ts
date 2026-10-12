@@ -756,8 +756,13 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          last_active_at: string
+          last_visit: string
+          public_visits: number
           role: string
+          spots_added: number
           username: string
+          visits: number
         }[]
       }
       match_places: {

@@ -346,7 +346,10 @@ export async function askImportAssist<T>(body: object): Promise<T> {
 
 // ---------------------------------------------------------------- users (admins only)
 
-export type UserRow = { id: string; username: string; email: string; role: Profile['role']; created_at: string };
+export type UserRow = {
+  id: string; username: string; email: string; role: Profile['role']; created_at: string;
+  last_active_at: string | null; visits: number; public_visits: number; last_visit: string | null; spots_added: number;
+};
 
 export async function fetchUsers(): Promise<UserRow[]> {
   return unwrap(await supabase.rpc('list_users')) as UserRow[];
