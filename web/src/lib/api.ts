@@ -5,7 +5,7 @@
 import type { Json } from './database.types';
 import { supabase } from './supabase';
 import type {
-  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
 } from './types';
 
 /** Public storage bucket for GPX tracks and PDF guides (supabase/migrations). */
@@ -340,4 +340,16 @@ export async function askImportAssist<T>(body: object): Promise<T> {
     throw new Error(`The AI helper didn't answer: ${error.message}`);
   }
   return data as T;
+}
+
+// ---------------------------------------------------------------- users (admins only)
+
+export type UserRow = { id: string; username: string; email: string; role: Profile['role']; created_at: string };
+
+export async function fetchUsers(): Promise<UserRow[]> {
+  return unwrap(await supabase.rpc('list_users')) as UserRow[];
+}
+
+export async function setUserRole(userId: string, role: Profile['role']): Promise<void> {
+  unwrap(await supabase.rpc('set_user_role', { p_user_id: userId, p_role: role }));
 }

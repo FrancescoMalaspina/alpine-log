@@ -671,6 +671,16 @@ export type Database = {
       grade_rank: { Args: { grade: string }; Returns: number }
       import_logbook: { Args: { p: Json }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      list_users: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          role: string
+          username: string
+        }[]
+      }
       match_places: {
         Args: { min_similarity?: number; names: string[] }
         Returns: {

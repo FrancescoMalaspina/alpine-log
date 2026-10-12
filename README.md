@@ -55,7 +55,7 @@ request may read or write (`supabase/migrations/`).
 | attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket) | any signed-in user adds; the uploader or an admin removes |
 | visits, their routes and partners | the owner, everyone if public, admins | the owner (admins may delete) |
 | climbing-partner list | the owner, plus names on visits you can read | the owner |
-| profiles (username, role) | everyone | own username only; the role changes only via SQL |
+| profiles (username, role) | everyone (emails: admins only, via `list_users()`) | own username only; admins change roles from *Users* in the app, never their own |
 
 Files live in Supabase Storage (S3-compatible, same project):
 
@@ -145,6 +145,9 @@ After changing the schema, regenerate the TypeScript types with
    supabase db query --linked -f /tmp/import.sql
    supabase db query --linked "update public.profiles set role = 'admin' where username = 'your-username'"
    ```
+
+   That first admin is set with SQL; after that, admins promote others from
+   *Users* in the header (or the account sheet on phones).
 
    The import refuses to run if the `places` table isn't empty, and it imports
    every visit as private. Pass `--visibility public` to publish them all.

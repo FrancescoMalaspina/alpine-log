@@ -10,6 +10,7 @@ import { NewAreaModal } from './components/NewAreaModal';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
 import { Sidebar, type ListMode } from './components/Sidebar';
+import { UsersModal } from './components/UsersModal';
 import { VisitModal } from './components/VisitModal';
 import { useDebounced } from './hooks/useDebounced';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
@@ -164,6 +165,7 @@ export default function App() {
 
   const [authOpen, setAuthOpen] = useState(false);
   const [newAreaOpen, setNewAreaOpen] = useState(false);
+  const [usersOpen, setUsersOpen] = useState(false);
   const [panel, setPanel] = useState<Panel | null>(() => panelFromHash(window.location.hash));
 
   useEffect(() => {
@@ -277,6 +279,7 @@ export default function App() {
         onLogVisit={openLogVisit}
         onSignIn={() => setAuthOpen(true)}
         onOpenLog={() => setPanel({ kind: 'log' })}
+        onOpenUsers={() => setUsersOpen(true)}
       />
 
       <div className={`stage${isMobile ? ` mobile show-${mobileTab}` : ''}`}>
@@ -415,6 +418,7 @@ export default function App() {
           onLogVisit={openLogVisit}
           onSignIn={() => setAuthOpen(true)}
           onOpenLog={() => setPanel({ kind: 'log' })}
+          onOpenUsers={() => setUsersOpen(true)}
         />
       )}
 
@@ -473,6 +477,8 @@ export default function App() {
           }}
         />
       )}
+
+      {usersOpen && isAdmin && <UsersModal onClose={() => setUsersOpen(false)} />}
 
       {authOpen && !session && <AuthModal onClose={() => setAuthOpen(false)} />}
       {recovering && session && <NewPasswordModal />}
