@@ -34,13 +34,18 @@ type ActivityInfo = Fields & {
 };
 
 const FRENCH = GRADE_OPTIONS.map(g => g.label);
-const FONT = ['4', '5', '5+', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+', '7B', '7B+', '7C', '8A'];
+const FONT = ['4', '5', '5+', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+', '7B', '7B+', '7C', '7C+', '8A', '8A+', '8B'];
 
 export const ACTIVITIES: Record<Activity, ActivityInfo> = {
   crag: {
     color: '#4A5560', grades: FRENCH,
     routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
     pitches: false, protection: true, alpineGrade: false,
+  },
+  boulder: {
+    color: '#7D2E46', grades: FONT,
+    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    pitches: false, protection: false, alpineGrade: false,
   },
   multipitch: {
     color: '#A55A17', grades: FRENCH,

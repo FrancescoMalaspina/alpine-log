@@ -62,6 +62,8 @@ const minStr = xs => xs.filter(x => x != null && x !== '').sort()[0];
 // ---------------------------------------------------------------- build the model
 const ROUTE_ACTS = ['alpine', 'ice', 'ski', 'multipitch'];
 const PRIORITY = ['alpine', 'ice', 'ski', 'multipitch', 'crag'];
+/** Legacy crags that are boulder fields, as in the 20261014110000 migration. */
+const BOULDER_RE = /\b(blocchi|boulder|bouldering)\b/i;
 
 const areas = new Map();   // lower(name) -> { name, description, lat, lng, links }
 const spots = [];          // { area, name, activity, lat, lng, parking, start, rock, exposition, description, grade, sectors, links, visits }
@@ -84,6 +86,7 @@ for (const c of [...CRAGS].sort((a, b) => a.name.localeCompare(b.name))) {
     rock: c.rock, exposition: asArray(c.exposition), description: c.description,
     sectors: c.sectors ?? [], links, visits: [],
   };
+  if (parent.activity === 'crag' && BOULDER_RE.test(c.name)) parent.activity = 'boulder';
   const inArea = [];   // spots created in this entry's area
 
   if (c.multipitchRoutes?.length) {

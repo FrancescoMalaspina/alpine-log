@@ -23,6 +23,7 @@ const it: Widen<typeof en> = {
 
   activities: {
     crag: 'Falesia',
+    boulder: 'Boulder',
     multipitch: 'Via lunga',
     alpine: 'Alpinismo',
     ice: 'Cascate di ghiaccio',

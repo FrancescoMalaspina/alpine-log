@@ -1,7 +1,7 @@
 # Alpine Log
 
-A shared map of climbing and mountain spots (crags, multipitch, alpinism, ice
-climbing, deep water solo, indoor climbing, ski mountaineering, hiking, trail
+A shared map of climbing and mountain spots (crags, bouldering, multipitch,
+alpinism, ice climbing, deep water solo, indoor climbing, ski mountaineering, hiking, trail
 running) with a personal logbook. Anyone can browse the
 map; signed-in users log their own visits, which stay private unless they're
 marked public. Admins can see everything.
@@ -11,13 +11,13 @@ marked public. Admins can see everything.
   spots inside an area: the wall a multipitch route is on (Parete di Pezol), the
   mountain an alpine route climbs (Breithorn), or a crag whose walls are its
   spots (Falesia di Civate). A *spot* is one thing you go to, with exactly one
-  activity: a crag wall, a multipitch route, an icefall, a trail, a gym. A
+  activity: a crag wall, a boulder field, a multipitch route, an icefall, a trail, a gym. A
   *visit* is one time someone went there; a day at a crag can log routes on
   several of its walls in one visit. (In the database, spots are the `places`
   table.)
 - **Spots** have parking, a start point (attacco), grade, altitude, elevation
   gain and distance where they make sense for the activity.
-- **Routes** at crags, deep water solo and gyms are logged as free text. A spot
+- **Routes** at crags, boulders, deep water solo and gyms are logged as free text. A spot
   can also have a shared route list that anyone can add to: a logged route
   with a listed name is linked to it, so repeats are counted.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides

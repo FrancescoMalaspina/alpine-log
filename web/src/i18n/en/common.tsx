@@ -21,6 +21,7 @@ const en = {
 
   activities: {
     crag: 'Crag',
+    boulder: 'Bouldering',
     multipitch: 'Multipitch',
     alpine: 'Alpinism',
     ice: 'Ice climbing',

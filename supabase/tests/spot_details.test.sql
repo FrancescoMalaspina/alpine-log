@@ -1,7 +1,7 @@
 -- Spot details, visit rating, other ropes, route style and overrides. Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 \set vale '\'22222222-2222-4222-8222-222222222222\''
 
@@ -27,6 +27,8 @@ select throws_ok($$select public.save_place('{"name": "x", "activity": "crag", "
                  '23514', null, 'protection is bolted, trad or mixed');
 select throws_ok($$select public.save_place('{"name": "x", "activity": "crag", "lat": 1, "lng": 1, "country": "Italy"}')$$,
                  '23514', null, 'country is a two-letter code');
+select ok(public.save_place('{"name": "Sasso Remenno", "activity": "boulder", "lat": 46.2, "lng": 9.6}') is not null,
+          'bouldering is an activity of its own');
 
 -- ---------------------------------------------------------------- a visit with overrides
 insert into ids select 'visit', public.save_visit(jsonb_build_object(

@@ -124,7 +124,7 @@ begin
   -- Blocchi Fonti minerali
   insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, null, 'Blocchi Fonti minerali', 'crag',
+  values (v_owner, null, null, 'Blocchi Fonti minerali', 'boulder',
           45.429448, 7.25095, 45.43011, 7.250239, null, null,
           'Gneiss', array['Nord', 'Sud', 'Est', 'Ovest']::text[], 'Zona per fare blocchi subito dietro il rifugio. Tutte le difficoltà e vari tipi di scalata', null)
   returning id into pid;
@@ -569,7 +569,7 @@ begin
   -- Val di Mello (blocchi) / Proprietà privata
   insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, sid, 'Proprietà privata', 'crag',
+  values (v_owner, null, sid, 'Proprietà privata', 'boulder',
           46.249768, 9.64196, 46.23945, 9.627467, null, null,
           'Granite', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, null)
   returning id into pid;

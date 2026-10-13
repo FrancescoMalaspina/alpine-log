@@ -11,7 +11,7 @@ export type LogStats = {
   byYear: (Tally & { year: string })[];
 };
 
-const CLIMBING: Activity[] = ['crag', 'multipitch', 'dws', 'indoor'];
+const CLIMBING: Activity[] = ['crag', 'boulder', 'multipitch', 'dws', 'indoor'];
 
 /**
  * How hard a grade is within an activity. Climbing grades (French, UIAA,

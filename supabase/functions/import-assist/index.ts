@@ -8,7 +8,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
-const ACTIVITIES = ['crag', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'];
+const ACTIVITIES = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'];
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -68,7 +68,7 @@ Data model: an AREA (geographic group) contains SPOTS (one crag, one multipitch 
 a VISIT is one day someone went to a spot, with partners and the routes climbed (ascents).
 For each sheet:
 - activity: what kind of spots the sheet lists (${ACTIVITIES.join(', ')}), or "unknown" if a column gives it per row or you can't tell.
-  multipitch = long rock routes (vie lunghe), alpine = mountaineering/snow/mixed, crag = single-pitch sport crags (falesie).
+  multipitch = long rock routes (vie lunghe), alpine = mountaineering/snow/mixed, crag = single-pitch sport crags (falesie), boulder = bouldering (blocchi).
 - date_order: "dmy" unless dates are clearly month-first.
 - columns: one entry per header, by 0-based index. field must be one of the given field ids.
   Use "note" for anything useful without a matching field (it is kept as text), "ignore" for row numbers and empty columns.

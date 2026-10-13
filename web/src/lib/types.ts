@@ -3,7 +3,7 @@ import type { Database } from './database.types';
 type Tables = Database['public']['Tables'];
 
 /** What a spot is for. A spot has exactly one. */
-export type Activity = 'crag' | 'multipitch' | 'alpine' | 'ice' | 'ski' | 'trail' | 'hike' | 'dws' | 'indoor';
+export type Activity = 'crag' | 'boulder' | 'multipitch' | 'alpine' | 'ice' | 'ski' | 'trail' | 'hike' | 'dws' | 'indoor';
 export type Exposition = 'Nord' | 'Sud' | 'Est' | 'Ovest';
 export type Visibility = 'private' | 'public';
 export type Protection = 'bolted' | 'trad' | 'mixed';
@@ -12,7 +12,7 @@ export const PROTECTIONS: Protection[] = ['bolted', 'trad', 'mixed'];
 export type AscentStyle = 'onsight' | 'flash' | 'redpoint' | 'toprope' | 'attempt';
 export const ASCENT_STYLES: AscentStyle[] = ['onsight', 'flash', 'redpoint', 'toprope', 'attempt'];
 
-export const ACTIVITY_ORDER: Activity[] = ['crag', 'multipitch', 'alpine', 'ice', 'dws', 'indoor', 'ski', 'hike', 'trail'];
+export const ACTIVITY_ORDER: Activity[] = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'dws', 'indoor', 'ski', 'hike', 'trail'];
 export const EXPOSITIONS: Exposition[] = ['Nord', 'Sud', 'Est', 'Ovest'];
 
 /**

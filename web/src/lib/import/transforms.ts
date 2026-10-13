@@ -157,7 +157,8 @@ export const cleanGrade = (v: unknown) => (isBlank(v) ? '' : String(v).trim().re
 
 const ACTIVITY_WORDS: [Activity, RegExp][] = [
   ['dws', /\b(dws|deep water|psicobloc)/],
-  ['indoor', /\b(indoor|palestra|gym|halle|salle|boulder)/],
+  ['indoor', /\b(indoor|palestra|gym|halle|salle)/],
+  ['boulder', /\b(boulder|bouldering|blocchi|blocs?)\b/],
   ['ski', /\b(sci ?alp|scialpinismo|ski|skitour|sci)\b/],
   ['ice', /\b(ice|ghiaccio|cascat|icefall|glace|eis)/],
   ['multipitch', /\b(vie lunghe|via lunga|multi ?pitch|grandes? voies?|mehrseill|long routes?)/],
@@ -171,7 +172,7 @@ const ACTIVITY_WORDS: [Activity, RegExp][] = [
 export function parseActivity(v: unknown): Activity | null {
   if (isBlank(v)) return null;
   const t = String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-  const exact = ['crag', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'].find(a => a === t.trim());
+  const exact = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'].find(a => a === t.trim());
   if (exact) return exact as Activity;
   return ACTIVITY_WORDS.find(([, re]) => re.test(t))?.[0] ?? null;
 }

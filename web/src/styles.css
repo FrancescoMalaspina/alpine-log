@@ -77,9 +77,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .app-header > .btn { margin-left: auto; }
-.header-lang { margin-left: auto; align-self: center; }
 .header-lang + .header-actions, .header-lang + .btn { margin-left: 0; }
-.lang-switch button { font-size: 12.5px; padding: 4px 8px; letter-spacing: .04em; }
 .header-hint { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--blaze-deep); }
 .account { display: flex; align-items: center; gap: 12px; padding-left: 12px; border-left: 1px solid var(--rule); }
 .account-name {
@@ -527,6 +525,10 @@ html[lang="it"] .downloads-panel[open] > summary::after { content: 'Nascondi'; }
 .segmented button:hover { color: var(--granite); }
 .segmented button.active { background: var(--granite); color: var(--plate); }
 .segmented.small button { font-size: 13.5px; padding: 5px 10px; }
+/* After .segmented, which aligns to the top. */
+.segmented.lang-switch { align-self: center; }
+.segmented.header-lang { margin-left: auto; }
+.segmented.lang-switch button { font-size: 11px; line-height: 1; padding: 4px 7px; letter-spacing: .05em; }
 
 /* Visits inside the place panel */
 .visits-view-body { display: flex; flex-direction: column; gap: 12px; }

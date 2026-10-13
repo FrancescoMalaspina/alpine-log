@@ -9,7 +9,7 @@ import { ErrorText } from '../Modal';
 import type { CoordField, PlaceValues } from './placeForm';
 
 const NAME_HINT: Record<PlaceValues['activity'], string> = {
-  crag: 'Parete Sud', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
+  crag: 'Parete Sud', boulder: 'Sasso Remenno', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
   dws: 'Mallorca, Cala Barques', indoor: 'Manga Climbing Milano', ski: 'Pizzo dei Tre Signori',
   hike: 'Sentiero delle Grigne', trail: 'Giro del Resegone',
 };
@@ -27,7 +27,7 @@ type Props = {
 
 /** What a sector is for each activity: the crag, the wall, the mountain… */
 const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
-  crag: 'Falesia di Civate', multipitch: 'Parete di Pezol', alpine: 'Breithorn', ice: 'Valle di Cogne',
+  crag: 'Falesia di Civate', boulder: 'Val di Mello', multipitch: 'Parete di Pezol', alpine: 'Breithorn', ice: 'Valle di Cogne',
   dws: 'Cala Barques', indoor: 'Manga Climbing', ski: 'Pizzo dei Tre Signori', hike: 'Grigna', trail: 'Resegone',
 };
 

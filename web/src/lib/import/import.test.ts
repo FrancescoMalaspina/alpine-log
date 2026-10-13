@@ -77,6 +77,9 @@ describe('transforms', () => {
     expect(parseNumber('750 m')).toBe(750);
     expect(parseActivity('Vie Lunghe')).toBe('multipitch');
     expect(parseActivity('Falesie')).toBe('crag');
+    expect(parseActivity('Blocchi')).toBe('boulder');
+    expect(parseActivity('boulder')).toBe('boulder');
+    expect(parseActivity('Palestra boulder')).toBe('indoor');
     expect(parseActivity('Neve&Misto')).toBe('alpine');
     expect(parseActivity('Scialpinismo')).toBe('ski');
     expect(parseActivity('Sportiva')).toBeNull();

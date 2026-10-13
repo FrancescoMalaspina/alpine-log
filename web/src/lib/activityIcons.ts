@@ -8,6 +8,7 @@ import type { Activity } from './types';
  */
 const GLYPHS: Record<Activity, string> = {
   crag: '<circle cx="15" cy="15" r="5.5" fill="#fff"/>',
+  boulder: '<path d="M7.5 20.5c-.4-3.6 1.6-7.4 4.8-8.8 2.6-1.1 5.6-.6 7.6 1.4 1.7 1.8 2.6 4.6 2.6 7.4z" fill="#fff"/>',
   multipitch: '<path d="M10 16.5l5-5 5 5M10 21l5-5 5 5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
   alpine: '<path d="M8.5 20 15 9l6.5 11z" fill="#fff"/>',
   ice: '<path d="M15 8.5 21 15l-6 6.5L9 15z" fill="#fff"/>',
