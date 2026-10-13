@@ -1,6 +1,7 @@
 import { formatCoords, parseCoordinates } from '../../lib/coords';
 import { tr } from '../../i18n';
 import { ACTIVITIES } from '../../lib/labels';
+import type { TrackFile } from '../../lib/tracks';
 import type { Activity, Exposition, Place, PlaceInput, Protection } from '../../lib/types';
 
 /** Everything the place fields hold while being edited (raw strings, as typed). */
@@ -28,7 +29,21 @@ export type PlaceValues = {
   alpineGrade: string;
   gradeObligatory: string;
   aid: string;
+  /** A track loaded to fill in the fields; saved on the spot when `save` is ticked. */
+  track: TrackDraft | null;
 };
+
+export type TrackDraft = {
+  fileName: string;
+  file: TrackFile;
+  /** Metres cut from the start and the end, e.g. a stretch from home. */
+  trimStartM: number;
+  trimEndM: number;
+  save: boolean;
+};
+
+/** Activities whose spots can be filled in from a recorded track. */
+export const TRACK_ACTIVITIES: Activity[] = ['ski', 'hike', 'trail', 'alpine'];
 
 /** Which coordinate field a "pick on map" request fills. */
 export type CoordField = 'coords' | 'parking' | 'start';
@@ -59,6 +74,7 @@ export function placeValuesFrom(place?: Place): PlaceValues {
     alpineGrade: place?.alpine_grade ?? '',
     gradeObligatory: place?.grade_obligatory ?? '',
     aid: place?.aid ?? '',
+    track: null,
   };
 }
 

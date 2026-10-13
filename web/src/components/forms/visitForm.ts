@@ -1,7 +1,8 @@
 import { tr } from '../../i18n';
 import { ACTIVITIES, localToday } from '../../lib/labels';
 import type { Activity, AscentStyle, Place, Visibility, VisitDetail, VisitInput } from '../../lib/types';
-import type { PlaceValues } from './placeForm';
+import { summarize, trackVisit } from '../../lib/tracks';
+import type { PlaceValues, TrackDraft } from './placeForm';
 
 /**
  * A route row. `wallId` is another spot of the visit's sector the route was
@@ -79,6 +80,13 @@ export function visitProblem(v: VisitValues): string | null {
   return !v.date && !v.summary.trim() && !v.withPeople.length && !v.otherPeople.length && !v.rating && !filledAscents(v).length
     ? tr().spot.visitForm.empty
     : null;
+}
+
+/** The date and duration of a visit recorded as a track, if the track has times. */
+export function visitFromTrack(track: TrackDraft | null): Partial<VisitValues> | null {
+  const summary = track && summarize(track.file.segments);
+  const visit = summary && trackVisit(summary);
+  return visit ? { date: visit.date, ...(visit.hours ? { duration: String(visit.hours) } : {}) } : null;
 }
 
 /** A spot being written in the form, as the topo values a visit's climb overrides. */

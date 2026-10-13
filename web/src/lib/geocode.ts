@@ -22,7 +22,7 @@ type PhotonFeature = {
   geometry: { coordinates: [number, number] };
   properties: {
     osm_type?: string; osm_id?: number; osm_value?: string;
-    name?: string; street?: string; city?: string; county?: string; state?: string; country?: string; countrycode?: string;
+    name?: string; street?: string; city?: string; district?: string; locality?: string; county?: string; state?: string; country?: string; countrycode?: string;
     extent?: [number, number, number, number];
   };
 };
@@ -62,7 +62,13 @@ export async function searchLocations(query: string, near: LatLng, signal?: Abor
  * "IT" + "LC", or "FR" + "Hautes-Alpes". Italian provinces use their code;
  * Valle d'Aosta has no county in OpenStreetMap, so its region is used.
  */
-export async function reverseGeocode(at: LatLng, signal?: AbortSignal): Promise<{ country: string | null; province: string | null }> {
+/**
+ * What is at a point: its country and province, the town or village, and the
+ * name of the peak or hut when the nearest feature is one (for a track's summit).
+ */
+export async function reverseGeocode(at: LatLng, signal?: AbortSignal): Promise<{
+  country: string | null; province: string | null; locality: string | null; summit: string | null;
+}> {
   const url = new URL('https://photon.komoot.io/reverse');
   url.searchParams.set('lat', at.lat.toFixed(5));
   url.searchParams.set('lon', at.lng.toFixed(5));
@@ -74,5 +80,12 @@ export async function reverseGeocode(at: LatLng, signal?: AbortSignal): Promise<
   const data: { features: PhotonFeature[] } = await res.json();
   const p = data.features[0]?.properties;
   const country = p?.countrycode?.toUpperCase() ?? null;
-  return { country, province: provinceCode(country, p?.county ?? p?.state ?? null) };
+  const kind = p?.osm_value ? KIND[p.osm_value] : undefined;
+  const isSettlement = kind === 'village' || kind === 'hamlet' || kind === 'town' || kind === 'city';
+  return {
+    country,
+    province: provinceCode(country, p?.county ?? p?.state ?? null),
+    locality: (isSettlement ? p?.name : null) ?? p?.city ?? p?.district ?? p?.locality ?? null,
+    summit: (kind === 'peak' || kind === 'hut' || kind === 'pass') && p?.name ? p.name : null,
+  };
 }

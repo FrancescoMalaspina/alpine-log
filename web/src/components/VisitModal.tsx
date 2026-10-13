@@ -6,10 +6,10 @@ import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
-import { saveVisitAt } from './forms/save';
+import { coordLabel, buildPlaceInput, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
+import { saveTrackAt, saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
-import { topoOf, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
+import { topoOf, visitFromTrack, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
 import type { PickOnMap } from './PlaceModal';
 
@@ -93,7 +93,13 @@ export function VisitModal({
     : [];
 
   const change = (patch: Partial<VisitValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
-  const changePlace = (patch: Partial<PlaceValues>) => { setNewPlace(v => ({ ...v, ...patch })); setDirty(true); };
+  const changePlace = (patch: Partial<PlaceValues>) => {
+    setNewPlace(v => ({ ...v, ...patch }));
+    setDirty(true);
+    // The visit takes the date and duration of a newly loaded track.
+    const fromTrack = patch.track && patch.track.file !== newPlace.track?.file ? visitFromTrack(patch.track) : null;
+    if (fromTrack) setValues(v => ({ ...v, ...fromTrack }));
+  };
   const close = () => {
     if (!dirty || confirm(s.confirmDiscard)) onClose();
   };
@@ -136,6 +142,13 @@ export function VisitModal({
         : { id: id!, name: place!.name, grade: place!.grade, activity: place!.activity };
       const visitId = await saveVisitAt(spot, values, visit?.id);
       const failed: string[] = [];
+      if (placeInput && newPlace.track?.save && TRACK_ACTIVITIES.includes(placeInput.activity)) {
+        try {
+          await saveTrackAt(id!, userId, newPlace.track, placeInput.name);
+        } catch (e) {
+          failed.push(t.spot.trackLoader.savedButTrackFailed(errorMessage(e)));
+        }
+      }
       let wishResolved = false;
       if (wish && tickOff) {
         try {
@@ -208,7 +221,7 @@ export function VisitModal({
       {isNew && (
         <div className="form-section nested">
           <h3 className="section-title">{s.newSpot}</h3>
-          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick} />
+          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick} withVisit />
         </div>
       )}
 

@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../auth/useAuth';
 import { deletePlace, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Sector } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
-import { saveVisitAt } from './forms/save';
+import { coordLabel, buildPlaceInput, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
+import { saveTrackAt, saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
-import { topoOf, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
+import { topoOf, visitFromTrack, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
 
 export type PickOnMap = (label: string, apply: (at: LatLng) => void) => void;
@@ -46,8 +47,19 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const userId = useAuth().session?.user.id;
+  // Set once the track is uploaded, so a retry doesn't upload it twice.
+  const [trackSaved, setTrackSaved] = useState(false);
+  // Set when the spot is saved but its track failed to upload: the form then only offers "Done".
+  const [done, setDone] = useState<number | null>(null);
 
-  const change = (patch: Partial<PlaceValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
+  const change = (patch: Partial<PlaceValues>) => {
+    setValues(v => ({ ...v, ...patch }));
+    setDirty(true);
+    // A visit logged with the spot takes the date and duration of a newly loaded track.
+    const fromTrack = patch.track && patch.track.file !== values.track?.file ? visitFromTrack(patch.track) : null;
+    if (fromTrack) setVisit(v => ({ ...v, ...fromTrack }));
+  };
   const changeVisit = (patch: Partial<VisitValues>) => { setVisit(v => ({ ...v, ...patch })); setDirty(true); };
   const close = () => {
     if (!dirty || confirm(s.confirmDiscard)) onClose();
@@ -74,6 +86,17 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
       setSavedId(id);
       if (logVisit) {
         await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit);
+      }
+      if (values.track?.save && !trackSaved && userId && TRACK_ACTIVITIES.includes(input.activity)) {
+        try {
+          await saveTrackAt(id, userId, values.track, input.name);
+          setTrackSaved(true);
+        } catch (e) {
+          setError(t.spot.trackLoader.savedButTrackFailed(errorMessage(e)));
+          setDone(id);
+          setBusy(false);
+          return;
+        }
       }
       onSaved(id, logVisit);
     } catch (e) {
@@ -109,14 +132,18 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
       footer={<>
         {place && canDelete && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>{t.common.delete}</button>}
         <button className="btn btn-ghost" type="button" onClick={close}>{t.common.cancel}</button>
-        <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
-          {place ? s.saveChanges : logVisit ? s.saveSpotAndVisit : s.saveSpot}
-        </button>
+        {done != null ? (
+          <button className="btn btn-primary" type="button" onClick={() => onSaved(done, logVisit)}>{t.common.done}</button>
+        ) : (
+          <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
+            {place ? s.saveChanges : logVisit ? s.saveSpotAndVisit : s.saveSpot}
+          </button>
+        )}
       </>}
     >
       <form onSubmit={e => { e.preventDefault(); save(); }}>
         <PlaceFields values={values} onChange={change} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
-                     autoFocusName />
+                     autoFocusName withVisit={logVisit} />
 
         {!place && (
           <div className="form-section">

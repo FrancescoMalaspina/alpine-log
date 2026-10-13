@@ -23,6 +23,13 @@ marked public. Admins can see everything.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides
   and GPX approach tracks. GPX tracks are drawn on the map, with distance and
   ascent worked out from the file.
+- **Spots from a track.** For ski touring, hiking, trail running and
+  alpinism, the spot form loads a GPX, TCX or KML exported by Strava, Garmin
+  Connect, OruxMaps, Komoot… and offers its summit (or start) as the pin, its
+  start as the parking, the starting village, altitude, gain and distance; a
+  visit logged with it takes the track's date and duration. The first or last
+  metres can be cut off, and the track is saved on the spot as GPX without
+  times or sensor data.
 - **Search** finds your places and also mountains, huts and villages
   (OpenStreetMap, via the free [Photon](https://photon.komoot.io) geocoder);
   a found location can become a new place in one click.

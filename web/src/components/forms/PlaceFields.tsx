@@ -6,7 +6,8 @@ import { ACTIVITIES, ALPINE_GRADES, activityLabel, errorMessage, gradeSuggestion
 import { ACTIVITY_ORDER, EXPOSITIONS, PROTECTIONS, type Area, type Exposition, type Sector } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
-import type { CoordField, PlaceValues } from './placeForm';
+import { TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './placeForm';
+import { TrackLoader } from './TrackLoader';
 
 const NAME_HINT: Record<PlaceValues['activity'], string> = {
   crag: 'Parete Sud', boulder: 'Sasso Remenno', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
@@ -23,6 +24,8 @@ type Props = {
   /** Hide the form and let the user click the map; the field is filled on return. */
   onPickOnMap: (field: CoordField) => void;
   autoFocusName?: boolean;
+  /** A visit is saved with the spot: a loaded track also gives its date and duration. */
+  withVisit?: boolean;
 };
 
 /** What a sector is for each activity: the crag, the wall, the mountain… */
@@ -34,7 +37,7 @@ const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
 /** Every field of a spot. Used by "Add a spot" and by "Log a visit" at a new spot. */
-export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName }: Props) {
+export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName, withVisit }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeFields;
   const [locateError, setLocateError] = useState<string | null>(null);
@@ -90,6 +93,7 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
           ))}
         </div>
       </div>
+      {TRACK_ACTIVITIES.includes(v.activity) && <TrackLoader values={v} onChange={onChange} withVisit={withVisit} />}
       <div className="field full">
         <label htmlFor="placeName">{s.name}</label>
         <input id="placeName" required autoFocus={autoFocusName && !isTouchLayout()} value={v.name}
