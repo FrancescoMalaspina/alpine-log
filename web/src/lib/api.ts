@@ -245,6 +245,12 @@ export async function deleteAttachment(a: Attachment): Promise<void> {
 export const attachmentUrl = (a: Attachment) =>
   a.url ?? supabase.storage.from(BUCKET).getPublicUrl(a.storage_path!).data.publicUrl;
 
+/** A GPX served as a file to save, named after its title: the download attribute doesn't work across origins. */
+export const gpxDownloadUrl = (a: Attachment) => {
+  const name = (a.title || 'track').replace(/[\\/:*?"<>|]+/g, '-').replace(/(\.gpx)?$/i, '.gpx');
+  return supabase.storage.from(BUCKET).getPublicUrl(a.storage_path!, { download: name }).data.publicUrl;
+};
+
 // ---------------------------------------------------------------- visits
 
 export async function fetchVisits(f: VisitFilters, userId: string | null): Promise<VisitSummary[]> {

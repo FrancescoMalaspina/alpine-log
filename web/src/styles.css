@@ -276,7 +276,7 @@ aside {
 }
 .location-dot { width: 14px; height: 14px; flex: none; margin: 0 2px; border-radius: 50%; background: var(--focus); box-shadow: inset 0 0 0 3px #fff, 0 0 0 1.5px var(--focus); }
 .attribution { margin: 6px 16px 0; font-size: 12.5px; color: var(--slate); }
-.gpx-line { stroke: var(--blaze); stroke-width: 4; stroke-opacity: .9; stroke-dasharray: 1 7; stroke-linecap: round; fill: none; }
+.gpx-line { stroke-width: 4; stroke-opacity: .9; stroke-dasharray: 1 7; stroke-linecap: round; fill: none; }
 
 .map-legend {
   position: absolute; left: 12px; bottom: 28px; z-index: 800;
@@ -1005,3 +1005,4 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+.track-toggle { flex: none; width: 18px; height: 18px; margin: 0; cursor: pointer; }

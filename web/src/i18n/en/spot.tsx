@@ -81,7 +81,7 @@ const en = {
     saveSpotAndVisit: 'Save spot and visit',
     saveSpot: 'Save spot',
     logVisitToo: 'Log a visit here too',
-    editNote: "Photos, guide links, PDFs and the approach GPX are added from the spot's Details panel.",
+    editNote: "Photos, guide links, PDFs and GPX tracks are added from the spot's Details panel.",
   },
   visitModal: {
     confirmDiscard: 'Discard this visit? What you typed will be lost.',
@@ -218,7 +218,7 @@ const en = {
     parkingStart: 'Parking (the start)',
     sectorMountain: 'Sector (the mountain)',
     save: 'Save the track on the spot',
-    saveHint: 'Public, like the other approach tracks. Times, heart rate and other sensor data are left out.',
+    saveHint: 'Public: anyone can see it on the map and download it. Times, heart rate and other sensor data are left out.',
     visitFromTrack: (date: string, hours: string | null) =>
       `The visit takes the track's date${hours ? ' and duration' : ''}: ${date}${hours ? `, ${hours}` : ''}.`,
     savedButTrackFailed: (msg: string) => `Saved, but the track couldn't be uploaded: ${msg}`,
@@ -241,6 +241,7 @@ const en = {
   attachments: {
     confirmRemove: (title: string) => `Remove "${title}"?`,
     approachTracks: 'Approach tracks',
+    tracks: 'Tracks',
     noGpx: 'No GPX yet.',
     guides: 'Guides and links',
     noGuides: 'No guides yet.',
@@ -251,6 +252,8 @@ const en = {
     attachment: 'attachment',
     pickFile: 'Pick a .gpx or .pdf file first.',
     noTrack: "That GPX file doesn't contain a track.",
+    showOnMap: (title: string) => `Show ${title || 'the track'} on the map`,
+    download: 'Download the GPX',
     pasteLink: 'Paste a link',
     uploadFile: 'Upload GPX / PDF',
     link: 'Link',

@@ -113,7 +113,7 @@ const en = {
     streets: 'Streets',
     legend: 'Legend',
     legendStart: 'Start',
-    legendApproach: 'Approach (GPX)',
+    legendTrack: 'GPX track',
   },
   auth: {
     signIn: 'Sign in',

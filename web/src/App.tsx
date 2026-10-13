@@ -22,7 +22,7 @@ import {
   attachmentUrl, fetchAreas, fetchAttachments, fetchSectors, fetchMyPartners, fetchMyWishes, fetchPlaces, fetchRocks, fetchVisits,
 } from './lib/api';
 import type { LatLng } from './lib/coords';
-import { parseGpx, type Track } from './lib/gpx';
+import { parseGpx, TRACK_COLORS, type Track, type TrackLayer } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS,
@@ -34,6 +34,8 @@ const hasPlaceFilters = (f: PlaceFilters) =>
     || f.protection.length || f.maxObligatoryRank != null || f.country);
 
 const NO_TRACKS = new Map<number, Track>();
+/** A spot with more tracks than this starts with only the first one drawn. */
+const MAX_TRACKS_SHOWN = 3;
 
 type Panel =
   | { kind: 'place'; placeId: number; tab: PlaceTab; visitId?: number }
@@ -230,6 +232,22 @@ export default function App() {
   }, [focusedId, reloadKey]);
   const trackMap = tracks && tracks.placeId === focusedId ? tracks.byId : NO_TRACKS;
   const trackList = useMemo(() => [...trackMap.values()], [trackMap]);
+  // Tracks switched on or off by hand, for the focused place; the rest follow the default.
+  const [trackToggles, setTrackToggles] = useState<{ placeId: number; shown: Map<number, boolean> } | null>(null);
+  const trackLayers = useMemo((): TrackLayer[] => {
+    const toggled = trackToggles?.placeId === focusedId ? trackToggles.shown : undefined;
+    const many = trackMap.size > MAX_TRACKS_SHOWN;
+    return [...trackMap].map(([id, track], i) => ({
+      id, track, color: TRACK_COLORS[i % TRACK_COLORS.length], shown: toggled?.get(id) ?? (!many || i === 0),
+    }));
+  }, [trackMap, trackToggles, focusedId]);
+  const toggleTrack = (id: number) => {
+    const layer = trackLayers.find(l => l.id === id);
+    if (focusedId == null || !layer) return;
+    const shown = new Map(trackToggles?.placeId === focusedId ? trackToggles.shown : []);
+    shown.set(id, !layer.shown);
+    setTrackToggles({ placeId: focusedId, shown });
+  };
 
   const pins = useMemo(() => {
     if (mode === 'places') return places;
@@ -372,6 +390,7 @@ export default function App() {
           pins={pins}
           focusedPlace={focusedPlace}
           tracks={trackList}
+          trackLayers={trackLayers}
           tempPin={tempPin}
           searchPin={placeFilters.search.trim() ? searchPin : null}
           armed={!!picking}
@@ -405,7 +424,8 @@ export default function App() {
             isAdmin={isAdmin}
             canEdit={canEdit(panelPlace)}
             reloadKey={reloadKey}
-            tracks={trackMap}
+            tracks={trackLayers}
+            onToggleTrack={toggleTrack}
             isMobile={isMobile}
             onTab={tab => setPanel({ ...panel, tab })}
             onClose={() => setPanel(null)}

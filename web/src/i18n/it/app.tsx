@@ -115,7 +115,7 @@ const it: Widen<typeof en> = {
     streets: 'Stradale',
     legend: 'Legenda',
     legendStart: 'Attacco',
-    legendApproach: 'Avvicinamento (GPX)',
+    legendTrack: 'Traccia GPX',
   },
   auth: {
     signIn: 'Accedi',

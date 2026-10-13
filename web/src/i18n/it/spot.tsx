@@ -80,7 +80,7 @@ const it: Widen<typeof en> = {
     saveSpotAndVisit: 'Salva spot e visita',
     saveSpot: 'Salva spot',
     logVisitToo: 'Registra anche una visita qui',
-    editNote: 'Foto, link alle relazioni, PDF e la traccia GPX di avvicinamento si aggiungono dal pannello Dettagli dello spot.',
+    editNote: 'Foto, link alle relazioni, PDF e le tracce GPX si aggiungono dal pannello Dettagli dello spot.',
   },
   visitModal: {
     confirmDiscard: 'Scartare questa visita? Quello che hai scritto andrà perso.',
@@ -217,7 +217,7 @@ const it: Widen<typeof en> = {
     parkingStart: 'Parcheggio (la partenza)',
     sectorMountain: 'Settore (la montagna)',
     save: 'Salva la traccia sullo spot',
-    saveHint: 'Pubblica, come le altre tracce di avvicinamento. Orari, frequenza cardiaca e altri dati dei sensori non vengono salvati.',
+    saveHint: 'Pubblica: chiunque la vede sulla mappa e la può scaricare. Orari, frequenza cardiaca e altri dati dei sensori non vengono salvati.',
     visitFromTrack: (date: string, hours: string | null) =>
       `La visita prende la data${hours ? ' e la durata' : ''} della traccia: ${date}${hours ? `, ${hours}` : ''}.`,
     savedButTrackFailed: (msg: string) => `Salvato, ma non è stato possibile caricare la traccia: ${msg}`,
@@ -240,6 +240,7 @@ const it: Widen<typeof en> = {
   attachments: {
     confirmRemove: (title: string) => `Rimuovere "${title}"?`,
     approachTracks: 'Tracce di avvicinamento',
+    tracks: 'Tracce',
     noGpx: 'Ancora nessun GPX.',
     guides: 'Relazioni e link',
     noGuides: 'Ancora nessuna relazione.',
@@ -250,6 +251,8 @@ const it: Widen<typeof en> = {
     attachment: 'allegato',
     pickFile: 'Scegli prima un file .gpx o .pdf.',
     noTrack: 'Questo file GPX non contiene nessuna traccia.',
+    showOnMap: (title: string) => `Mostra ${title || 'la traccia'} sulla mappa`,
+    download: 'Scarica il GPX',
     pasteLink: 'Incolla un link',
     uploadFile: 'Carica GPX / PDF',
     link: 'Link',

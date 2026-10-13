@@ -21,8 +21,10 @@ marked public. Admins can see everything.
   can also have a shared route list that anyone can add to: a logged route
   with a listed name is linked to it, so repeats are counted.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides
-  and GPX approach tracks. GPX tracks are drawn on the map, with distance and
-  ascent worked out from the file.
+  and GPX tracks. A spot can have several tracks: the approach for climbing
+  spots, the outing itself for ski touring, hiking, trail running and alpinism.
+  Each track gets its own colour on the map, with distance and ascent worked
+  out from the file; they can be switched on and off one by one and downloaded.
 - **Spots from a track.** For ski touring, hiking, trail running and
   alpinism, the spot form loads a GPX, TCX or KML exported by Strava, Garmin
   Connect, OruxMaps, Komoot… and offers its summit (or start) as the pin, its

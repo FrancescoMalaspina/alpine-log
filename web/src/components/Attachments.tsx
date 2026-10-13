@@ -1,24 +1,28 @@
 import { useEffect, useState } from 'react';
 import { tr, useI18n } from '../i18n';
-import { addLink, attachmentUrl, deleteAttachment, fetchAttachments, uploadAttachment, type AttachmentOwner } from '../lib/api';
-import { parseGpx, type Track } from '../lib/gpx';
+import { addLink, attachmentUrl, deleteAttachment, fetchAttachments, gpxDownloadUrl, uploadAttachment, type AttachmentOwner } from '../lib/api';
+import { parseGpx, type Track, type TrackLayer } from '../lib/gpx';
 import { errorMessage, formatBytes } from '../lib/labels';
-import type { Attachment } from '../lib/types';
+import type { Activity, Attachment } from '../lib/types';
+import { TRACK_ACTIVITIES } from './forms/placeForm';
 import { ErrorText } from './Modal';
 
 type Props = {
   owner: AttachmentOwner;
   userId: string | null;
   isAdmin: boolean;
-  /** Parsed GPX tracks keyed by attachment id, to show distance and gain. */
-  tracks?: Map<number, Track>;
+  /** The spot's activity: on ski tours, hikes, trail runs and alpine climbs a track is the outing itself, not the approach. */
+  activity?: Activity;
+  /** Parsed GPX tracks with their map colours, to show distance and gain and switch them on and off. */
+  tracks?: TrackLayer[];
+  onToggleTrack?: (id: number) => void;
   /** Called after anything is added or removed. */
   onChange?: () => void;
 };
 
 const ICONS: Record<Attachment['kind'], string> = { gpx: 'GPX', pdf: 'PDF', link: 'URL' };
 
-export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props) {
+export function Attachments({ owner, userId, isAdmin, activity, tracks, onToggleTrack, onChange }: Props) {
   const { t } = useI18n();
   const s = t.spot.attachments;
   const [items, setItems] = useState<Attachment[] | null>(null);
@@ -54,12 +58,16 @@ export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props)
 
   return (
     <div className="attachments">
-      <h3 className="section-title">{s.approachTracks}</h3>
+      <h3 className="section-title">{activity && TRACK_ACTIVITIES.includes(activity) ? s.tracks : s.approachTracks}</h3>
       {items && !gpx.length && <div className="empty">{s.noGpx}</div>}
-      {gpx.map(a => (
-        <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)}
-              detail={trackSummary(tracks?.get(a.id))} />
-      ))}
+      {gpx.map(a => {
+        const layer = tracks?.find(l => l.id === a.id);
+        return (
+          <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)}
+                detail={trackSummary(layer?.track)} layer={layer}
+                onToggle={layer && onToggleTrack ? () => onToggleTrack(a.id) : undefined} />
+        );
+      })}
 
       <h3 className="section-title">{s.guides}</h3>
       {items && !guides.length && <div className="empty">{s.noGuides}</div>}
@@ -83,22 +91,32 @@ function trackSummary(t: Track | undefined) {
   ].filter(Boolean).join(', ');
 }
 
-function Item({ a, canDelete, onDelete, detail }:
-  { a: Attachment; canDelete: boolean; onDelete: () => void; detail?: string }) {
+function Item({ a, canDelete, onDelete, detail, layer, onToggle }: {
+  a: Attachment; canDelete: boolean; onDelete: () => void; detail?: string;
+  /** A GPX's track on the map: its colour and whether it's drawn. */
+  layer?: TrackLayer; onToggle?: () => void;
+}) {
   const { t } = useI18n();
   const meta = [
     detail,
     a.kind === 'link' ? new URL(a.url!).hostname.replace(/^www\./, '') : a.size_bytes && formatBytes(a.size_bytes),
     a.username && t.spot.attachments.by(a.username),
   ].filter(Boolean).join(', ');
+  const label = <>
+    <span className="attachment-title">{a.title || a.url}</span>
+    {meta && <span className="attachment-meta">{meta}</span>}
+  </>;
   return (
     <div className="attachment">
-      <span className={`attachment-icon ${a.kind}`} aria-hidden="true">{ICONS[a.kind]}</span>
-      <a href={attachmentUrl(a)} target="_blank" rel="noopener noreferrer"
-         download={a.kind === 'gpx' ? a.title ?? undefined : undefined}>
-        <span className="attachment-title">{a.title || a.url}</span>
-        {meta && <span className="attachment-meta">{meta}</span>}
-      </a>
+      {onToggle && (
+        <input type="checkbox" className="track-toggle" checked={layer!.shown} onChange={onToggle}
+               style={{ accentColor: layer!.color }} aria-label={t.spot.attachments.showOnMap(a.title ?? '')} />
+      )}
+      <span className={`attachment-icon ${a.kind}`} aria-hidden="true"
+            style={layer ? { background: layer.color } : undefined}>{ICONS[a.kind]}</span>
+      {a.kind === 'gpx' && a.storage_path
+        ? <a href={gpxDownloadUrl(a)} title={t.spot.attachments.download}>{label}</a>
+        : <a href={attachmentUrl(a)} target="_blank" rel="noopener noreferrer">{label}</a>}
       {canDelete && <button type="button" aria-label={t.spot.attachments.removeNamed(a.title ?? t.spot.attachments.attachment)} onClick={onDelete}>×</button>}
     </div>
   );

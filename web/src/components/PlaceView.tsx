@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips } from '../lib/api';
 import { formatCoords } from '../lib/coords';
-import type { Track } from '../lib/gpx';
+import type { TrackLayer } from '../lib/gpx';
 import { useI18n } from '../i18n';
 import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
@@ -23,7 +23,9 @@ type Props = {
   isAdmin: boolean;
   canEdit: boolean;
   reloadKey: number;
-  tracks: Map<number, Track>;
+  /** The spot's GPX tracks, with their colours and whether each is drawn on the map. */
+  tracks: TrackLayer[];
+  onToggleTrack: (id: number) => void;
   isMobile: boolean;
   onTab: (tab: PlaceTab) => void;
   onClose: () => void;
@@ -105,7 +107,7 @@ export function PlaceView(props: Props) {
   );
 }
 
-function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish, onChanged, onTab, latestTip }: Props & { latestTip?: Tip }) {
+function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onToggleTrack, wish, onChanged, onTab, latestTip }: Props & { latestTip?: Tip }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [wishers, setWishers] = useState<string[]>([]);
@@ -163,7 +165,8 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
       <PhotoGallery owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} canAdd={!!userId}
                     emptyText={s.noPhotos} />
 
-      <Attachments owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} tracks={tracks} onChange={onChanged} />
+      <Attachments owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} activity={p.activity}
+                   tracks={tracks} onToggleTrack={onToggleTrack} onChange={onChanged} />
     </div>
   );
 }

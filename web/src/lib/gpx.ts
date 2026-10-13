@@ -21,3 +21,9 @@ export function parseGpx(xml: string): Track | null {
     distanceKm: summary.distanceKm, gainM: summary.gainM, maxEleM: summary.maxEleM,
   };
 }
+
+/** Line colours for a spot's tracks, in order: CAI trail red first, then colours that stand out on both base maps. */
+export const TRACK_COLORS = ['#D7261E', '#1F5FBF', '#E07B00', '#7A3FB0', '#00897B', '#C2185B'];
+
+/** A spot's track as drawn on the map: its attachment id, colour, and whether it's switched on. */
+export type TrackLayer = { id: number; track: Track; color: string; shown: boolean };

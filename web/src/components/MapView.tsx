@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { badgeSvg, pinSvg, plainPinSvg } from '../lib/activityIcons';
 import type { LatLng } from '../lib/coords';
-import type { Track } from '../lib/gpx';
+import type { Track, TrackLayer } from '../lib/gpx';
 import { ACTIVITIES, activityLabel } from '../lib/labels';
 import type { Activity, Place } from '../lib/types';
 
@@ -16,7 +16,10 @@ export type MapCommand =
 type Props = {
   pins: Place[];
   focusedPlace: Place | null;
+  /** Every GPX track of the focused place, to frame the view around. */
   tracks: Track[];
+  /** The same tracks with their colours; only the ones switched on are drawn. */
+  trackLayers: TrackLayer[];
   tempPin: LatLng | null;
   /** A location found with the search bar. */
   searchPin: (LatLng & { name: string }) | null;
@@ -160,7 +163,7 @@ function Controller({ pins, command, markers, armed, tempPin, focusedPlace, trac
 }
 
 export function MapView(props: Props) {
-  const { pins, focusedPlace, tracks, tempPin, signedIn } = props;
+  const { pins, focusedPlace, tracks, trackLayers, tempPin, signedIn } = props;
   const { t } = useI18n();
   const markers = useRef(new Map<number, L.Marker>());
   // react-leaflet compares positions by reference and calls setLatLng on any
@@ -213,8 +216,8 @@ export function MapView(props: Props) {
         onCenterChange={props.onCenterChange}
       />
 
-      {tracks.flatMap((t, i) => t.lines.map((line, j) => (
-        <Polyline key={`${i}-${j}`} positions={line} pathOptions={{ className: 'gpx-line' }} />
+      {trackLayers.filter(l => l.shown).flatMap(l => l.track.lines.map((line, j) => (
+        <Polyline key={`${l.id}-${j}`} positions={line} pathOptions={{ className: 'gpx-line', color: l.color }} />
       )))}
 
       {pins.map(p => (
@@ -314,7 +317,7 @@ function Legend() {
         ))}
         <li><span className="map-badge small parking" aria-hidden="true">P</span>{t.app.map.parking}</li>
         <li><span className="map-badge small start" aria-hidden="true">⚑</span>{t.app.map.legendStart}</li>
-        <li><span className="legend-track" aria-hidden="true" />{t.app.map.legendApproach}</li>
+        <li><span className="legend-track" aria-hidden="true" />{t.app.map.legendTrack}</li>
       </ul>
     </details>
   );
