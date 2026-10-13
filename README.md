@@ -31,7 +31,10 @@ marked public. Admins can see everything.
   start as the parking, the starting village, altitude, gain and distance; a
   visit logged with it takes the track's date and duration. The first or last
   metres can be cut off, and the track is saved on the spot as GPX without
-  times or sensor data.
+  times or sensor data. On climbing spots the loaded track is the approach:
+  its start is offered as the parking, its end as the pin and the attacco.
+  Every value is filled in only when ticked, and stays editable. Logging a
+  visit to an existing spot can load a track as well.
 - **Search** finds your places and also mountains, huts and villages
   (OpenStreetMap, via the free [Photon](https://photon.komoot.io) geocoder);
   a found location can become a new place in one click.
