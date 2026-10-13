@@ -2,7 +2,7 @@ import { gradeRank } from './grades';
 import { ACTIVITIES } from './labels';
 import { ACTIVITY_ORDER, type Activity, type VisitSummary } from './types';
 
-export type Tally = { days: number; routes: number };
+export type Tally = { days: number; routes: number; pitches: number };
 /** hardestSent: the hardest climbing grade not marked as an attempt. */
 export type ActivityTally = Tally & { type: Activity; hardest: string | null; hardestSent: string | null };
 export type LogStats = {
@@ -31,9 +31,11 @@ export function computeStats(visits: VisitSummary[]): LogStats {
 
   for (const v of visits) {
     const type = v.place_activity;
-    const a = acts.get(type) ?? { type, days: 0, routes: 0, hardest: null, hardestSent: null, best: -Infinity, bestSent: -Infinity };
+    const a = acts.get(type)
+      ?? { type, days: 0, routes: 0, pitches: 0, hardest: null, hardestSent: null, best: -Infinity, bestSent: -Infinity };
     a.days += 1;
     a.routes += v.ascent_count;
+    a.pitches += v.pitches_climbed;
     for (const g of v.grades) {
       const d = difficulty(type, g);
       if (d != null && d > a.best) { a.best = d; a.hardest = g; }
@@ -46,9 +48,10 @@ export function computeStats(visits: VisitSummary[]): LogStats {
     acts.set(type, a);
 
     const year = v.date?.slice(0, 4) ?? 'No date';
-    const y = years.get(year) ?? { days: 0, routes: 0 };
+    const y = years.get(year) ?? { days: 0, routes: 0, pitches: 0 };
     y.days += 1;
     y.routes += v.ascent_count;
+    y.pitches += v.pitches_climbed;
     years.set(year, y);
   }
 
@@ -56,6 +59,7 @@ export function computeStats(visits: VisitSummary[]): LogStats {
     totals: {
       days: visits.length,
       routes: visits.reduce((n, v) => n + v.ascent_count, 0),
+      pitches: visits.reduce((n, v) => n + v.pitches_climbed, 0),
       places: new Set(visits.map(v => v.place_id)).size,
       areas: new Set(visits.map(v => v.area_id).filter(a => a != null)).size,
       first: dates[0] ?? null,

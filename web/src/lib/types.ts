@@ -72,6 +72,8 @@ export type VisitSummary = {
   rating: number | null;
   /** Hardest grade among routes not marked as an attempt. */
   max_sent_grade_rank: number | null;
+  /** Each route's pitches, else its spot's, else one at a crag, DWS or gym. */
+  pitches_climbed: number;
   partner_ids: number[];
   partner_names: string[];
 };

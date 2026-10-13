@@ -1,7 +1,7 @@
 -- Spot details, visit rating, other ropes, route style and overrides. Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 \set vale '\'22222222-2222-4222-8222-222222222222\''
 
@@ -49,6 +49,8 @@ select is((select max_sent_grade_rank from public.visit_overview where id = (sel
           public.grade_rank('6a+'), 'but the hardest sent does not');
 select is((select rating from public.visit_overview where id = (select v from ids where k = 'visit')), 4::smallint,
           'the overview has the rating');
+select is((select pitches_climbed from public.visit_overview where id = (select v from ids where k = 'visit')), 20,
+          'pitches climbed: the route''s own 8, and the topo''s 12 for a route without its own');
 select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
   'place_id', (select v from ids where k = 'caprice'), 'rating', 6)), '23514', null, 'ratings go from 1 to 5');
 select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(

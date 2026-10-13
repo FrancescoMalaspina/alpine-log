@@ -31,6 +31,7 @@ const it: Widen<typeof en> = {
     days: 'Giorni',
     hardest: 'Più difficile',
     hardestSent: 'Più dura chiusa',
+    pitches: 'Tiri',
     byYear: 'Per anno',
     year: 'Anno',
     noDate: 'Senza data',

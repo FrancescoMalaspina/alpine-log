@@ -96,6 +96,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
         <dl className="log-totals">
           <div><dt>{t.account.myLog.daysOut}</dt><dd className="num">{stats.totals.days}</dd></div>
           <div><dt>{t.account.myLog.routesTotal}</dt><dd className="num">{stats.totals.routes}</dd></div>
+          <div><dt>{t.account.myLog.pitches}</dt><dd className="num">{stats.totals.pitches}</dd></div>
           <div><dt>{t.account.myLog.spots}</dt><dd className="num">{stats.totals.places}</dd></div>
           <div><dt>{t.account.myLog.areas}</dt><dd className="num">{stats.totals.areas}</dd></div>
         </dl>
@@ -110,7 +111,8 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
           <table className="stats-table">
             <thead>
               <tr><th scope="col">{t.account.myLog.activity}</th><th scope="col">{t.account.myLog.days}</th>
-                <th scope="col">{t.account.myLog.routesTotal}</th><th scope="col">{t.account.myLog.hardest}</th>
+                <th scope="col">{t.account.myLog.routesTotal}</th><th scope="col">{t.account.myLog.pitches}</th>
+                <th scope="col">{t.account.myLog.hardest}</th>
                 <th scope="col">{t.account.myLog.hardestSent}</th></tr>
             </thead>
             <tbody>
@@ -119,6 +121,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
                   <th scope="row"><span className="meta-item"><ActivityBadge activity={a.type} />{activityLabel(a.type)}</span></th>
                   <td className="num">{a.days}</td>
                   <td className="num">{a.routes}</td>
+                  <td className="num">{a.pitches || '–'}</td>
                   <td className="num">{a.hardest ?? '–'}</td>
                   <td className="num">{a.hardestSent ?? '–'}</td>
                 </tr>
@@ -128,13 +131,15 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
 
           <h4 className="stats-heading">{t.account.myLog.byYear}</h4>
           <table className="stats-table">
-            <thead><tr><th scope="col">{t.account.myLog.year}</th><th scope="col">{t.account.myLog.days}</th><th scope="col">{t.account.myLog.routesTotal}</th></tr></thead>
+            <thead><tr><th scope="col">{t.account.myLog.year}</th><th scope="col">{t.account.myLog.days}</th><th scope="col">{t.account.myLog.routesTotal}</th>
+              <th scope="col">{t.account.myLog.pitches}</th></tr></thead>
             <tbody>
               {stats.byYear.map(y => (
                 <tr key={y.year}>
                   <th scope="row" className="num">{y.year === NO_DATE ? t.account.myLog.noDate : y.year}</th>
                   <td className="num">{y.days}</td>
                   <td className="num">{y.routes}</td>
+                  <td className="num">{y.pitches || '–'}</td>
                 </tr>
               ))}
             </tbody>

@@ -29,6 +29,7 @@ const en = {
     days: 'Days',
     hardest: 'Hardest',
     hardestSent: 'Hardest sent',
+    pitches: 'Pitches',
     byYear: 'By year',
     year: 'Year',
     noDate: 'No date',

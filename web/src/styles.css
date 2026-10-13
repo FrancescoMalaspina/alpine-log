@@ -428,10 +428,10 @@ aside {
 .add-attachment-row input { flex: 1; }
 
 /* Logbook */
-.log-totals { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; }
+.log-totals { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 0; }
 .log-totals div { padding: 10px 12px; background: var(--paper); border-radius: var(--radius); }
 .log-totals dt { font-size: 13.5px; color: var(--slate); }
-.log-totals dd { margin: 2px 0 0; font-family: var(--font-sign); font-weight: 700; font-size: 28px; line-height: 1; }
+.log-totals dd { margin: 2px 0 0; font-family: var(--font-sign); font-weight: 700; font-size: 26px; line-height: 1; }
 .stats-table { width: 100%; border-collapse: collapse; }
 .stats-table th, .stats-table td { padding: 7px 0; text-align: right; border-bottom: 1px solid var(--rule); font-weight: 500; }
 .stats-table th:first-child { text-align: left; }

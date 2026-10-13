@@ -826,6 +826,7 @@ export type Database = {
           max_sent_grade_rank: number | null
           partner_ids: number[] | null
           partner_names: string[] | null
+          pitches_climbed: number | null
           place_activity: string | null
           place_id: number | null
           place_name: string | null
