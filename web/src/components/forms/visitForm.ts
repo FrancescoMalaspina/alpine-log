@@ -3,10 +3,10 @@ import { ACTIVITIES, localToday } from '../../lib/labels';
 import type { Activity, Place, Visibility, VisitDetail, VisitInput } from '../../lib/types';
 
 /**
- * A route row. `sectorKey` is a sector id for an existing place, or
- * "name:<sector name>" for a place that is being created in the same save.
+ * A route row. `wallId` is another spot of the visit's sector the route was
+ * climbed on (another wall of the crag), or '' for the visit's own spot.
  */
-export type AscentRow = { key: number; name: string; grade: string; sectorKey: string; comment: string };
+export type AscentRow = { key: number; name: string; grade: string; wallId: string; comment: string };
 
 export type VisitValues = {
   date: string;
@@ -23,7 +23,7 @@ export type VisitValues = {
 };
 
 let nextKey = 1;
-export const ascentRow = (): AscentRow => ({ key: nextKey++, name: '', grade: '', sectorKey: '', comment: '' });
+export const ascentRow = (): AscentRow => ({ key: nextKey++, name: '', grade: '', wallId: '', comment: '' });
 
 /**
  * Empty or existing visit values. For a new visit at a spot that is itself a
@@ -47,7 +47,7 @@ export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' |
     ascents: visit?.ascents.length
       ? visit.ascents.map(a => ({
         key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '',
-        sectorKey: a.sector ? String(a.sector.id) : '',
+        wallId: a.place ? String(a.place.id) : '',
       }))
       : [first],
     addRoutes: false,
@@ -55,7 +55,7 @@ export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' |
 }
 
 const filledAscents = (v: VisitValues) =>
-  v.ascents.filter(a => a.name.trim() || a.grade.trim() || a.comment.trim() || a.sectorKey);
+  v.ascents.filter(a => a.name.trim() || a.grade.trim() || a.comment.trim() || a.wallId);
 
 /** A message if the visit has nothing in it yet, otherwise null. */
 export function visitProblem(v: VisitValues): string | null {
@@ -81,10 +81,8 @@ function routesFor(v: VisitValues, spot: VisitSpot) {
   return rows.map(a => (a.name.trim() ? a : { ...a, name: spot.name, grade: a.grade || spot.grade || '' }));
 }
 
-/** The save_visit payload. `sectorId` resolves a row's sectorKey to a real sector id. */
-export function buildVisitInput(
-  v: VisitValues, spot: VisitSpot, sectorId: (key: string) => number | null, id?: number,
-): VisitInput {
+/** The save_visit payload. */
+export function buildVisitInput(v: VisitValues, spot: VisitSpot, id?: number): VisitInput {
   const f = ACTIVITIES[spot.activity];
   const placeId = spot.id;
   return {
@@ -98,10 +96,10 @@ export function buildVisitInput(
     duration_hours: f.conditions && v.duration.trim() ? Number(v.duration) : null,
     visibility: v.visibility,
     partners: v.withPeople,
-    add_routes: f.sectors && v.addRoutes,
+    add_routes: f.routeList && v.addRoutes,
     ascents: routesFor(v, spot).map(a => ({
       name: a.name, grade: a.grade, comment: a.comment, route_id: null,
-      sector_id: a.sectorKey ? sectorId(a.sectorKey) : null,
+      place_id: a.wallId ? Number(a.wallId) : null,
     })),
   };
 }

@@ -151,7 +151,7 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
           parking_lat: null, parking_lng: null, start_lat: null, start_lng: null,
           rock: s.rock, exposition: [], description: s.description, grade: s.grade,
           max_altitude: s.max_altitude, elevation_gain: s.elevation_gain, distance_km: s.distance_km,
-          sectors: [...new Set(s.visits.flatMap(v => v.ascents.map(a => a.sector)).filter(Boolean))].map(name => ({ name })),
+          sector_name: '',
         },
       })),
     visits: used.flatMap(s => s.visits.map(v => {
@@ -174,8 +174,9 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
         visibility: v.visibility ?? visibility,
         partners: v.partners,
         add_routes: false,
-        // Sectors of a new spot are resolved by name on the server; existing spots keep routes unfiled.
-        ascents: f.routes ? ascents.map(a => ({ name: a.name, grade: a.grade, comment: a.comment, route_id: null, sector_id: null, sector: a.sector })) : [],
+        // A route's sector names another spot of the visit's sector, found by name on the
+        // server; one that doesn't exist is kept in the route's comment.
+        ascents: f.routes ? ascents.map(a => ({ name: a.name, grade: a.grade, comment: a.comment, route_id: null, place_id: null, sector: a.sector })) : [],
       };
     })),
   };

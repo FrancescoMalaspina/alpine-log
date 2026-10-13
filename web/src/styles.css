@@ -206,6 +206,18 @@ aside {
 }
 .group-head button:hover { text-decoration: underline; text-decoration-color: var(--contour); text-underline-offset: 3px; }
 .group-head > span:first-child { color: var(--slate); }
+/* A sector inside an area group (sidebar, area panel): the crag, wall or mountain. */
+.sector-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin: 0; padding: 10px 16px 4px 28px;
+  font-family: var(--font-sign); font-weight: 700; font-size: 16px; color: var(--granite);
+  border-bottom: 1px solid var(--rule);
+}
+.sector-head::before { content: '›'; margin-left: -14px; margin-right: 6px; color: var(--contour); }
+.sector-head button { flex: 1; background: none; border: none; padding: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; }
+.sector-head button:hover { text-decoration: underline; text-decoration-color: var(--contour); text-underline-offset: 3px; }
+.area-places .sector-head { padding-left: 14px; padding-right: 0; }
+.area-place-row.in-sector .area-place { padding-left: 14px; }
 .group-count { font-family: var(--font); font-weight: 500; font-size: 13px; color: var(--slate); }
 
 .row-item { border-bottom: 1px solid var(--rule); }
@@ -765,14 +777,11 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 .route-row .route-comment { flex: 1.6; }
 
 /* Repeating rows with a remove button */
-.sectors-list { display: flex; flex-direction: column; gap: 6px; }
-.sector-row { display: flex; align-items: center; gap: 6px; }
-.sector-row .sector-name { flex: 1; }
-.sector-row button, .route-row button {
+.route-row button {
   flex: none; width: 32px; height: 32px; background: none; border: none; border-radius: var(--radius);
   font-size: 20px; line-height: 1; cursor: pointer; color: var(--slate);
 }
-.sector-row button:hover, .route-row button:hover { color: var(--blaze-deep); background: var(--tint); }
+.route-row button:hover { color: var(--blaze-deep); background: var(--tint); }
 
 /* ---------------------------------------------------------------- import */
 .modal.modal-wide { width: min(1080px, 100%); }

@@ -10,25 +10,28 @@ type Props = {
   partners: Partner[];
   /** The spot's activity, which decides the extra fields and grade hints. */
   activity: Activity;
-  /** Sectors the routes can be filed under: key is an id or "name:<name>". */
-  sectors: { key: string; label: string }[];
+  /**
+   * The other spots of the spot's sector (the crag's other walls): a route can
+   * be logged on one of them, so a day across walls stays one visit.
+   */
+  walls: { id: number; name: string }[];
+  /** The visit's own spot, the first choice of the wall dropdown. */
+  spotName: string;
   /** The spot's shared route list, offered while typing route names. */
   routes?: Route[];
 };
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
-export function VisitFields({ values: v, onChange, partners, activity, sectors, routes = [] }: Props) {
+export function VisitFields({ values: v, onChange, partners, activity, walls, spotName, routes = [] }: Props) {
   const { t } = useI18n();
   const s = t.spot.visitFields;
   const f = ACTIVITIES[activity];
   const updateAscent = (key: number, patch: Partial<AscentRow>) =>
     onChange({ ascents: v.ascents.map(a => (a.key === key ? { ...a, ...patch } : a)) });
-  // Typing (or picking) a route from the spot's list fills in its grade and sector.
+  // Typing (or picking) a route from the spot's list fills in its grade.
   const setRouteName = (row: AscentRow, name: string) => {
-    const listed = routes.find(r => r.name.toLowerCase() === name.trim().toLowerCase());
-    updateAscent(row.key, listed
-      ? { name, grade: row.grade || listed.grade || '', sectorKey: row.sectorKey || (listed.sector_id ? String(listed.sector_id) : '') }
-      : { name });
+    const listed = !row.wallId && routes.find(r => r.name.toLowerCase() === name.trim().toLowerCase());
+    updateAscent(row.key, listed ? { name, grade: row.grade || listed.grade || '' } : { name });
   };
   const unlisted = v.ascents.some(a => a.name.trim() && !routes.some(r => r.name.toLowerCase() === a.name.trim().toLowerCase()));
 
@@ -89,11 +92,11 @@ export function VisitFields({ values: v, onChange, partners, activity, sectors, 
                    list={routes.length ? 'spotRouteOptions' : undefined} onChange={e => setRouteName(a, e.target.value)} />
             <input type="text" className="route-grade num" placeholder={s.grade} aria-label={s.grade} value={a.grade}
                    list="visitGradeOptions" onChange={e => updateAscent(a.key, { grade: e.target.value })} />
-            {sectors.length > 0 && (
-              <select className="route-sector" value={a.sectorKey} aria-label={s.sector}
-                      onChange={e => updateAscent(a.key, { sectorKey: e.target.value })}>
-                <option value="">{s.noSector}</option>
-                {sectors.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+            {walls.length > 0 && (
+              <select className="route-sector" value={a.wallId} aria-label={s.wall}
+                      onChange={e => updateAscent(a.key, { wallId: e.target.value })}>
+                <option value="">{spotName}</option>
+                {walls.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
               </select>
             )}
             <input type="text" className="route-comment" placeholder={s.comment} aria-label={s.comment} value={a.comment}
@@ -112,7 +115,7 @@ export function VisitFields({ values: v, onChange, partners, activity, sectors, 
       <button type="button" className="btn-add-route" onClick={() => onChange({ ascents: [...v.ascents, ascentRow()] })}>
         {f.isRoute ? s.addAnotherRoute : s.addRoute}
       </button>
-      {f.sectors && unlisted && (
+      {f.routeList && unlisted && (
         <label className="switch small">
           <input type="checkbox" checked={v.addRoutes} onChange={e => onChange({ addRoutes: e.target.checked })} />
           {s.addToSharedList}

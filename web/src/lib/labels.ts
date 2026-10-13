@@ -4,8 +4,8 @@ import type { Activity } from './types';
 
 /** Which fields make sense for a spot (and its visits) of each activity. */
 type Fields = {
-  /** Sectors, and the optional shared route list. */
-  sectors: boolean;
+  /** The spot keeps a shared list of its single routes (a crag wall, a gym). */
+  routeList: boolean;
   rock: boolean;
   /** Max altitude and elevation gain. */
   altitude: boolean;
@@ -33,42 +33,42 @@ const FONT = ['4', '5', '5+', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+'
 export const ACTIVITIES: Record<Activity, ActivityInfo> = {
   crag: {
     color: '#4A5560', grades: FRENCH,
-    sectors: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
   },
   multipitch: {
     color: '#A55A17', grades: FRENCH,
-    sectors: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
   },
   alpine: {
     color: '#6A4C93',
     grades: ['F', 'PD-', 'PD', 'PD+', 'AD-', 'AD', 'AD+', 'D-', 'D', 'D+', 'TD-', 'TD', 'TD+', 'ED'],
-    sectors: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
   },
   ice: {
     color: '#1F7898',
     grades: ['WI2', 'WI3', 'WI3+', 'WI4', 'WI4+', 'WI5', 'WI5+', 'WI6', 'M4', 'M5', 'M6', 'M7'],
-    sectors: false, rock: false, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    routeList: false, rock: false, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
   },
   dws: {
     color: '#2E4FA3', grades: ['S0', 'S1', 'S2', 'S3', ...FRENCH],
-    sectors: true, rock: true, altitude: false, distance: false, approach: false, conditions: true, isRoute: false, routes: true,
+    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: true, isRoute: false, routes: true,
   },
   indoor: {
     color: '#8C6D1F', grades: [...FRENCH, ...FONT],
-    sectors: true, rock: false, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    routeList: true, rock: false, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
   },
   ski: {
     color: '#2F7D5B',
     grades: ['MS', 'MSA', 'BS', 'BSA', 'OS', 'OSA', '1.2', '1.3', '2.1', '2.3', '3.1', '3.3', '4.1', '5.1'],
-    sectors: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
   },
   hike: {
     color: '#6E7B22', grades: ['T', 'E', 'EE', 'EEA', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'],
-    sectors: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
   },
   trail: {
     color: '#B03A6E', grades: [],
-    sectors: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
   },
 };
 

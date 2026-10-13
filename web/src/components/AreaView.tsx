@@ -19,11 +19,12 @@ type Props = {
   onClose: () => void;
   onShowOnMap: () => void;
   onOpenPlace: (place: Place) => void;
+  onOpenSector: (sectorId: number) => void;
   onChanged: () => void;
   onDeleted: () => void;
 };
 
-export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmin, onClose, onShowOnMap, onOpenPlace, onChanged, onDeleted }: Props) {
+export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmin, onClose, onShowOnMap, onOpenPlace, onOpenSector, onChanged, onDeleted }: Props) {
   const { t } = useI18n();
   const s = t.spot.areaView;
   const canEdit = !!userId && (isAdmin || area.created_by === userId);
@@ -32,6 +33,9 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   const [description, setDescription] = useState(area.description ?? '');
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  // Spots without a sector first, then each sector's spots together.
+  const ordered = useMemo(() => [...places].sort((a, b) =>
+    (a.sector?.name ?? '').localeCompare(b.sector?.name ?? '') || a.name.localeCompare(b.name)), [places]);
 
   async function removePlace(p: Place) {
     if (!confirm(s.confirmRemovePlace(p.name, area.name))) return;
@@ -93,8 +97,14 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
 
       <h3 className="section-title">{s.spots}</h3>
       <div className="area-places">
-        {places.map(p => (
-          <div key={p.id} className="area-place-row">
+        {ordered.map((p, i) => (<div key={p.id}>
+          {p.sector && p.sector.id !== ordered[i - 1]?.sector?.id && (
+            <h4 className="sector-head">
+              <button type="button" onClick={() => onOpenSector(p.sector!.id)}>{p.sector.name}</button>
+              <span className="group-count">{places.filter(x => x.sector?.id === p.sector!.id).length}</span>
+            </h4>
+          )}
+          <div className={`area-place-row${p.sector ? ' in-sector' : ''}`}>
             <button type="button" className="area-place" onClick={() => onOpenPlace(p)}>
               <span className="row-title"><ActivityBadge activity={p.activity} />{p.name}</span>
               <span className="row-meta">{[activityLabel(p.activity), p.grade].filter(Boolean).join(', ')}</span>
@@ -104,7 +114,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
                       aria-label={s.removeFromArea(p.name, area.name)}>{s.remove}</button>
             )}
           </div>
-        ))}
+        </div>))}
         {!places.length && !adding && <div className="empty">{s.noSpots}</div>}
       </div>
       {userId && (adding

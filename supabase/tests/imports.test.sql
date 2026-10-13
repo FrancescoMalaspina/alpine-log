@@ -42,9 +42,9 @@ insert into ids select 'imp1', (public.import_logbook(jsonb_build_object(
 
 select is((select count(*) from public.visits where import_id = (select v from ids where k = 'imp1')), 2::bigint,
           'the import adds its visits');
-select is((select s.name from public.ascents a join public.visits v on v.id = a.visit_id
-           join public.sectors s on s.id = a.sector_id where v.import_id = (select v from ids where k = 'imp1')),
-          'Scala dei sogni', 'a route''s sector is found by name');
+select is((select w.name from public.ascents a join public.visits v on v.id = a.visit_id
+           join public.places w on w.id = a.place_id where v.import_id = (select v from ids where k = 'imp1')),
+          'Scala dei sogni', 'a route''s sector names another spot of the same sector, found by name');
 select is((select activity from public.places where name = 'Cane Trippa'), 'multipitch', 'a new spot is created');
 select is((select count(*) from public.attachments a join public.places p on p.id = a.place_id where p.name = 'Cane Trippa'),
           1::bigint, 'only http(s) links become attachments');

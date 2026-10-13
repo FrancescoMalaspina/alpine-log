@@ -21,12 +21,13 @@ const cell = (v: unknown) => {
 function toCsv(visits: LogbookVisit[]): string {
   const rows = visits.flatMap(v => {
     const base = [
-      v.date, v.place?.name, v.place?.area?.name, activityOf(v),
+      v.date, v.place?.name, v.place?.area?.name, v.place?.sector?.name, activityOf(v),
       v.place?.lat, v.place?.lng, v.visibility, v.partners.join('; '), v.duration_hours,
       v.conditions, v.summary, v.approach, v.descent,
     ];
     const routes = v.ascents.length ? v.ascents : [null];
-    return routes.map(a => [...base, a?.name, a?.grade, a?.sector?.name, a?.comment]);
+    // "wall": another spot of the sector the route was on (another wall of the crag).
+    return routes.map(a => [...base, a?.name, a?.grade, a?.wall?.name, a?.comment]);
   });
   // The byte-order mark makes Excel read the file as UTF-8 (accents, ° signs).
   return '﻿' + [tr().account.export.csvHeader, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
@@ -50,6 +51,7 @@ function toJson(visits: LogbookVisit[], username: string): string {
       spot: v.place && {
         name: v.place.name,
         area: v.place.area?.name ?? null,
+        sector: v.place.sector?.name ?? null,
         activity: v.place.activity,
         grade: v.place.grade,
         max_altitude: v.place.max_altitude,
@@ -57,7 +59,8 @@ function toJson(visits: LogbookVisit[], username: string): string {
         parking: v.place.parking_lat != null ? { lat: v.place.parking_lat, lng: v.place.parking_lng } : null,
         start: v.place.start_lat != null ? { lat: v.place.start_lat, lng: v.place.start_lng } : null,
       },
-      routes: v.ascents.map(a => ({ name: a.name, grade: a.grade, sector: a.sector?.name ?? null, comment: a.comment })),
+      // "sector" (kept for v2 backups): another spot of the visit's sector the route was on.
+      routes: v.ascents.map(a => ({ name: a.name, grade: a.grade, sector: a.wall?.name ?? null, comment: a.comment })),
     })),
   }, null, 2);
 }

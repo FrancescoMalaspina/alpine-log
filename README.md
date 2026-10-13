@@ -6,11 +6,15 @@ running) with a personal logbook. Anyone can browse the
 map; signed-in users log their own visits, which stay private unless they're
 marked public. Admins can see everything.
 
-- **Area → Spot → Visit.** An *area* is a geographic bucket (Albard,
-  Grignetta, Valsassina). A *spot* is one thing you go to, with exactly one
-  activity: a crag, a multipitch route, an icefall, a trail, a gym. A *visit*
-  is one time someone went there; spots can be visited again and again. (In
-  the database, spots are the `places` table.)
+- **Area → Sector → Spot → Visit.** An *area* is a geographic bucket (Albard,
+  Grignetta, Valsassina), the same for every sport. An optional *sector* groups
+  spots inside an area: the wall a multipitch route is on (Parete di Pezol), the
+  mountain an alpine route climbs (Breithorn), or a crag whose walls are its
+  spots (Falesia di Civate). A *spot* is one thing you go to, with exactly one
+  activity: a crag wall, a multipitch route, an icefall, a trail, a gym. A
+  *visit* is one time someone went there; a day at a crag can log routes on
+  several of its walls in one visit. (In the database, spots are the `places`
+  table.)
 - **Spots** have parking, a start point (attacco), grade, altitude, elevation
   gain and distance where they make sense for the activity.
 - **Routes** at crags, deep water solo and gyms are logged as free text. A spot
@@ -51,7 +55,7 @@ request may read or write (`supabase/migrations/`).
 
 | Data | Who can read | Who can write |
 |---|---|---|
-| areas, spots, sectors, route lists | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
+| areas, sectors, spots, route lists | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
 | attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket) | any signed-in user adds; the uploader or an admin removes |
 | visits, their routes and partners | the owner, everyone if public, admins | the owner (admins may delete) |
 | climbing-partner list | the owner, plus names on visits you can read | the owner |

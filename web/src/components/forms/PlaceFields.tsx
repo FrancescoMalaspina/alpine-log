@@ -5,10 +5,10 @@ import { ACTIVITIES, activityLabel, errorMessage, gradeSuggestions, isTouchLayou
 import { ACTIVITY_ORDER, EXPOSITIONS, type Area, type Exposition, type Sector } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
-import { sectorRow, type CoordField, type PlaceValues } from './placeForm';
+import type { CoordField, PlaceValues } from './placeForm';
 
 const NAME_HINT: Record<PlaceValues['activity'], string> = {
-  crag: 'Muro del Butch', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
+  crag: 'Parete Sud', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
   dws: 'Mallorca, Cala Barques', indoor: 'Manga Climbing Milano', ski: 'Pizzo dei Tre Signori',
   hike: 'Sentiero delle Grigne', trail: 'Giro del Resegone',
 };
@@ -17,24 +17,33 @@ type Props = {
   values: PlaceValues;
   onChange: (patch: Partial<PlaceValues>) => void;
   areas: Area[];
+  sectors: Sector[];
   rocks: string[];
   /** Hide the form and let the user click the map; the field is filled on return. */
   onPickOnMap: (field: CoordField) => void;
-  /** Sectors the place had before editing, to warn when one is removed. */
-  originalSectors?: Sector[];
   autoFocusName?: boolean;
+};
+
+/** What a sector is for each activity: the crag, the wall, the mountain… */
+const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
+  crag: 'Falesia di Civate', multipitch: 'Parete di Pezol', alpine: 'Breithorn', ice: 'Valle di Cogne',
+  dws: 'Cala Barques', indoor: 'Manga Climbing', ski: 'Pizzo dei Tre Signori', hike: 'Grigna', trail: 'Resegone',
 };
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
 /** Every field of a spot. Used by "Add a spot" and by "Log a visit" at a new spot. */
-export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, originalSectors, autoFocusName }: Props) {
+export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeFields;
   const [locateError, setLocateError] = useState<string | null>(null);
   const f = ACTIVITIES[v.activity];
   const isNewArea = v.areaName.trim() && !areas.some(a => a.name.toLowerCase() === v.areaName.trim().toLowerCase());
-  const removedSector = originalSectors?.some(s => !v.sectors.some(r => r.id === s.id));
+  // Sectors of the area being typed (a new area has none yet).
+  const area = areas.find(a => a.name.toLowerCase() === v.areaName.trim().toLowerCase());
+  const areaSectors = sectors.filter(x => x.area_id === (area?.id ?? null));
+  const isNewSector = v.sectorName.trim()
+    && !areaSectors.some(x => x.name.toLowerCase() === v.sectorName.trim().toLowerCase());
 
   async function locate(field: CoordField) {
     setLocateError(null);
@@ -77,6 +86,13 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
         <datalist id="areaOptions">{areas.map(a => <option key={a.id} value={a.name} />)}</datalist>
         {isNewArea && <div className="hint-block">{s.newArea(v.areaName.trim())}</div>}
       </div>
+      <div className="field full">
+        <label htmlFor="placeSector">{s.sector} <span className="hint">{s.sectorHint}</span></label>
+        <input id="placeSector" list="sectorOptions" value={v.sectorName} placeholder={SECTOR_HINT[v.activity]}
+               onChange={e => onChange({ sectorName: e.target.value })} />
+        <datalist id="sectorOptions">{areaSectors.map(x => <option key={x.id} value={x.name} />)}</datalist>
+        {isNewSector && <div className="hint-block">{s.newSector(v.sectorName.trim())}</div>}
+      </div>
 
       {coordField('coords', 'placeCoords', s.mapPin, true)}
       {coordField('parking', 'placeParking', s.parking)}
@@ -86,7 +102,7 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
       <div className="field">
         <label htmlFor="placeGrade">{s.grade} <span className="hint">{s.optional}</span></label>
         <input id="placeGrade" className="num" list="placeGradeOptions" value={v.grade}
-               placeholder={f.isRoute ? '6a+ (5c obbl.)' : f.sectors ? '5b–7a' : ''} onChange={e => onChange({ grade: e.target.value })} />
+               placeholder={f.isRoute ? '6a+ (5c obbl.)' : f.routeList ? '5b–7a' : ''} onChange={e => onChange({ grade: e.target.value })} />
         <datalist id="placeGradeOptions">{gradeSuggestions(v.activity).map(g => <option key={g} value={g} />)}</datalist>
       </div>
       {f.rock ? (
@@ -133,27 +149,6 @@ export function PlaceFields({ values: v, onChange, areas, rocks, onPickOnMap, or
                   onChange={e => onChange({ description: e.target.value })} />
       </div>
 
-      {f.sectors && (
-        <div className="field full">
-          <span className="field-label">{v.activity === 'indoor' ? s.walls : s.sectors} <span className="hint">{s.optional}</span></span>
-          <div className="sectors-list">
-            {v.sectors.map(sec => (
-              <div key={sec.key} className="sector-row">
-                <input type="text" className="sector-name" placeholder={s.sectorName} aria-label={s.sectorName} value={sec.name}
-                       onChange={e => onChange({ sectors: v.sectors.map(x => (x.key === sec.key ? { ...x, name: e.target.value } : x)) })} />
-                <button type="button" aria-label={s.removeSector}
-                        onClick={() => onChange({ sectors: v.sectors.filter(x => x.key !== sec.key) })}>×</button>
-              </div>
-            ))}
-          </div>
-          {removedSector && (
-            <div className="hint-block">{s.removedSectorNote}</div>
-          )}
-          <button type="button" className="btn-add-sector" onClick={() => onChange({ sectors: [...v.sectors, sectorRow()] })}>
-            {s.addSector}
-          </button>
-        </div>
-      )}
     </div>
   );
 }

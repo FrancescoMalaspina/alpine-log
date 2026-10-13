@@ -145,7 +145,7 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
       ...(!f.rock ? ['spot.rock' as const] : []),
       ...(!f.altitude ? ['spot.elevation_gain' as const, 'spot.max_altitude' as const] : []),
       ...(!f.distance ? ['spot.distance_km' as const] : []),
-      ...(!f.sectors ? ['sector' as const] : []),
+      ...(!f.routeList ? ['sector' as const] : []),
     ];
     m.columns.forEach((c, i) => {
       if (c.group === 0 && (c.field === 'note' || unused.includes(c.field)) && text(row[i])) {
@@ -159,7 +159,7 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
       const rawDate = text(first(row, 'visit.date', g));
       v.partners = parsePartners(first(row, 'visit.partners', g)?.v);
       // A later visit without its own sector column climbed in the row's sector.
-      const sector = f.sectors ? text(first(row, 'sector', g)) || text(first(row, 'sector')) : '';
+      const sector = f.routeList ? text(first(row, 'sector', g)) || text(first(row, 'sector')) : '';
       if (f.routes) {
         v.ascents = parseAscentList(first(row, 'visit.ascents', g)?.v).map(a => ({ ...a, sector }));
         const routeName = text(first(row, 'ascent.name', g));

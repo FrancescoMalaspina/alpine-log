@@ -28,6 +28,7 @@ type Props = {
   onClose: () => void;
   onShowOnMap: () => void;
   onOpenArea: (areaId: number) => void;
+  onOpenSector: (sectorId: number) => void;
   onEdit: () => void;
   onAddVisit: () => void;
   /** Your open wish for this place, if any. */
@@ -48,6 +49,11 @@ export function PlaceView(props: Props) {
         {p.area && (
           <button type="button" className="meta-item link-btn" onClick={() => props.onOpenArea(p.area!.id)}>
             {t.spot.placeView.inArea(p.area.name)}
+          </button>
+        )}
+        {p.sector && (
+          <button type="button" className="meta-item link-btn" onClick={() => props.onOpenSector(p.sector!.id)}>
+            {t.spot.placeView.inSector(p.sector.name)}
           </button>
         )}
         {p.distance_km != null && <span className="meta-item num">{formatKm(p.distance_km)}</span>}
@@ -100,7 +106,6 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
   if (p.elevation_gain != null) rows.push([s.elevationGain, `${p.elevation_gain} m`]);
   if (p.rock) rows.push([s.rock, p.rock]);
   if (p.exposition.length) rows.push([s.faces, p.exposition.join(', ')]);
-  if (p.sectors.length) rows.push([p.activity === 'indoor' ? s.walls : s.sectors, p.sectors.map(x => x.name).join(', ')]);
 
   return (
     <div className="place-info">
@@ -117,7 +122,7 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
         <Waypoint label={s.start} icon="⚑" lat={p.start_lat} lng={p.start_lng} />
       </div>
 
-      {ACTIVITIES[p.activity].sectors && (
+      {ACTIVITIES[p.activity].routeList && (
         <RouteList spot={p} userId={userId} isAdmin={isAdmin} canEditSpot={canEdit} reloadKey={reloadKey} />
       )}
 
@@ -231,7 +236,7 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
               <span key="h" className="ascent-head">
                 {a.name ? <b>{a.name}</b> : <b className="unnamed">{s.unnamedRoute}</b>}
                 {a.grade && <span className="ascent-grade num">{a.grade}</span>}
-                {a.sector && <span className="ascent-sector">{a.sector.name}</span>}
+                {a.place && <span className="ascent-sector">{a.place.name}</span>}
               </span>,
               a.comment && <span key="c" className="ascent-comment">{a.comment}</span>,
             ]}
@@ -243,7 +248,7 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
 }
 
 /**
- * The spot's shared route list, by sector. Optional: visits can always log
+ * The spot's shared route list. Optional: visits can always log
  * routes as free text; a listed route links them, so repeats add up.
  */
 function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
@@ -256,7 +261,6 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
-  const [sectorId, setSectorId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -271,7 +275,7 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
     e.preventDefault();
     setError(null);
     try {
-      await addRoute(spot.id, { name, grade, sectorId: sectorId ? +sectorId : null });
+      await addRoute(spot.id, { name, grade });
       setName('');
       setGrade('');
       setMine(n => n + 1);
@@ -290,10 +294,6 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
     }
   }
 
-  const bySector = new Map<number | null, Route[]>();
-  for (const r of routes ?? []) bySector.set(r.sector_id, [...(bySector.get(r.sector_id) ?? []), r]);
-  const sectorName = (id: number | null) => spot.sectors.find(x => x.id === id)?.name ?? s.other;
-  const order = [...spot.sectors.map(x => x.id as number | null), null].filter(id => bySector.has(id));
 
   return (
     <section className="route-list">
@@ -301,11 +301,10 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
       {routes && !routes.length && (
         <div className="empty">{s.noRouteList}</div>
       )}
-      {order.map(id => (
-        <div key={id ?? 'other'} className="route-group">
-          {(spot.sectors.length > 0) && <h4>{sectorName(id)}</h4>}
+      {routes && routes.length > 0 && (
+        <div className="route-group">
           <ul>
-            {bySector.get(id)!.map(r => (
+            {routes.map(r => (
               <li key={r.id}>
                 <span className="route-line-name">{r.name}</span>
                 {r.grade && <span className="num route-line-grade">{r.grade}</span>}
@@ -317,7 +316,7 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
             ))}
           </ul>
         </div>
-      ))}
+      )}
       <ErrorText error={error} />
       {userId && (adding ? (
         <form className="route-add" onSubmit={add}>
@@ -325,12 +324,6 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
           <input className="num" placeholder={s.grade2} aria-label={s.grade2} list="routeGradeOptions" value={grade}
                  onChange={e => setGrade(e.target.value)} />
           <datalist id="routeGradeOptions">{gradeSuggestions(spot.activity).map(g => <option key={g} value={g} />)}</datalist>
-          {spot.sectors.length > 0 && (
-            <select aria-label={s.sector} value={sectorId} onChange={e => setSectorId(e.target.value)}>
-              <option value="">{s.noSector}</option>
-              {spot.sectors.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
-            </select>
-          )}
           <button type="submit" className="btn btn-ghost">{s.add}</button>
           <button type="button" className="link-btn" onClick={() => setAdding(false)}>{s.done}</button>
         </form>

@@ -1,4 +1,4 @@
--- Area → Spot → Visit, one activity per spot, shared route lists. Run with: supabase test db
+-- Area → Sector → Spot → Visit, one activity per spot, shared route lists. Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(14);
@@ -9,9 +9,10 @@ select plan(14);
 create temp table ids (k text primary key, v bigint);
 grant all on ids to anon, authenticated;
 insert into ids select 'butch', id from public.places where name = 'Muro del Butch';
-insert into ids select 'civate', id from public.places where name = 'Falesia di Civate';
-insert into ids select 'scala', id from public.sectors
-  where place_id = (select v from ids where k = 'butch') and name = 'Scala dei sogni';
+-- Walls of two crags (each crag is a sector, each wall a spot)
+insert into ids select 'civate', min(p.id) from public.places p join public.sectors s on s.id = p.sector_id
+  where s.name = 'Falesia di Civate';
+insert into ids select 'scala', id from public.places where name = 'Scala dei sogni';
 
 -- ---------------------------------------------------------------- shape of the data
 select is((select count(*) from public.places where activity is null), 0::bigint, 'every spot has an activity');
@@ -34,14 +35,15 @@ select throws_ok(format($$insert into public.routes (place_id, name) values (%s,
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :fra, 'role', 'authenticated')::text, true);
-select lives_ok(format($$insert into public.routes (place_id, sector_id, name, grade) values (%s, %s, 'Su alto', '6c')$$,
-                       (select v from ids where k = 'butch'), (select v from ids where k = 'scala')),
+select lives_ok(format($$insert into public.routes (place_id, name, grade) values (%s, 'Su alto', '6c')$$,
+                       (select v from ids where k = 'butch')),
                 'a signed-in user adds a route to a crag''s list');
 select throws_ok(format($$insert into public.routes (place_id, name) values (%s, 'su ALTO')$$, (select v from ids where k = 'butch')),
                  '23505', null, 'route names are unique per spot, ignoring case');
-select throws_ok(format($$insert into public.routes (place_id, sector_id, name) values (%s, %s, 'Elsewhere')$$,
-                        (select v from ids where k = 'civate'), (select v from ids where k = 'scala')),
-                 'P0001', null, 'a route''s sector must belong to its spot');
+select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
+  'place_id', (select v from ids where k = 'butch'),
+  'ascents', jsonb_build_array(jsonb_build_object('name', 'Elsewhere', 'place_id', (select v from ids where k = 'civate'))))),
+  'P0001', null, 'a route climbed on a visit must be on a spot of the visit''s sector');
 
 -- ---------------------------------------------------------------- vale logs visits
 reset role;
@@ -60,10 +62,12 @@ select is((select count(*) from public.routes where place_id = (select v from id
 
 insert into ids select 'v2', public.save_visit(jsonb_build_object(
   'place_id', (select v from ids where k = 'butch'), 'add_routes', true,
-  'ascents', jsonb_build_array(jsonb_build_object('name', 'New line', 'grade', '7a', 'sector_id', (select v from ids where k = 'scala')),
+  'ascents', jsonb_build_array(jsonb_build_object('name', 'New line', 'grade', '7a', 'place_id', (select v from ids where k = 'scala')),
                                jsonb_build_object('name', 'Su alto'))));
-select is((select array_agg(name order by name) from public.routes where place_id = (select v from ids where k = 'butch')),
-          array['New line', 'Su alto'], 'with add_routes, new names join the list (existing ones are not duplicated)');
+select is((select array_agg(p.name || ': ' || r.name order by p.name, r.name) from public.routes r join public.places p on p.id = r.place_id
+           where r.place_id in ((select v from ids where k = 'butch'), (select v from ids where k = 'scala'))),
+          array['Muro del Butch: Su alto', 'Scala dei sogni: New line'],
+          'with add_routes, new names join the list of the wall they were climbed on (existing ones are not duplicated)');
 select is((select count(*) from public.ascents where visit_id = (select v from ids where k = 'v2') and route_id is not null),
           2::bigint, 'and both ascents are linked');
 

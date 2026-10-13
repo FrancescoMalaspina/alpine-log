@@ -3,10 +3,10 @@ import { deletePlace, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
-import type { Area, Partner, Place } from '../lib/types';
+import type { Area, Partner, Place, Sector } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
-import { newSectorOptions, saveVisitAt } from './forms/save';
+import { saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
 import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
@@ -20,6 +20,7 @@ type Props = {
   initialAt?: LatLng;
   rocks: string[];
   areas: Area[];
+  sectors: Sector[];
   partners: Partner[];
   canDelete: boolean;
   hidden: boolean;
@@ -31,7 +32,7 @@ type Props = {
 };
 
 /** Add or edit a place; a new place can be saved together with a visit there. */
-export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted }: Props) {
+export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeModal;
   const [values, setValues] = useState<PlaceValues>(() => ({
@@ -114,8 +115,8 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
       </>}
     >
       <form onSubmit={e => { e.preventDefault(); save(); }}>
-        <PlaceFields values={values} onChange={change} areas={areas} rocks={rocks} onPickOnMap={pick}
-                     originalSectors={place?.sectors} autoFocusName />
+        <PlaceFields values={values} onChange={change} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
+                     autoFocusName />
 
         {!place && (
           <div className="form-section">
@@ -125,7 +126,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
             </label>
             {logVisit && (
               <VisitFields values={visit} onChange={changeVisit} partners={partners} activity={values.activity}
-                           sectors={newSectorOptions(values.sectors.map(s => s.name))} />
+                           walls={[]} spotName={values.name} />
             )}
           </div>
         )}

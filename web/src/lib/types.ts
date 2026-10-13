@@ -10,14 +10,18 @@ export type Visibility = 'private' | 'public';
 export const ACTIVITY_ORDER: Activity[] = ['crag', 'multipitch', 'alpine', 'ice', 'dws', 'indoor', 'ski', 'hike', 'trail'];
 export const EXPOSITIONS: Exposition[] = ['Nord', 'Sud', 'Est', 'Ovest'];
 
-export type Sector = Pick<Tables['sectors']['Row'], 'id' | 'name' | 'position'>;
+/**
+ * What groups spots inside an area: a wall (multipitch), a mountain (alpinism),
+ * a crag (its walls are the spots). Optional for a spot.
+ */
+export type Sector = Omit<Tables['sectors']['Row'], 'created_at' | 'updated_at'> & { place_count: number };
 
-/** A spot: one crag, route, icefall, trail, gym… (table "places"). */
+/** A spot: one crag wall, route, icefall, trail, gym… (table "places"). Area › Sector › Spot. */
 export type Place = Omit<Tables['places']['Row'], 'location' | 'activity' | 'exposition'> & {
   activity: Activity;
   exposition: Exposition[];
-  sectors: Sector[];
   area: { id: number; name: string } | null;
+  sector: { id: number; name: string } | null;
   visit_count: number;
 };
 
@@ -47,6 +51,8 @@ export type VisitSummary = {
   place_activity: Activity;
   area_id: number | null;
   area_name: string | null;
+  sector_id: number | null;
+  sector_name: string | null;
   date: string | null;
   summary: string | null;
   conditions: string | null;
@@ -55,7 +61,8 @@ export type VisitSummary = {
   ascent_count: number;
   max_grade_rank: number | null;
   grades: string[];
-  sector_names: string[];
+  /** Other spots of the sector where routes were climbed that day. */
+  wall_names: string[];
   partner_ids: number[];
   partner_names: string[];
 };
@@ -64,7 +71,6 @@ export type VisitSummary = {
 export type Route = {
   id: number;
   place_id: number;
-  sector_id: number | null;
   name: string;
   grade: string | null;
   grade_rank: number | null;
@@ -80,7 +86,8 @@ export type Ascent = {
   grade: string | null;
   comment: string | null;
   position: number;
-  sector: { id: number; name: string } | null;
+  /** Set when the route is on another spot of the visit's sector (another wall of the crag). */
+  place: { id: number; name: string } | null;
 };
 
 /** A visit with everything needed to show or edit it. */
@@ -130,6 +137,8 @@ export type WishInput = Pick<Wish, 'place_id' | 'priority' | 'seasons' | 'with_p
 export type PlaceInput = {
   id?: number;
   area_name: string;
+  /** Found (any case) or created in the spot's area; empty for none. */
+  sector_name: string;
   name: string;
   activity: Activity;
   lat: number;
@@ -145,7 +154,6 @@ export type PlaceInput = {
   max_altitude: number | null;
   elevation_gain: number | null;
   distance_km: number | null;
-  sectors: { id?: number; name: string }[];
 };
 
 /** Payload of public.save_visit. */
@@ -162,7 +170,8 @@ export type VisitInput = {
   partners: string[];
   /** Add the visit's route names to the spot's shared route list. */
   add_routes: boolean;
-  ascents: { name: string; grade: string; sector_id: number | null; route_id: number | null; comment: string }[];
+  /** place_id: another spot of the same sector, when the route was climbed there. */
+  ascents: { name: string; grade: string; place_id: number | null; route_id: number | null; comment: string }[];
 };
 
 export type VisitScope = 'mine' | 'public' | 'all';

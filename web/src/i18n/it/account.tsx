@@ -158,8 +158,8 @@ const it: Widen<typeof en> = {
 
   export: {
     csvHeader: [
-      'data', 'spot', 'area', 'attivita', 'latitudine', 'longitudine', 'visibilita', 'con', 'durata_ore',
-      'condizioni', 'riepilogo', 'avvicinamento', 'discesa', 'via', 'grado', 'settore', 'commento_via',
+      'data', 'spot', 'area', 'settore', 'attivita', 'latitudine', 'longitudine', 'visibilita', 'con', 'durata_ore',
+      'condizioni', 'riepilogo', 'avvicinamento', 'discesa', 'via', 'grado', 'parete', 'commento_via',
     ],
     gpxTitle: (name: string) => `Diario di ${name}`,
     undated: 'senza data',

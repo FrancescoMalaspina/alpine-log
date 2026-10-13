@@ -11,6 +11,7 @@ import { MyLog } from './components/MyLog';
 import { NewAreaModal } from './components/NewAreaModal';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
+import { SectorView } from './components/SectorView';
 import { Sidebar, type ListMode } from './components/Sidebar';
 import { UsersPage } from './components/UsersPage';
 import { VisitModal } from './components/VisitModal';
@@ -18,14 +19,14 @@ import { WishModal } from './components/WishModal';
 import { useDebounced } from './hooks/useDebounced';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 import {
-  attachmentUrl, fetchAreas, fetchAttachments, fetchMyPartners, fetchMyWishes, fetchPlaces, fetchRocks, fetchVisits,
+  attachmentUrl, fetchAreas, fetchAttachments, fetchSectors, fetchMyPartners, fetchMyWishes, fetchPlaces, fetchRocks, fetchVisits,
 } from './lib/api';
 import type { LatLng } from './lib/coords';
 import { parseGpx, type Track } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS,
-  type Area, type Partner, type Place, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
+  type Area, type Partner, type Place, type Sector, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
 } from './lib/types';
 
 const hasPlaceFilters = (f: PlaceFilters) =>
@@ -36,20 +37,23 @@ const NO_TRACKS = new Map<number, Track>();
 type Panel =
   | { kind: 'place'; placeId: number; tab: PlaceTab; visitId?: number }
   | { kind: 'area'; areaId: number }
+  | { kind: 'sector'; sectorId: number }
   | { kind: 'log' }
   | { kind: 'account' }
   | { kind: 'users' };
 
-/** The open panel lives in the URL hash (#place-12, #area-3, #log, #account, #users): shareable, and Back closes it. */
+/** The open panel lives in the URL hash (#place-12, #area-3, #sector-5, #log…): shareable, and Back closes it. */
 const panelHash = (p: Panel | null) =>
-  !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}` : `#${p.kind}`;
+  !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}`
+    : p.kind === 'sector' ? `#sector-${p.sectorId}` : `#${p.kind}`;
 function panelFromHash(hash: string): Panel | null {
   if (hash === '#log') return { kind: 'log' };
   if (hash === '#account') return { kind: 'account' };
   if (hash === '#users') return { kind: 'users' };
-  const m = hash.match(/^#(place|area)-(\d+)$/);
+  const m = hash.match(/^#(place|area|sector)-(\d+)$/);
   if (!m) return null;
-  return m[1] === 'place' ? { kind: 'place', placeId: +m[2], tab: 'info' } : { kind: 'area', areaId: +m[2] };
+  if (m[1] === 'place') return { kind: 'place', placeId: +m[2], tab: 'info' };
+  return m[1] === 'area' ? { kind: 'area', areaId: +m[2] } : { kind: 'sector', sectorId: +m[2] };
 }
 
 /** Loads and parses every GPX attachment of a place. */
@@ -86,6 +90,7 @@ export default function App() {
 
   const [catalog, setCatalog] = useState<Place[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
+  const [sectors, setSectors] = useState<Sector[]>([]);
   const [filteredPlaces, setFilteredPlaces] = useState<Place[] | null>(null);
   const [visits, setVisits] = useState<{ key: string; rows: VisitSummary[] } | null>(null);
   const [rocks, setRocks] = useState<string[]>([]);
@@ -103,11 +108,12 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([fetchPlaces(EMPTY_PLACE_FILTERS), fetchAreas(), fetchRocks()])
-      .then(([places, areaList, rockList]) => {
+    Promise.all([fetchPlaces(EMPTY_PLACE_FILTERS), fetchAreas(), fetchSectors(), fetchRocks()])
+      .then(([places, areaList, sectorList, rockList]) => {
         if (cancelled) return;
         setCatalog(places);
         setAreas(areaList);
+        setSectors(sectorList);
         setRocks(rockList);
       })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
@@ -257,6 +263,16 @@ export default function App() {
     if (!isMobile) showAreaOnMap(areaId);
   }, [isMobile, showAreaOnMap]);
 
+  const sectorPlaces = useCallback((sectorId: number) => catalog.filter(p => p.sector_id === sectorId), [catalog]);
+  const showSectorOnMap = useCallback((sectorId: number) => {
+    const pts = sectorPlaces(sectorId).map(p => ({ lat: p.lat, lng: p.lng }));
+    if (pts.length) setCommand({ kind: 'fit', points: pts, nonce: Date.now() });
+  }, [sectorPlaces]);
+  const openSector = useCallback((sectorId: number) => {
+    setPanel({ kind: 'sector', sectorId });
+    if (!isMobile) showSectorOnMap(sectorId);
+  }, [isMobile, showSectorOnMap]);
+
   const closeForms = () => {
     setPlaceModal(null);
     setVisitModal(null);
@@ -294,6 +310,7 @@ export default function App() {
   }, [placeModal, visitModal, wishModal, picking]);
   const panelPlace = panel?.kind === 'place' ? placeById.get(panel.placeId) : undefined;
   const panelArea = panel?.kind === 'area' ? areas.find(a => a.id === panel.areaId) : undefined;
+  const panelSector = panel?.kind === 'sector' ? sectors.find(x => x.id === panel.sectorId) : undefined;
   const focusedPlace = focusedId != null ? placeById.get(focusedId) ?? null : null;
 
   return (
@@ -331,6 +348,7 @@ export default function App() {
           onPlaceDetails={p => openPlace(p)}
           onAddVisit={openAddVisit}
           onAreaClick={openArea}
+          onSectorClick={openSector}
           onNewArea={() => setNewAreaOpen(true)}
           onLocationPick={loc => {
             setSearchPin({ lat: loc.lat, lng: loc.lng, name: loc.name });
@@ -392,6 +410,7 @@ export default function App() {
             onClose={() => setPanel(null)}
             onShowOnMap={() => { setPanel(null); focusOnMap(panelPlace); }}
             onOpenArea={openArea}
+            onOpenSector={openSector}
             onEdit={() => setPlaceModal({ place: panelPlace })}
             onAddVisit={() => openAddVisit(panelPlace)}
             wish={openWishByPlace.get(panelPlace.id)}
@@ -455,6 +474,29 @@ export default function App() {
               showAreaOnMap(panelArea.id);
             }}
             onOpenPlace={p => openPlace(p)}
+            onOpenSector={openSector}
+            onChanged={reload}
+            onDeleted={() => { setPanel(null); reload(); }}
+          />
+        )}
+
+        {panel?.kind === 'sector' && panelSector && (
+          <SectorView
+            key={`sector-panel-${panelSector.id}`}
+            sector={panelSector}
+            areas={areas}
+            places={sectorPlaces(panelSector.id)}
+            allPlaces={catalog}
+            canEditPlace={canEdit}
+            userId={userId}
+            isAdmin={isAdmin}
+            onClose={() => setPanel(null)}
+            onShowOnMap={() => {
+              if (isMobile) { setPanel(null); setMobileTab('map'); }
+              showSectorOnMap(panelSector.id);
+            }}
+            onOpenArea={openArea}
+            onOpenPlace={p => openPlace(p)}
             onChanged={reload}
             onDeleted={() => { setPanel(null); reload(); }}
           />
@@ -489,6 +531,7 @@ export default function App() {
           initialAt={placeModal.at}
           rocks={rocks}
           areas={areas}
+          sectors={sectors}
           partners={partners}
           canDelete={!!placeModal.place && canEdit(placeModal.place)}
           hidden={!!picking}
@@ -507,6 +550,7 @@ export default function App() {
           visit={visitModal.visit}
           places={catalog}
           areas={areas}
+          sectors={sectors}
           userId={userId}
           rocks={rocks}
           partners={partners}

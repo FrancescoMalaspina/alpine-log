@@ -4,10 +4,10 @@ import { uploadPhoto } from '../lib/photos';
 import { completeWish, fetchRoutes, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
-import type { Area, Partner, Place, Route, VisitDetail, Wish } from '../lib/types';
+import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
-import { newSectorOptions, saveVisitAt } from './forms/save';
+import { saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
 import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
@@ -20,6 +20,7 @@ type Props = {
   visit?: VisitDetail;
   places: Place[];
   areas: Area[];
+  sectors: Sector[];
   userId: string;
   rocks: string[];
   partners: Partner[];
@@ -38,7 +39,7 @@ const NEW = 'new';
 
 /** Log a visit at an existing place, or at a new place created in the same save. */
 export function VisitModal({
-  placeId, visit, places, areas, userId, rocks, partners, openWishByPlace, initialWithPeople, hidden, onPickOnMap, onCoordsChange, onClose, onSaved,
+  placeId, visit, places, areas, sectors, userId, rocks, partners, openWishByPlace, initialWithPeople, hidden, onPickOnMap, onCoordsChange, onClose, onSaved,
 }: Props) {
   const { t } = useI18n();
   const s = t.spot.visitModal;
@@ -70,7 +71,7 @@ export function VisitModal({
 
   // The chosen spot's shared route list, for suggestions and linking.
   useEffect(() => {
-    if (!place || !ACTIVITIES[place.activity].sectors) return;
+    if (!place || !ACTIVITIES[place.activity].routeList) return;
     let cancelled = false;
     fetchRoutes(place.id).then(r => { if (!cancelled) setRouteList({ placeId: place.id, routes: r }); }).catch(() => {});
     return () => { cancelled = true; };
@@ -86,9 +87,10 @@ export function VisitModal({
       setValues(v => ({ ...v, ascents: visitValuesFrom(undefined, spot).ascents }));
     }
   };
-  const sectors = isNew
-    ? newSectorOptions(newPlace.sectors.map(s => s.name))
-    : (place?.sectors ?? []).map(s => ({ key: String(s.id), label: s.name }));
+  // The other spots of the chosen spot's sector: routes can be logged on them too.
+  const walls = place?.sector_id
+    ? places.filter(p => p.sector_id === place.sector_id && p.id !== place.id).map(p => ({ id: p.id, name: p.name }))
+    : [];
 
   const change = (patch: Partial<VisitValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
   const changePlace = (patch: Partial<PlaceValues>) => { setNewPlace(v => ({ ...v, ...patch })); setDirty(true); };
@@ -103,10 +105,11 @@ export function VisitModal({
   const pick = (field: CoordField) =>
     onPickOnMap(coordLabel(field), at => changePlace({ [field]: formatCoords(at.lat, at.lng) }));
 
-  // Places grouped by area for the picker; places without an area last.
+  // Places grouped by area for the picker, by sector within it; places without an area last.
   const groups = useMemo(() => {
     const byArea = new Map<string, Place[]>();
-    for (const p of places) {
+    const label = (p: Place) => `${p.sector?.name ?? ''}\u0000${p.name}`;
+    for (const p of [...places].sort((a, b) => label(a).localeCompare(label(b)))) {
       const key = p.area?.name ?? '';
       byArea.set(key, [...(byArea.get(key) ?? []), p]);
     }
@@ -190,7 +193,11 @@ export function VisitModal({
               <option value={NEW}>{s.newSpotOption}</option>
               {groups.map(([area, list]) => (
                 <optgroup key={area || 'none'} label={area || s.noArea}>
-                  {list.map(p => <option key={p.id} value={p.id}>{p.name} ({activityLabel(p.activity)})</option>)}
+                  {list.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.sector ? `${p.sector.name} › ` : ''}{p.name} ({activityLabel(p.activity)})
+                    </option>
+                  ))}
                 </optgroup>
               ))}
             </select>
@@ -201,14 +208,15 @@ export function VisitModal({
       {isNew && (
         <div className="form-section nested">
           <h3 className="section-title">{s.newSpot}</h3>
-          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} rocks={rocks} onPickOnMap={pick} />
+          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick} />
         </div>
       )}
 
       {(place || isNew) && (
         <div className="visit-modal-body">
           {isNew && <h3 className="section-title">{s.theVisit}</h3>}
-          <VisitFields values={values} onChange={change} partners={partners} activity={activity} sectors={sectors} routes={routes} />
+          <VisitFields values={values} onChange={change} partners={partners} activity={activity}
+                       walls={walls} spotName={place?.name ?? newPlace.name} routes={routes} />
           {wish && (
             <label className="field-inline wish-tick">
               <input type="checkbox" checked={tickOff} onChange={e => setTickOff(e.target.checked)} />

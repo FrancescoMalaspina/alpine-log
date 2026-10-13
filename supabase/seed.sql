@@ -30,6 +30,7 @@ do $import$
 declare
   v_owner uuid := (select id from auth.users where email = 'admin@example.com');
   pid bigint;
+  sid bigint;
   vid bigint;
 begin
   if v_owner is null then
@@ -74,56 +75,56 @@ begin
   insert into public.attachments (area_id, created_by, kind, title, url) values ((select id from public.areas where name = 'Zucco dell''Angelone'), v_owner, 'link', 'Guide', 'https://www.gulliver.it/itinerari/zucco-dellangelone/');
 
   -- Ailefroide / Ailefroide
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Ailefroide'), 'Ailefroide', 'crag',
+  values (v_owner, (select id from public.areas where name = 'Ailefroide'), null, 'Ailefroide', 'crag',
           44.885185, 6.450342, 44.885185, 6.450342, null, null,
           'Granite', array['Nord', 'Sud', 'Est', 'Ovest']::text[], 'Bellissimo posto pieni di vie/falesie/blocchi. il campeggio è molto comodo e costa poco', null)
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-02'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, null, '5c', 'lungo e tecnico', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, null, '6c', 'top rope, passo di placca con nulla', 1);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Fra', 'Luca', 'Ire', 'SaraG', 'Andre', 'Isa']::text[]);
 
   -- Ailefroide / Ecrins total
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Ailefroide'), 'Ecrins total', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Ailefroide'), null, 'Ecrins total', 'multipitch',
           44.885185, 6.450342, 44.885185, 6.450342, null, null,
           'Granite', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, '5c')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-01'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Ecrins total', '5c', 'Via di 5 tiri, traverso duro al terzo tiro', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Ire', 'SaraG']::text[]);
 
   -- Albard / Ozzy
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Albard'), 'Ozzy', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Albard'), null, 'Ozzy', 'multipitch',
           45.608189, 7.758327, null, null, 45.608189, 7.758327,
           'Gneiss', array['Sud']::text[], null, null)
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-09-20'::date, 'Via carina, soprattutto le pareti verticali. Comunque facile e ben spittata. Ultima via di Andre <3', 'Dal parcheggio salire la scala di roccia che porta al PAGGIO. Da lì seguire il sentiero che scende passando per una baita nella roccia, delle catene fisse e poi diventa un sentiero segnato con bolli fluo (senza la traccia di Lu ci saremmo persi)', 'Comodo sentiero dalla cima, alla baita proseguire verso destra faccia a monte e si torna al paggio', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Ozzy', 'V+', 'carina, le pareti verticali sono divertenti da scalare', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Andre', 'Luca', 'SaraG']::text[]);
 
   -- Blocchi Fonti minerali
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Blocchi Fonti minerali', 'crag',
+  values (v_owner, null, null, 'Blocchi Fonti minerali', 'crag',
           45.429448, 7.25095, 45.43011, 7.250239, null, null,
           'Gneiss', array['Nord', 'Sud', 'Est', 'Ovest']::text[], 'Zona per fare blocchi subito dietro il rifugio. Tutte le difficoltà e vari tipi di scalata', null)
   returning id into pid;
@@ -134,39 +135,39 @@ begin
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Fede', 'Ari', 'Selma']::text[]);
 
   -- Campanile Basso / Via Normale
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Campanile Basso'), 'Via Normale', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Campanile Basso'), null, 'Via Normale', 'multipitch',
           46.161406, 10.892466, 46.206102, 10.850984, null, null,
           'Dolomia', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, 'V')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-08-26'::date, 'CHE FIGATA E CHE CAGA, prima via classica. Una bellissima giornata di 19 ore di attività fisica', 'Dormito al rifugio Tosa-Pedrotti, si raggiunge in 3 ore e 15 minuti dal parcheggio di Vallesinella. Dal rifugio si torna alla bocchetta di Brenta e si attacca la ferrata delle bocchette. Si raggiunge la bocchetta del campanile basso è l''attacco e 5 metri sotto a sinistra', '8 doppie dalla cima che seguono circa la normale. Occhio che si incastra facile al prima e a noi anche l''ultima', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Via Normale', 'V', 'STUPENDA. Abbiamo sbagliato strada un po'' di vote sui tiri, ma si fa. Difficoltà tecnica bassa ma è tutto da integrare tranne la Poli e l''ultimo tiro se segui i chiodi sul quinto', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo', 'Luca', 'Andre']::text[]);
 
   -- Costa dell'Anglone / Mercurio Serpeggianti
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Costa dell''Anglone'), 'Mercurio Serpeggianti', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Costa dell''Anglone'), null, 'Mercurio Serpeggianti', 'multipitch',
           45.97082, 10.911493, 45.968008, 10.914529, null, null,
           'Dolomia', array['Est']::text[], null, 'VI A0/V')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-04-25'::date, 'Dovevamo fare un''altra via più facile ma c''era gente e quindi io e Lu siamo andati su questa. Ottima scelta! Ci hanno superato dei bergamaschi del CAI, ma hanno scordato un rinvio che ci siamo guadagnati onestamente. Via piena di traversi sprotetti comunque.', 'Parcheggiare al campo sportivo, seguire la strada che diventa subito sentiero nel bosco e in pochi minuti si raggiungono gli attacchi delle vie', 'Sentiero che riporta al campo sportivo con una ferratina finale', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Mercurio Serpeggianti', 'VI A0/V', 'Via bellissma, abbastanza lunga. Alternarsi con Luca che fa le placche top. Il tiro di sesto è uno strapiombo abbastanza duro, ma tutto azzerabile con cordoni', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Luca', 'Japo', 'Andre', 'Fra', 'Fede']::text[]);
 
   -- Falesia Bosco
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia Bosco', 'crag',
+  values (v_owner, null, null, 'Falesia Bosco', 'crag',
           45.408468, 7.506321, 45.407395, 7.505919, null, null,
           'Gneiss', array['Nord', 'Sud', 'Est', 'Ovest']::text[], 'Falesia giustamente nel bosco. Frequentabile tutto l''anno. La roccia è stupenda, granito pieno di prese, soprattutto svase. Tutti i tiri sono verticali o strapiombanti, zero placca.', null)
   returning id into pid;
@@ -174,44 +175,47 @@ begin
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-09-27'::date, 'Eravamo tritati dai blocchi del giorno prima, ma comunque fighissimi i tiri. Tanto di resistenza sugli avambracci', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'La bamba', '6b', null, 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Satanatt', '6c', null, 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'C''era una volta', '5+++', null, 2);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Mamba', '6a', null, 3);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Fede', 'Morgana', 'Selma']::text[]);
 
-  -- Falesia calusco d'adda
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  -- Falesia calusco d'adda (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Falesia calusco d''adda', 'Roccia particolare, di difficile lettura le prime volte, ma molto bella. diversi settori con tutti i gradi di difficoltà. Ottima anche d''estate, occhio alle zanzare')
+  returning id into sid;
+  -- Falesia calusco d'adda / Settore 1 (più vicino all'ingresso)
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia calusco d''adda', 'crag',
+  values (v_owner, null, sid, 'Settore 1 (più vicino all''ingresso)', 'crag',
           45.682229, 9.455296, 45.684741, 9.458401, null, null,
-          'Conglomerato', array['Nord', 'Sud', 'Est', 'Ovest']::text[], 'Roccia particolare, di difficile lettura le prime volte, ma molto bella. diversi settori con tutti i gradi di difficoltà. Ottima anche d''estate, occhio alle zanzare', null)
+          'Conglomerato', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, null)
   returning id into pid;
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://www.falesia.it/crag/116/calusco-paderno.html');
-  insert into public.sectors (place_id, name, position) values (pid, 'Settore 1 (più vicino all''ingresso)', 0);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-06'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Settore 1 (più vicino all''ingresso)'), 'Mal di dita', '5c', null, 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Settore 1 (più vicino all''ingresso)'), 'Spirito solitario', '6a+', 'continuo', 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Settore 1 (più vicino all''ingresso)'), 'Money Penny', '6a+', 'Incomprensibile', 2);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Settore 1 (più vicino all''ingresso)'), 'Grazie Cinzia diretto', '6b', 'carino di dita', 3);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Mal di dita', '5c', null, 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Spirito solitario', '6a+', 'continuo', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Money Penny', '6a+', 'Incomprensibile', 2);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Grazie Cinzia diretto', '6b', 'carino di dita', 3);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Luca', 'Fra', 'Japo', 'SaraG']::text[]);
 
   -- Falesia del cannone
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia del cannone', 'crag',
+  values (v_owner, null, null, 'Falesia del cannone', 'crag',
           45.981249, 8.39887, 45.984583, 8.400296, null, null,
           'Limestone', array['Est']::text[], 'Falesia in ombra dalle 11, roccia nera che scotta al sole. gradi fino al 6b, vecchia palestra CAI.', null)
   returning id into pid;
@@ -219,69 +223,87 @@ begin
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-21'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Il ragno', '6b', 'uscita dallo strapiombo dura', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo', 'Andre', 'SaraG', 'Ire']::text[]);
 
-  -- Falesia di Civate
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  -- Falesia di Civate (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Falesia di Civate', 'Mostly in the shadow. Molti settori, quelli coi gradi più bassi sono molto unti. Ottima per il dopo lavoro e avvicinamento breve. Settore Valle degli Orti il migliore con anche gradi più alti fino 6c')
+  returning id into sid;
+  -- Falesia di Civate / Valle degli Orti
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia di Civate', 'crag',
+  values (v_owner, null, sid, 'Valle degli Orti', 'crag',
           45.828727, 9.335894, 45.828727, 9.335894, null, null,
-          'Limestone', array['Sud']::text[], 'Mostly in the shadow. Molti settori, quelli coi gradi più bassi sono molto unti. Ottima per il dopo lavoro e avvicinamento breve. Settore Valle degli Orti il migliore con anche gradi più alti fino 6c', null)
+          'Limestone', array['Sud']::text[], null, null)
   returning id into pid;
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Buco della Sabbia', 'crag',
+          45.828727, 9.335894, 45.828727, 9.335894, null, null,
+          'Limestone', array['Sud']::text[], null, null);
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Amazzonia + Palestra vecchia', 'crag',
+          45.828727, 9.335894, 45.828727, 9.335894, null, null,
+          'Limestone', array['Sud']::text[], null, null);
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'La balconata', 'crag',
+          45.828727, 9.335894, 45.828727, 9.335894, null, null,
+          'Limestone', array['Sud']::text[], null, null);
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://larioclimb.paolo-sonja.net/falesie_lecco/civate/index.html');
-  insert into public.sectors (place_id, name, position) values (pid, 'Valle degli Orti', 0);
-  insert into public.sectors (place_id, name, position) values (pid, 'Buco della Sabbia', 1);
-  insert into public.sectors (place_id, name, position) values (pid, 'Amazzonia + Palestra vecchia', 2);
-  insert into public.sectors (place_id, name, position) values (pid, 'La balconata', 3);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-20'::date, 'Completato il settore Amazzonia e Palestra vecchia, i 6a sono banali, magari un passaggio duro. Diventano più duri se vai su dritto seguendo gli spit, spostandosi un po'' sono facili', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Amazzonia + Palestra vecchia'), null, '6a', null, 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Amazzonia + Palestra vecchia'), null, '6a', null, 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Luca', 'Fra', 'Chiara']::text[]);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-12'::date, 'Unico settore di Civate che merita, tiri un po'' più duri ma molto belli e lunghi e molto meno unti', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Valle degli Orti'), 'Donne in attesa', '6a', 'Belo, lungo, un po'' untino il passagio duro sotto', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Valle degli Orti'), 'Via Nomentana', '6b', 'Bello, lungo, duro sotto. Allungo al limite', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Donne in attesa', '6a', 'Belo, lungo, un po'' untino il passagio duro sotto', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Via Nomentana', '6b', 'Bello, lungo, duro sotto. Allungo al limite', 1);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'SaraG']::text[]);
 
-  -- Falesia di Valgua
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  -- Falesia di Valgua (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Falesia di Valgua', 'Ci sono vari settori, su theCrag sono segnati più tiri di quelli che effettivamente abbiamo trovato. Bella falesia estiva, gradi non banali, dal 5c in su')
+  returning id into sid;
+  -- Falesia di Valgua / Minolandia
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia di Valgua', 'crag',
+  values (v_owner, null, sid, 'Minolandia', 'crag',
           45.780462, 9.778912, 45.776395, 9.781794, null, null,
-          'Limestone', array['Nord']::text[], 'Ci sono vari settori, su theCrag sono segnati più tiri di quelli che effettivamente abbiamo trovato. Bella falesia estiva, gradi non banali, dal 5c in su', null)
+          'Limestone', array['Nord']::text[], null, null)
   returning id into pid;
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://www.thecrag.com/it/arrampicata/italy/valgua');
-  insert into public.sectors (place_id, name, position) values (pid, 'Minolandia', 0);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-07-25'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Minolandia'), 'Prendi il fossile', '6a', null, 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Minolandia'), 'Rovescio d''occasione', '6a+', null, 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Minolandia'), 'Una gita con Roby', '6a+', null, 2);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Minolandia'), 'Boletus Edulis', '7a', 'fatto di scaldo e sucato male neanche finito, da riprovare', 3);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Minolandia'), 'Donald Duck', '5c', null, 4);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Prendi il fossile', '6a', null, 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Rovescio d''occasione', '6a+', null, 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Una gita con Roby', '6a+', null, 2);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Boletus Edulis', '7a', 'fatto di scaldo e sucato male neanche finito, da riprovare', 3);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Donald Duck', '5c', null, 4);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Ire', 'Nico', 'Andre', 'Isa']::text[]);
 
   -- Falesia Esigo-Ponte Romano
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia Esigo-Ponte Romano', 'crag',
+  values (v_owner, null, null, 'Falesia Esigo-Ponte Romano', 'crag',
           46.282635, 8.287281, 46.285113, 8.287014, null, null,
           'Granite', array['Nord']::text[], 'Shadow all day. Bella roccia, più di 70 tiri, anche se affollata c''è roba da fare, si sta al fresco anche d''estate', null)
   returning id into pid;
@@ -289,15 +311,15 @@ begin
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-28'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Deverino Valley', '5c', 'Carina, passaggio non banale sotto poi placca di equilibrio', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo', 'Ire', 'Luca']::text[]);
 
   -- Falesia Grotta
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia Grotta', 'crag',
+  values (v_owner, null, null, 'Falesia Grotta', 'crag',
           45.6223, 7.705, 45.61926, 7.70877, null, null,
           'Gneiss', array['Nord', 'Sud']::text[], 'Falesia sotto le placche di Oriana, molto carina anche per finire la giornata dopo una via', null)
   returning id into pid;
@@ -305,266 +327,298 @@ begin
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-16'::date, 'Falesia tranquilla dopo la via, ci siamo fatti sicura con 2 doppie e il secchiello D:', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Aquila reale', '6b', 'Un passaggio di fiducia in spalmo fa stra paura', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Pernice bianca', '6a', 'molto carina, con vari incastri in fessura', 1);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Andre', 'Luca', 'Fra']::text[]);
 
-  -- Falesia Introbio
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  -- Falesia Introbio (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Falesia Introbio', 'Avvicinamento molto corto, chi fa sicura sta all''ombra. Dipende un po'' dal settore ma si trovano anche tiri completamente in ombra')
+  returning id into sid;
+  -- Falesia Introbio / Sasso d'Introbio
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia Introbio', 'crag',
+  values (v_owner, null, sid, 'Sasso d''Introbio', 'crag',
           45.960178, 9.452256, 45.960706, 9.450489, null, null,
-          'Limestone', array['Nord', 'Sud']::text[], 'Avvicinamento molto corto, chi fa sicura sta all''ombra. Dipende un po'' dal settore ma si trovano anche tiri completamente in ombra', null)
+          'Limestone', array['Nord', 'Sud']::text[], null, null)
   returning id into pid;
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Pala Condor', 'crag',
+          45.960178, 9.452256, 45.960706, 9.450489, null, null,
+          'Limestone', array['Nord', 'Sud']::text[], null, null);
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Muro d''Introbio', 'crag',
+          45.960178, 9.452256, 45.960706, 9.450489, null, null,
+          'Limestone', array['Nord', 'Sud']::text[], null, null);
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://larioclimb.paolo-sonja.net/falesie_lecco/introbio/index.html');
-  insert into public.sectors (place_id, name, position) values (pid, 'Sasso d''Introbio', 0);
-  insert into public.sectors (place_id, name, position) values (pid, 'Pala Condor', 1);
-  insert into public.sectors (place_id, name, position) values (pid, 'Muro d''Introbio', 2);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-24'::date, 'Secondo giorno di fila di falesia. ci sono dei bervi multipitch molto belli alla placca condor', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Pala Condor'), null, '5c', 'multipitch', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Pala Condor'), null, '6a+', 'tacchette già provato in passato, carino e di dita', 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Pala Condor'), null, '6b', 'blocco di entrata impossibile', 2);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Muro d''Introbio'), null, '6a', 'tecnico al muro, caduto nel passaggio in strapoimbo', 3);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Pala Condor'), null, '5c', 'multipitch', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Pala Condor'), null, '6a+', 'tacchette già provato in passato, carino e di dita', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Pala Condor'), null, '6b', 'blocco di entrata impossibile', 2);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Muro d''Introbio'), null, '6a', 'tecnico al muro, caduto nel passaggio in strapoimbo', 3);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'SaraG', 'Ire', 'Nico']::text[]);
 
-  -- Falesia Val di Lomasone
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  -- Falesia Val di Lomasone (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Falesia Val di Lomasone', 'Bellissima falesia, in un locus amenus idilliaco. Gradi dai quinti ai settimi, vari settori')
+  returning id into sid;
+  -- Falesia Val di Lomasone / Settore 2
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Falesia Val di Lomasone', 'crag',
+  values (v_owner, null, sid, 'Settore 2', 'crag',
           45.972855, 10.86498, 45.970931, 10.858746, null, null,
-          'Dolomia', array['Ovest']::text[], 'Bellissima falesia, in un locus amenus idilliaco. Gradi dai quinti ai settimi, vari settori', null)
+          'Dolomia', array['Ovest']::text[], null, null)
   returning id into pid;
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Settore 4', 'crag',
+          45.972855, 10.86498, 45.970931, 10.858746, null, null,
+          'Dolomia', array['Ovest']::text[], null, null);
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://www.thecrag.com/it/arrampicata/italy/val-lomasone');
-  insert into public.sectors (place_id, name, position) values (pid, 'Settore 2', 0);
-  insert into public.sectors (place_id, name, position) values (pid, 'Settore 4', 1);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-04-26'::date, 'settore 4 è il più nuovo ed è gradato un po'' alto rispetto alla difficoltà effettiva. Gli altri settori hanno spit un po'' vecchi, ma i tiri sono bellissimi. Il campanile arrivi proprio sopra a sto pilastro di roccia!', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Settore 2'), 'Camapnile sud', '6a', 'Chiodi arrugginiti, ma hanno tenuto, che caga!', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Settore 4'), 'Via delle salamandre', '6a', 'Carina, strapiombo deciso alla fine', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Camapnile sud', '6a', 'Chiodi arrugginiti, ma hanno tenuto, che caga!', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Settore 4'), 'Via delle salamandre', '6a', 'Carina, strapiombo deciso alla fine', 1);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Andre', 'Japo', 'Fra', 'Luca', 'Fede']::text[]);
 
   -- Grignetta / Via Zucchi
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Grignetta'), 'Via Zucchi', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Grignetta'), null, 'Via Zucchi', 'multipitch',
           45.920542, 9.388661, 45.905628, 9.394608, null, null,
           'Limestone', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, 'IV+')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-08-09'::date, 'Via molto bella, soprattutto perchè arrivi in cima alla grigna dopo aver fatto l''ultimo pezzo della cresta segantini', 'Dai piani dei resinelli, salire verso il rifugio porta per la strada asfaltata superando le sbarre. prendere il sentiero nel bosco che inizia ad una curva verso destra. Al bivio con cartelli seguire a destra (Direttissima) e farsi tutta la costa fino alla ferrata (scala di metallo). Proseguire ancora oltrepassando il Fungo tenendolo sulla sinistra. Si arriva al canalone Angelina, risalirlo (non banale). prima di arrivare verso la cresta stare sulla destra per il sentiero Cecilia. Dopo un altro tratto con catena si aggira uno sperone e risalendo un po'' c''è l''attacco della via con scritto via Zucchi', 'Dalla cima della grigna comodo sentiero che riporta ai piani dei resinelli', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Via Zucchi', 'IV+', 'probabilemente un passo di quinto protetto solo da un tuo friend (sector: Grigna meridionale)', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo']::text[]);
 
   -- Grignetta / Spigolo Dorn
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Grignetta'), 'Spigolo Dorn', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Grignetta'), null, 'Spigolo Dorn', 'multipitch',
           45.920542, 9.388661, 45.905628, 9.394608, null, null,
           'Limestone', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, 'IV')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-08-15'::date, 'Volevamo concatenare i tre Magnaghi, ma alla fine abbiamo fatto solo il meridionale. nella calata abbiamo visto il ''traversino'' per spostarsi sul centrale, è da cagarsi addosso', 'continuare sulla strada asfaltata che passa davanti al rifugio dei resinelli, dopo poco diventa sterrata. Parcheggiare e proseguire a piedi per il sentiero, subito un cartello per il canalone Porta. Inconfondibile, risalirlo fino alla fine. Si vede la piattaforma per gli elicotteri. Da lì proseguire verso il magnaghi meridionale, si vede un gabbiotto per le barelle. Risalire le non banali roccette di III e infilarsi in una spaccatura che porta all''attacco del sigaro e delle vie sul Magnaghi meridionale. La via parte lì in fondo, si può prendere un fittone oppure scendere di più e passare dalla sosta del primo tiro del sigaro o del canalino albertini', 'dal masso con scritto lemonsoda in vetta ci si può calare o disarrampicare delle facili roccette per 15 metri fino ad un anello di calata all''altezza dell''intaglio tra i due magnaghi. Si può traversare all''altro magnaghi o continuare la calata sulla normale del magnaghi meridionale', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Spigolo Dorn', 'IV', 'via molto facile, poco da integrare, si ricongiunge agli ultimi tiri del canalino albertini (sector: Grigna meridionale)', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Fra', 'Luca', 'Nico']::text[]);
 
   -- Moregallo
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Moregallo', 'crag',
+  values (v_owner, null, null, 'Moregallo', 'crag',
           45.881456, 9.340185, 45.880406, 9.344428, null, null,
           'Limestone', array['Ovest']::text[], 'Traverso bellissimo sul lago, a pochi metri di altezza dall''acqua, per qualunque livello. stando bassi è più facile, la parte finale bianca è dura. C''è anche una falesia con tiri sui sesti.', null)
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-07-30'::date, 'Fatto il traverso fino all''inizio della parte bianca. Caduto una volta perchè si è rotto un piede. Eravamo tantissimi e poi grigliata sulla spiaggia', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Traverso', '6b', null, 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Ire', 'Fra', 'Nico', 'Andre', 'Fede', 'Chiara', 'AndreB', 'BeaBassi']::text[]);
 
-  -- Muro del Butch
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
-                             rock, exposition, description, grade)
-  values (v_owner, null, 'Muro del Butch', 'crag',
-          45.908774, 9.434212, null, null, null, null,
-          'Limestone', array['Nord']::text[], 'In the shadow all day and super fresh even in summer
+  -- Muro del Butch (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Muro del Butch', 'In the shadow all day and super fresh even in summer
 3 settori: 
 - Scala dei Sogni, tiri di quinto, ben appigliati. 4 sesti molto belli e sempre da tirare
 - Muretto del Gio: 4 tiri di sesto, placca a tacche e qualche strapiombo
-- Muro del Butch: Tiri lunghi e duri con stili che variano, più placca', null)
+- Muro del Butch: Tiri lunghi e duri con stili che variano, più placca')
+  returning id into sid;
+  -- Muro del Butch / Scala dei sogni
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Scala dei sogni', 'crag',
+          45.908774, 9.434212, null, null, null, null,
+          'Limestone', array['Nord']::text[], null, null)
   returning id into pid;
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Muretto del Gio', 'crag',
+          45.908774, 9.434212, null, null, null, null,
+          'Limestone', array['Nord']::text[], null, null);
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+                             rock, exposition, description, grade)
+  values (v_owner, null, sid, 'Muro del Butch', 'crag',
+          45.908774, 9.434212, null, null, null, null,
+          'Limestone', array['Nord']::text[], null, null);
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://larioclimb.paolo-sonja.net/falesie_lecco/ilmurodelbutch/index.html');
-  insert into public.sectors (place_id, name, position) values (pid, 'Scala dei sogni', 0);
-  insert into public.sectors (place_id, name, position) values (pid, 'Muretto del Gio', 1);
-  insert into public.sectors (place_id, name, position) values (pid, 'Muro del Butch', 2);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-23'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Scala dei sogni'), 'Busazza', '6b', 'Chiuso al primo giro fanlmente!', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Muro del Butch'), null, '6a+', 'Blocco tecnico in cima, prima una scala', 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Muro del Butch'), null, '6a+', 'di continuità con strapimbo e poi placca, mai banale', 2);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Busazza', '6b', 'Chiuso al primo giro fanlmente!', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Muro del Butch'), null, '6a+', 'Blocco tecnico in cima, prima una scala', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Muro del Butch'), null, '6a+', 'di continuità con strapimbo e poi placca, mai banale', 2);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Chiara', 'Fra', 'Luca', 'Andre']::text[]);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-20'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Scala dei sogni'), 'Su alto', '6c', 'non chiuso ma fattibile', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Muretto del Gio'), 'Fratelli d''arte', '6b+', 'al muretto, non chiuso, intro dura poi di resistenza', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Su alto', '6c', 'non chiuso ma fattibile', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Muretto del Gio'), 'Fratelli d''arte', '6b+', 'al muretto, non chiuso, intro dura poi di resistenza', 1);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Nico']::text[]);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-07-11'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Scala dei sogni'), 'Su alto', '6c', 'primo 6c!!! alla scala dei sogni l''unico che c''è', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Scala dei sogni'), 'Busazza', '6b', 'alla scala dei sogni il solito molto bello e fisico', 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Muretto del Gio'), 'Al guanaco', '6b', 'al muretto del Gio di fianco al 6c, molto carino e continuo di placca a tacche, fine atletica in strapiombo', 2);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Scala dei sogni'), 'L''amata grigna', '6a', 'alla scala dei sogni, tecnico molto bello', 3);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Su alto', '6c', 'primo 6c!!! alla scala dei sogni l''unico che c''è', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Busazza', '6b', 'alla scala dei sogni il solito molto bello e fisico', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, (select id from public.places where sector_id = sid and name = 'Muretto del Gio'), 'Al guanaco', '6b', 'al muretto del Gio di fianco al 6c, molto carino e continuo di placca a tacche, fine atletica in strapiombo', 2);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'L''amata grigna', '6a', 'alla scala dei sogni, tecnico molto bello', 3);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Ire']::text[]);
 
   -- Placca di Pinocchio (Ponte Brolla) / Via Harlem
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Placca di Pinocchio (Ponte Brolla)'), 'Via Harlem', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Placca di Pinocchio (Ponte Brolla)'), null, 'Via Harlem', 'multipitch',
           46.189872, 8.756805, 46.189872, 8.756805, null, null,
           'Granite', array['Ovest']::text[], null, '5b')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-27'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Via Harlem', '5b', 'Tutta placca, molto sporca (questo ha alzato la difficoltà parecchio perchè si scivolava). Un cado boia, da fare in autunno/primavera, è in ombra fino alle 11 circa', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo', 'SaraG', 'Ire', 'Luca']::text[]);
 
   -- Placche di Oriana / Rue de la Gueriso
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Placche di Oriana'), 'Rue de la Gueriso', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Placche di Oriana'), null, 'Rue de la Gueriso', 'multipitch',
           45.623589, 7.701536, 45.61926, 7.70877, null, null,
           'Gneiss', array['Sud']::text[], null, '5c+')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-16'::date, 'Cercavamo qualcosa di sportivo e non troppo lungo. Piacevolissima via, se ne possono fare altre nello stesso giorno, dalla cima all''attacco sono 20 minuti a piedi', 'Dal parcheggio a Courtil si segue la strada asfaltata, dopo un tornante c''è un sentiero che sale e porta alla base della parete del settore destro con tutte le vie segnate da una placca metallica col nome', 'Comodissimo sentiero che riporta all''attacco', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Rue de la Gueriso', '5c+', 'Via sportiva spittata corta sui pezzi dura e lunga su quelli facili, molto bella (sector: Settore destro)', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Andre', 'Luca', 'Fra']::text[]);
 
   -- Rocca di Baiedo / Solitudine
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Rocca di Baiedo'), 'Solitudine', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Rocca di Baiedo'), null, 'Solitudine', 'multipitch',
           45.959593, 9.448387, null, null, 45.959593, 9.448387,
           'Limestone', array['Sud']::text[], null, null)
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-09-19'::date, 'ci abbiamo messo 2 ore e mezza come da relazione, mai successo. Via carina, non difficile. Avvicinamento e parcheggio top. Si arriva in cima alla rocca ed è molto carino, da provare altre vie qui.', 'camminando sul comodo sentiero fino al cartello e dopo 20 metri in salita si è all''attacco segnato con targa', 'Comodissimo sentiero, salire prima alla cima della rocca piegando a sinistra e poi si scende a Baiedo e da lì si torna all''auto', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Solitudine', 'V/V+', null, 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Nico']::text[]);
 
   -- Santa Massenza / Piccola Nizza di Trent
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Santa Massenza'), 'Piccola Nizza di Trent', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Santa Massenza'), null, 'Piccola Nizza di Trent', 'multipitch',
           46.068277, 10.978479, 46.065547, 10.980358, null, null,
           'Dolomia', array['Est']::text[], null, 'V')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-08-23'::date, 'Luca ha fatto da fotografo e intrattenitore. Libro di vetta simpatico. I tizi che l''hanno aperta sono del luogo probabilmente e hanno aperto varie vie qui', 'Dal parcheggio proseguire 20 metri sulla strada e prendere il sentiero che sale sulla sinistra. Seguirlo e fidarsi della relazione. Bivio a destra, superare spigolo nascosto, continuare per dei ripidi zig zag e si arriva alla via che attacca dove c''è la targhetta col nome', 'Seguire il sentiero che va a destra dalla cima e fidarsi della relazione. Continua in mezza costa a sinistra, supera traliccio, arte di ferrata e poi giù a destra', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Piccola Nizza di Trent', 'V', 'Via carina, un po'' da integrare ma piena di chidoi sul tiro più duro, comunque un diedro interessante', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo', 'Luca']::text[]);
 
-  -- Val di Mello (blocchi)
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  -- Val di Mello (blocchi) (sector)
+  insert into public.sectors (created_by, area_id, name, description)
+  values (v_owner, null, 'Val di Mello (blocchi)', 'Blocchi ovunque, ho una guida intera coi settori. La roccia ti mangia la pelle. Bellissima valle anche per passeggiate/vie/falesie')
+  returning id into sid;
+  -- Val di Mello (blocchi) / Proprietà privata
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, null, 'Val di Mello (blocchi)', 'crag',
+  values (v_owner, null, sid, 'Proprietà privata', 'crag',
           46.249768, 9.64196, 46.23945, 9.627467, null, null,
-          'Granite', array['Nord', 'Sud', 'Est', 'Ovest']::text[], 'Blocchi ovunque, ho una guida intera coi settori. La roccia ti mangia la pelle. Bellissima valle anche per passeggiate/vie/falesie', null)
+          'Granite', array['Nord', 'Sud', 'Est', 'Ovest']::text[], null, null)
   returning id into pid;
   insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', 'https://www.thecrag.com/it/arrampicata/italy/val-di-mello/area/1279720257');
-  insert into public.sectors (place_id, name, position) values (pid, 'Proprietà privata', 0);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-09'::date, 'Melloblocco, prima volta nella vita. Fighissimo, ambiente stupendo con un sacco di persone che scalano, mai troppo affollato', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Proprietà privata'), 'Masso dei veronesi', '6a', null, 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Masso dei veronesi', '6a', null, 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Gipi', 'Ire']::text[]);
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-07-05'::date, 'Compleanno di Ire, scalato con dei suoi amici stra forti. Primo 6c blocco!', null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Proprietà privata'), 'Masso dei veronesi', '6c', 'Primo blocco 6c! Link del 6a+ sit e del classico 6a stand', 0);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Proprietà privata'), 'Muro dei Granchi', '6a+', 'uscito a destra, duro', 1);
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
-  values (vid, (select id from public.sectors where place_id = pid and name = 'Proprietà privata'), 'Muro dei Granchi', '6b', 'Allungo e via', 2);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Masso dei veronesi', '6c', 'Primo blocco 6c! Link del 6a+ sit e del classico 6a stand', 0);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Muro dei Granchi', '6a+', 'uscito a destra, duro', 1);
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
+  values (vid, null, 'Muro dei Granchi', '6b', 'Allungo e via', 2);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Ire', 'Gipi', 'SaraS']::text[]);
 
   -- Zucco dell'Angelone / Anabiasi
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Zucco dell''Angelone'), 'Anabiasi', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Zucco dell''Angelone'), null, 'Anabiasi', 'multipitch',
           45.958137, 9.459862, 45.954905, 9.465767, null, null,
           'Limestone', array['Sud']::text[], null, 'VI-')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-05-01'::date, '2 ore per trovare l''attacco, 6 ore per salire sbagliando strada ad ogni tiro. Calate sui tiri saliti bruttissime', 'Parcheggiare prima della funivia di Bobbio. imboccare il sentiero subito sotto, dietro la stessa. Seguire per il terzo/quarto sperone. Superati dei tratti con catena e cavo metallico, si arriva al canale che divide terzo e quarto sperone. Proseguire oltre a poi salire leggermente a destra, c''è una targhetta commemorativa e sopra ad esse l''attacco', 'Dalla cima c''è un sentiero non segnalato benissimo, ci si perde facilmente ma si torna giù', 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Anabiasi', 'VI-', 'Non si capisce dove andare, ci sono mille vie che si incrociano. La via in sè è carina, la rifarei per completarla (sector: Quarto sperone)', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Ale', 'Sere', 'Luca']::text[]);
 
   -- Zucco dell'Angelone / Ortofrsco + Schiavi della pietra
-  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, (select id from public.areas where name = 'Zucco dell''Angelone'), 'Ortofrsco + Schiavi della pietra', 'multipitch',
+  values (v_owner, (select id from public.areas where name = 'Zucco dell''Angelone'), null, 'Ortofrsco + Schiavi della pietra', 'multipitch',
           45.958137, 9.459862, 45.954905, 9.465767, null, null,
           'Limestone', array['Sud']::text[], null, '5b')
   returning id into pid;
   insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
   values (v_owner, pid, '2026-06-13'::date, null, null, null, 'private')
   returning id into vid;
-  insert into public.ascents (visit_id, sector_id, name, grade, comment, position)
+  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
   values (vid, null, 'Ortofrsco + Schiavi della pietra', '5b', 'Facili, ma molto carine. Prime due soste di ortofresco mancanti (sector: Terzo sperone)', 0);
   insert into public.visit_partners (visit_id, partner_id)
   select vid, p.id from public.partners p where p.owner_id = v_owner and p.name = any(array['Vale', 'Japo', 'Andre', 'SaraG', 'Fede']::text[]);

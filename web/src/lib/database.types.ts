@@ -57,9 +57,9 @@ export type Database = {
           grade_rank: number | null
           id: number
           name: string | null
+          place_id: number | null
           position: number
           route_id: number | null
-          sector_id: number | null
           visit_id: number
         }
         Insert: {
@@ -68,9 +68,9 @@ export type Database = {
           grade_rank?: number | null
           id?: never
           name?: string | null
+          place_id?: number | null
           position?: number
           route_id?: number | null
-          sector_id?: number | null
           visit_id: number
         }
         Update: {
@@ -79,24 +79,24 @@ export type Database = {
           grade_rank?: number | null
           id?: never
           name?: string | null
+          place_id?: number | null
           position?: number
           route_id?: number | null
-          sector_id?: number | null
           visit_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "ascents_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "ascents_route_id_fkey"
             columns: ["route_id"]
             isOneToOne: false
             referencedRelation: "routes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ascents_sector_id_fkey"
-            columns: ["sector_id"]
-            isOneToOne: false
-            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
           {
@@ -335,6 +335,7 @@ export type Database = {
           parking_lat: number | null
           parking_lng: number | null
           rock: string | null
+          sector_id: number | null
           start_lat: number | null
           start_lng: number | null
           updated_at: string
@@ -358,6 +359,7 @@ export type Database = {
           parking_lat?: number | null
           parking_lng?: number | null
           rock?: string | null
+          sector_id?: number | null
           start_lat?: number | null
           start_lng?: number | null
           updated_at?: string
@@ -381,6 +383,7 @@ export type Database = {
           parking_lat?: number | null
           parking_lng?: number | null
           rock?: string | null
+          sector_id?: number | null
           start_lat?: number | null
           start_lng?: number | null
           updated_at?: string
@@ -398,6 +401,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "places_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
         ]
@@ -435,7 +445,6 @@ export type Database = {
           id: number
           name: string
           place_id: number
-          sector_id: number | null
         }
         Insert: {
           created_at?: string
@@ -445,7 +454,6 @@ export type Database = {
           id?: never
           name: string
           place_id: number
-          sector_id?: number | null
         }
         Update: {
           created_at?: string
@@ -455,7 +463,6 @@ export type Database = {
           id?: never
           name?: string
           place_id?: number
-          sector_id?: number | null
         }
         Relationships: [
           {
@@ -472,40 +479,52 @@ export type Database = {
             referencedRelation: "places"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "routes_sector_id_fkey"
-            columns: ["sector_id"]
-            isOneToOne: false
-            referencedRelation: "sectors"
-            referencedColumns: ["id"]
-          },
         ]
       }
       sectors: {
         Row: {
+          area_id: number | null
+          created_at: string
+          created_by: string | null
+          description: string | null
           id: number
+          max_altitude: number | null
           name: string
-          place_id: number
-          position: number
+          updated_at: string
         }
         Insert: {
+          area_id?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
           id?: never
+          max_altitude?: number | null
           name: string
-          place_id: number
-          position?: number
+          updated_at?: string
         }
         Update: {
+          area_id?: number | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
           id?: never
+          max_altitude?: number | null
           name?: string
-          place_id?: number
-          position?: number
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "sectors_place_id_fkey"
-            columns: ["place_id"]
+            foreignKeyName: "sectors_area_id_fkey"
+            columns: ["area_id"]
             isOneToOne: false
-            referencedRelation: "places"
+            referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sectors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -707,11 +726,13 @@ export type Database = {
           place_id: number | null
           place_name: string | null
           search_text: string | null
-          sector_names: string[] | null
+          sector_id: number | null
+          sector_name: string | null
           summary: string | null
           user_id: string | null
           username: string | null
           visibility: string | null
+          wall_names: string[] | null
         }
         Relationships: [
           {
@@ -719,6 +740,13 @@ export type Database = {
             columns: ["area_id"]
             isOneToOne: false
             referencedRelation: "areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "places_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
           {
@@ -742,6 +770,7 @@ export type Database = {
       can_delete_place: { Args: { p_place_id: number }; Returns: boolean }
       can_edit_area: { Args: { p_area_id: number }; Returns: boolean }
       can_edit_place: { Args: { p_place_id: number }; Returns: boolean }
+      can_edit_sector: { Args: { p_sector_id: number }; Returns: boolean }
       complete_wish: {
         Args: { p_visit_id: number; p_wish_id: number }
         Returns: undefined

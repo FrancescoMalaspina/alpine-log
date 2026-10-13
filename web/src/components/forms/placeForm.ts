@@ -3,12 +3,11 @@ import { tr } from '../../i18n';
 import { ACTIVITIES } from '../../lib/labels';
 import type { Activity, Exposition, Place, PlaceInput } from '../../lib/types';
 
-export type SectorRow = { key: number; id?: number; name: string };
-
 /** Everything the place fields hold while being edited (raw strings, as typed). */
 export type PlaceValues = {
   activity: Activity;
   areaName: string;
+  sectorName: string;
   name: string;
   coords: string;
   parking: string;
@@ -20,20 +19,17 @@ export type PlaceValues = {
   rock: string;
   exposition: Exposition[];
   description: string;
-  sectors: SectorRow[];
 };
 
 /** Which coordinate field a "pick on map" request fills. */
 export type CoordField = 'coords' | 'parking' | 'start';
 export const coordLabel = (field: CoordField) => tr().spot.placeForm.pickLabels[field];
 
-let nextKey = 1;
-export const sectorRow = (name = '', id?: number): SectorRow => ({ key: nextKey++, id, name });
-
 export function placeValuesFrom(place?: Place): PlaceValues {
   return {
     activity: place?.activity ?? 'crag',
     areaName: place?.area?.name ?? '',
+    sectorName: place?.sector?.name ?? '',
     name: place?.name ?? '',
     coords: formatCoords(place?.lat, place?.lng),
     parking: formatCoords(place?.parking_lat, place?.parking_lng),
@@ -45,7 +41,6 @@ export function placeValuesFrom(place?: Place): PlaceValues {
     rock: place?.rock ?? '',
     exposition: place?.exposition ?? [],
     description: place?.description ?? '',
-    sectors: (place?.sectors ?? []).map(s => sectorRow(s.name, s.id)),
   };
 }
 
@@ -61,8 +56,6 @@ export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | strin
   if (v.parking.trim() && !parking) return s.parkingUnreadable;
   const start = parseCoordinates(v.start);
   if (v.start.trim() && !start) return s.startUnreadable;
-  const sectorNames = v.sectors.map(s => s.name.trim()).filter(Boolean);
-  if (new Set(sectorNames.map(s => s.toLowerCase())).size !== sectorNames.length) return s.duplicateSector;
   const f = ACTIVITIES[v.activity];
   const distance = v.distance.trim() === '' ? null : Number(v.distance.replace(',', '.'));
   if (distance != null && !(distance > 0 && distance < 1000)) return s.badDistance;
@@ -70,6 +63,7 @@ export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | strin
   return {
     id,
     area_name: v.areaName,
+    sector_name: v.sectorName.trim(),
     name: v.name.trim(),
     activity: v.activity,
     lat: pin.lat,
@@ -85,8 +79,5 @@ export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | strin
     max_altitude: f.altitude ? intOrNull(v.altitude) : null,
     elevation_gain: f.altitude ? intOrNull(v.gain) : null,
     distance_km: f.distance ? distance : null,
-    sectors: f.sectors
-      ? v.sectors.filter(s => s.name.trim()).map(s => ({ id: s.id, name: s.name.trim() }))
-      : [],
   };
 }

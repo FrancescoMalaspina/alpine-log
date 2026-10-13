@@ -132,7 +132,7 @@ describe('automap', () => {
 
     const payload = buildPayload('x.xlsx', spots.map(s => ({ ...s, lat: 45, lng: 7, matches: [], choice: 'new', pinSource: 'geocoded', pinLabel: '' }) as ResolvedSpot), 'private');
     expect(payload.visits[0].ascents).toEqual([
-      { name: 'Caramba!', grade: '6a+>5c', comment: '', route_id: null, sector_id: null, sector: '' },
+      { name: 'Caramba!', grade: '6a+>5c', comment: '', route_id: null, place_id: null, sector: '' },
     ]);
     expect(geocodeQueries(spots[1], 'Italia')).toEqual(['Dro, TN, Italia', 'Dro, Italia', 'Valle del Sarca, Italia', 'Cane Trippa, Italia']);
   });

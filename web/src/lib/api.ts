@@ -5,7 +5,7 @@
 import type { Json } from './database.types';
 import { supabase } from './supabase';
 import type {
-  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
   Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
@@ -25,10 +25,10 @@ const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, ' ').trim();
 // ---------------------------------------------------------------- places
 
 const PLACE_COLUMNS = `
-  id, created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  id, created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
   rock, exposition, description, grade, max_altitude, elevation_gain, distance_km, created_at, updated_at,
   area:areas (id, name),
-  sectors (id, name, position),
+  sector:sectors (id, name),
   visits (count)
 ` as const;
 
@@ -45,8 +45,7 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
   let q = supabase
     .from('places')
     .select(PLACE_COLUMNS)
-    .order('name')
-    .order('position', { referencedTable: 'sectors' });
+    .order('name');
 
   const s = cleanSearch(f.search);
   if (s) q = q.or(`name.ilike.%${s}%,rock.ilike.%${s}%,description.ilike.%${s}%,grade.ilike.%${s}%`);
@@ -79,15 +78,15 @@ export async function savePlace(input: PlaceInput): Promise<number> {
 export async function fetchRoutes(placeId: number): Promise<Route[]> {
   const rows = unwrap(await supabase
     .from('routes')
-    .select('id, place_id, sector_id, name, grade, grade_rank, created_by, ascents (count)')
+    .select('id, place_id, name, grade, grade_rank, created_by, ascents (count)')
     .eq('place_id', placeId)
     .order('name'));
   return rows.map(({ ascents, ...r }) => ({ ...r, ascent_count: ascents[0]?.count ?? 0 }));
 }
 
-export async function addRoute(placeId: number, route: { name: string; grade: string; sectorId: number | null }): Promise<void> {
+export async function addRoute(placeId: number, route: { name: string; grade: string }): Promise<void> {
   const { error } = await supabase.from('routes').insert({
-    place_id: placeId, name: route.name.trim(), grade: route.grade.trim() || null, sector_id: route.sectorId,
+    place_id: placeId, name: route.name.trim(), grade: route.grade.trim() || null,
   });
   if (error) {
     throw new Error(error.code === '23505' ? tr().common.errors.routeExists(route.name.trim()) : error.message);
@@ -99,9 +98,6 @@ export async function deleteRoute(id: number): Promise<void> {
   if (!rows.length) throw new Error(tr().common.errors.cantRemoveRoute);
 }
 
-export async function fetchSectors(placeId: number): Promise<{ id: number; name: string }[]> {
-  return unwrap(await supabase.from('sectors').select('id, name').eq('place_id', placeId));
-}
 
 export async function deletePlace(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('places').delete().eq('id', id).select('id'));
@@ -130,10 +126,13 @@ export async function createArea(name: string, description: string): Promise<num
   return data.id;
 }
 
-/** Moves places into an area (or out of any area with null). Returns how many changed. */
+/**
+ * Moves places into an area (or out of any area with null). Returns how many
+ * changed. They leave their sector, which belongs to the area they left.
+ */
 export async function setPlacesArea(placeIds: number[], areaId: number | null): Promise<number> {
   if (!placeIds.length) return 0;
-  const rows = unwrap(await supabase.from('places').update({ area_id: areaId }).in('id', placeIds).select('id'));
+  const rows = unwrap(await supabase.from('places').update({ area_id: areaId, sector_id: null }).in('id', placeIds).select('id'));
   return rows.length;
 }
 
@@ -150,6 +149,38 @@ export async function updateArea(id: number, patch: { name: string; description:
 export async function deleteArea(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('areas').delete().eq('id', id).select('id'));
   if (!rows.length) throw new Error(tr().common.errors.cantDeleteArea);
+}
+
+// ---------------------------------------------------------------- sectors
+
+export async function fetchSectors(): Promise<Sector[]> {
+  const rows = unwrap(await supabase
+    .from('sectors')
+    .select('id, area_id, name, description, max_altitude, created_by, places (count)')
+    .order('name'));
+  return rows.map(({ places, ...s }) => ({ ...s, place_count: places[0]?.count ?? 0 }));
+}
+
+export async function updateSector(id: number, patch: { name: string; description: string; areaId: number | null; maxAltitude: number | null }): Promise<void> {
+  const { data: rows, error } = await supabase.from('sectors')
+    .update({ name: patch.name.trim(), description: patch.description.trim() || null, area_id: patch.areaId, max_altitude: patch.maxAltitude })
+    .eq('id', id).select('id');
+  if (error) {
+    throw new Error(error.code === '23505' ? tr().common.errors.sectorExists(patch.name.trim()) : error.message);
+  }
+  if (!rows.length) throw new Error(tr().common.errors.cantChangeSector);
+}
+
+export async function deleteSector(id: number): Promise<void> {
+  const rows = unwrap(await supabase.from('sectors').delete().eq('id', id).select('id'));
+  if (!rows.length) throw new Error(tr().common.errors.cantDeleteSector);
+}
+
+/** Puts spots in a sector (or takes them out with null). Returns how many changed. */
+export async function setPlacesSector(placeIds: number[], sectorId: number | null): Promise<number> {
+  if (!placeIds.length) return 0;
+  const rows = unwrap(await supabase.from('places').update({ sector_id: sectorId }).in('id', placeIds).select('id'));
+  return rows.length;
 }
 
 // ---------------------------------------------------------------- attachments
@@ -239,7 +270,7 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
     .select(`
       id, user_id, place_id, date, summary, approach, descent, conditions, duration_hours, visibility,
       profile:profiles (username),
-      ascents (id, route_id, name, grade, comment, position, sector:sectors (id, name)),
+      ascents (id, route_id, name, grade, comment, position, place:places (id, name)),
       visit_partners (partner:partners (name))
     `)
     .eq('place_id', placeId)
@@ -261,8 +292,8 @@ export async function fetchLogbook(userId: string) {
     .select(`
       id, date, summary, approach, descent, conditions, duration_hours, visibility, created_at,
       place:places (id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
-                    area:areas (name)),
-      ascents (name, grade, comment, position, sector:sectors (name)),
+                    area:areas (name), sector:sectors (name)),
+      ascents (name, grade, comment, position, wall:places (name)),
       visit_partners (partner:partners (name))
     `)
     .eq('user_id', userId)

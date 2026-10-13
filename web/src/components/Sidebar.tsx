@@ -36,6 +36,7 @@ type Props = {
   onPlaceDetails: (place: Place) => void;
   onAddVisit: (place: Place) => void;
   onAreaClick: (areaId: number) => void;
+  onSectorClick: (sectorId: number) => void;
   onVisitClick: (visit: VisitSummary) => void;
   onLocationPick: (location: Location) => void;
   onNewArea: () => void;
@@ -146,7 +147,10 @@ export function Sidebar(props: Props) {
   );
 }
 
-/** Spots grouped under their area; the area heading opens the area. */
+/**
+ * Spots grouped under their area, and within it under their sector (spots
+ * without one first). The headings open the area or sector.
+ */
 function PlaceGroups(props: Props) {
   const { t } = useI18n();
   const groups = new Map<string, { areaId: number | null; places: Place[] }>();
@@ -169,12 +173,33 @@ function PlaceGroups(props: Props) {
             <span className="group-count">{g.places.length}</span>
           </h2>
         )}
-        <ul className="rows">
-          {g.places.map(p => <PlaceRow key={p.id} place={p} {...props} />)}
-        </ul>
+        {bySector(g.places).map(([sector, list]) => (
+          <div key={sector?.id ?? 'none'}>
+            {sector && (
+              <h3 className="sector-head">
+                <button type="button" onClick={() => props.onSectorClick(sector.id)}>{sector.name}</button>
+                <span className="group-count">{list.length}</span>
+              </h3>
+            )}
+            <ul className="rows">
+              {list.map(p => <PlaceRow key={p.id} place={p} {...props} />)}
+            </ul>
+          </div>
+        ))}
       </section>
     ))}
   </>;
+}
+
+/** Spots without a sector first, then each sector's spots, sectors by name. */
+function bySector(places: Place[]): [Place['sector'], Place[]][] {
+  const groups = new Map<number | null, [Place['sector'], Place[]]>();
+  for (const p of places) {
+    const key = p.sector?.id ?? null;
+    if (!groups.has(key)) groups.set(key, [p.sector, []]);
+    groups.get(key)![1].push(p);
+  }
+  return [...groups.values()].sort(([a], [b]) => (!a ? -1 : !b ? 1 : a.name.localeCompare(b.name)));
 }
 
 function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }: { place: Place } & Props) {
@@ -185,7 +210,6 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
     p.grade,
     p.rock,
     p.exposition.length ? t.app.sidebar.faces(p.exposition.join('/')) : null,
-    p.sectors.length ? t.app.sidebar.sectors(p.sectors.length) : null,
     p.visit_count ? t.app.sidebar.visits(p.visit_count) : null,
   ].filter(Boolean);
   return (
@@ -208,7 +232,7 @@ export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; min
     v.partner_names.length ? t.app.sidebar.withPeople(v.partner_names.join(', ')) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
     v.grades.length ? v.grades.join(', ') : null,
-    v.sector_names.length ? v.sector_names.join(', ') : null,
+    v.wall_names.length ? v.wall_names.join(', ') : null,
   ].filter(Boolean);
   return (
     <li className="row-item">
@@ -218,7 +242,9 @@ export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; min
           {!mine && v.username && <span>{t.app.sidebar.by(v.username)}</span>}
           <VisibilityPill visibility={v.visibility} />
         </span>
-        <span className="row-title"><ActivityBadge activity={v.place_activity} />{v.place_name}</span>
+        <span className="row-title">
+          <ActivityBadge activity={v.place_activity} />{v.sector_name ? `${v.sector_name} › ` : ''}{v.place_name}
+        </span>
         {v.area_name && <span className="row-meta">{v.area_name}</span>}
         {facts.length > 0 && <span className="row-meta">{facts.join('; ')}</span>}
         {v.summary && <span className="row-summary">{v.summary}</span>}
