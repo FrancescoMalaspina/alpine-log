@@ -6,7 +6,7 @@ import { ACTIVITIES, ALPINE_GRADES, activityLabel, errorMessage, gradeSuggestion
 import { ACTIVITY_ORDER, EXPOSITIONS, PROTECTIONS, type Area, type Exposition, type Sector } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
-import { TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './placeForm';
+import type { CoordField, PlaceValues } from './placeForm';
 import { TrackLoader } from './TrackLoader';
 
 const NAME_HINT: Record<PlaceValues['activity'], string> = {
@@ -93,7 +93,8 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
           ))}
         </div>
       </div>
-      {TRACK_ACTIVITIES.includes(v.activity) && <TrackLoader values={v} onChange={onChange} withVisit={withVisit} />}
+      <TrackLoader activity={v.activity} draft={v.track} onDraft={track => onChange({ track })}
+                   fields={{ values: v, onChange }} withVisit={withVisit} />
       <div className="field full">
         <label htmlFor="placeName">{s.name}</label>
         <input id="placeName" required autoFocus={autoFocusName && !isTouchLayout()} value={v.name}

@@ -57,7 +57,8 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
     setValues(v => ({ ...v, ...patch }));
     setDirty(true);
     // A visit logged with the spot takes the date and duration of a newly loaded track.
-    const fromTrack = patch.track && patch.track.file !== values.track?.file ? visitFromTrack(patch.track) : null;
+    const fromTrack = patch.track && patch.track.file !== values.track?.file && TRACK_ACTIVITIES.includes(patch.activity ?? values.activity)
+      ? visitFromTrack(patch.track) : null;
     if (fromTrack) setVisit(v => ({ ...v, ...fromTrack }));
   };
   const changeVisit = (patch: Partial<VisitValues>) => { setVisit(v => ({ ...v, ...patch })); setDirty(true); };
@@ -87,7 +88,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
       if (logVisit) {
         await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit);
       }
-      if (values.track?.save && !trackSaved && userId && TRACK_ACTIVITIES.includes(input.activity)) {
+      if (values.track?.save && !trackSaved && userId) {
         try {
           await saveTrackAt(id, userId, values.track, input.name);
           setTrackSaved(true);

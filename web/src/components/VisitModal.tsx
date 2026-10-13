@@ -6,8 +6,9 @@ import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { coordLabel, buildPlaceInput, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
+import { coordLabel, buildPlaceInput, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues, type TrackDraft } from './forms/placeForm';
 import { saveTrackAt, saveVisitAt } from './forms/save';
+import { TrackLoader } from './forms/TrackLoader';
 import { VisitFields } from './forms/VisitFields';
 import { topoOf, visitFromTrack, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
@@ -52,6 +53,8 @@ export function VisitModal({
     return initialWithPeople?.length ? { ...v, withPeople: initialWithPeople } : v;
   });
   const [tickOff, setTickOff] = useState(true);
+  // A track loaded for a visit at an existing spot; a new spot keeps its own in newPlace.
+  const [track, setTrack] = useState<TrackDraft | null>(null);
   const [routeList, setRouteList] = useState<{ placeId: number; routes: Route[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -97,7 +100,14 @@ export function VisitModal({
     setNewPlace(v => ({ ...v, ...patch }));
     setDirty(true);
     // The visit takes the date and duration of a newly loaded track.
-    const fromTrack = patch.track && patch.track.file !== newPlace.track?.file ? visitFromTrack(patch.track) : null;
+    const fromTrack = patch.track && patch.track.file !== newPlace.track?.file && TRACK_ACTIVITIES.includes(patch.activity ?? newPlace.activity)
+      ? visitFromTrack(patch.track) : null;
+    if (fromTrack) setValues(v => ({ ...v, ...fromTrack }));
+  };
+  const changeTrack = (next: TrackDraft | null) => {
+    setTrack(next);
+    setDirty(true);
+    const fromTrack = next && next.file !== track?.file && TRACK_ACTIVITIES.includes(activity) ? visitFromTrack(next) : null;
     if (fromTrack) setValues(v => ({ ...v, ...fromTrack }));
   };
   const close = () => {
@@ -142,9 +152,10 @@ export function VisitModal({
         : { id: id!, name: place!.name, grade: place!.grade, activity: place!.activity };
       const visitId = await saveVisitAt(spot, values, visit?.id);
       const failed: string[] = [];
-      if (placeInput && newPlace.track?.save && TRACK_ACTIVITIES.includes(placeInput.activity)) {
+      const spotTrack = placeInput ? newPlace.track : track;
+      if (spotTrack?.save) {
         try {
-          await saveTrackAt(id!, userId, newPlace.track, placeInput.name);
+          await saveTrackAt(id!, userId, spotTrack, spot.name);
         } catch (e) {
           failed.push(t.spot.trackLoader.savedButTrackFailed(errorMessage(e)));
         }
@@ -228,6 +239,7 @@ export function VisitModal({
       {(place || isNew) && (
         <div className="visit-modal-body">
           {isNew && <h3 className="section-title">{s.theVisit}</h3>}
+          {place && <TrackLoader activity={place.activity} draft={track} onDraft={changeTrack} withVisit />}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity}
                        walls={walls} spotName={place?.name ?? newPlace.name} routes={routes}
                        spotDetails={place

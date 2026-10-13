@@ -198,6 +198,14 @@ const en = {
     addToSharedList: "Add new route names to this spot's shared list",
   },
   trackLoader: {
+    approachTitle: 'Approach track',
+    approachHint: (fillIn: boolean): string => fillIn
+      ? 'GPX, TCX or KML of the walk in. Its start can fill in the parking, its end the map pin and the attacco.'
+      : 'GPX, TCX or KML of the walk in, saved on the spot for the next ones.',
+    visitTitle: 'Your track',
+    pinEnd: 'Map pin (the end)',
+    attaccoEnd: 'Start / attacco (the end)',
+    fillInHint: 'Nothing changes until you fill them in, and you can still edit them afterwards.',
     title: 'Fill in from a track',
     hint: 'GPX, TCX or KML, as exported by Strava, Garmin Connect, OruxMaps, Komoot, Wikiloc…',
     load: 'Load a track',

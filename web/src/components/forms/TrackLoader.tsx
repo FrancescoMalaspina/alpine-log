@@ -6,29 +6,36 @@ import { ACTIVITIES, errorMessage, formatDate, formatHours } from '../../lib/lab
 import {
   readTrackFile, summarize, trackVisit, trimTrack, usefulTrackName, TRACK_ACCEPT, type TrackPoint3,
 } from '../../lib/tracks';
+import type { Activity } from '../../lib/types';
 import { ErrorText } from '../Modal';
-import type { PlaceValues } from './placeForm';
+import { TRACK_ACTIVITIES, type PlaceValues, type TrackDraft } from './placeForm';
 
-type Field = 'name' | 'sectorName' | 'coords' | 'parking' | 'altitude' | 'gain' | 'distance' | 'startLocality';
+type Field = 'name' | 'sectorName' | 'coords' | 'parking' | 'start' | 'altitude' | 'gain' | 'distance' | 'startLocality';
 
 type Props = {
-  values: PlaceValues;
-  onChange: (patch: Partial<PlaceValues>) => void;
-  /** A visit is logged together with the spot: it takes the track's date and duration. */
+  activity: Activity;
+  draft: TrackDraft | null;
+  onDraft: (draft: TrackDraft | null) => void;
+  /** The spot being written, to fill in from the track; left out when logging a visit to an existing spot. */
+  fields?: { values: PlaceValues; onChange: (patch: Partial<PlaceValues>) => void };
+  /** A visit is logged with the track: it takes the track's date and duration. */
   withVisit?: boolean;
 };
 
 /**
- * Load a track recorded by another app to fill in a spot: the summit (or the
- * start) as the pin, the start as the parking, altitude, gain and distance.
+ * Load a track recorded by another app. On ski tours, hikes, trail runs and
+ * alpine climbs it's the outing: the summit (or the start) as the pin, the
+ * start as the parking, altitude, gain and distance. On climbing spots it's the
+ * approach: the start as the parking, the end as the pin and the attacco.
  * Only ticked fields are filled; empty fields are ticked to begin with.
  */
-export function TrackLoader({ values: v, onChange, withVisit }: Props) {
+export function TrackLoader({ activity, draft, onDraft, fields, withVisit }: Props) {
   const { t } = useI18n();
   const s = t.spot.trackLoader;
   const pf = t.spot.placeFields;
-  const draft = v.track;
-  const f = ACTIVITIES[v.activity];
+  const v = fields?.values;
+  const f = ACTIVITIES[activity];
+  const approach = !TRACK_ACTIVITIES.includes(activity);
   const [error, setError] = useState<string | null>(null);
   const [ticked, setTicked] = useState<Partial<Record<Field, boolean>>>({});
   const [place, setPlace] = useState<{ locality: string | null; summit: string | null }>({ locality: null, summit: null });
@@ -39,18 +46,18 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
   );
   const summary = useMemo(() => summarize(segments), [segments]);
   const full = useMemo(() => (draft ? summarize(draft.file.segments) : null), [draft]);
-  const pinAt = summary && (v.activity === 'trail' ? summary.start : summary.highest ?? summary.start);
+  const pinAt = summary && (approach ? summary.end : activity === 'trail' ? summary.start : summary.highest ?? summary.start);
 
   // The village at the start and the peak or hut at the summit, for the name and starting point.
-  const startKey = summary ? `${summary.start.lat.toFixed(4)},${summary.start.lng.toFixed(4)}` : '';
-  const pinKey = pinAt ? `${pinAt.lat.toFixed(4)},${pinAt.lng.toFixed(4)}` : '';
+  const startKey = summary && v ? `${summary.start.lat.toFixed(4)},${summary.start.lng.toFixed(4)}` : '';
+  const pinKey = pinAt && v && !approach ? `${pinAt.lat.toFixed(4)},${pinAt.lng.toFixed(4)}` : '';
   useEffect(() => {
-    if (!summary || !pinAt) return;
+    if (!summary || !pinAt || !startKey) return;
     const ctrl = new AbortController();
     const timer = setTimeout(() => {
       Promise.all([
         reverseGeocode(summary.start, ctrl.signal).then(r => r.locality).catch(() => null),
-        pinAt === summary.start ? Promise.resolve(null) : reverseGeocode(pinAt, ctrl.signal).then(r => r.summit).catch(() => null),
+        !pinKey || pinAt === summary.start ? Promise.resolve(null) : reverseGeocode(pinAt, ctrl.signal).then(r => r.summit).catch(() => null),
       ]).then(([locality, summit]) => { if (!ctrl.signal.aborted) setPlace({ locality, summit }); });
     }, 500);
     return () => { clearTimeout(timer); ctrl.abort(); };
@@ -65,7 +72,7 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
       if (!parsed) throw new Error(s.unreadable);
       setTicked({});
       setPlace({ locality: null, summit: null });
-      onChange({ track: { fileName: file.name, file: parsed, trimStartM: 0, trimEndM: 0, save: true } });
+      onDraft({ fileName: file.name, file: parsed, trimStartM: 0, trimEndM: 0, save: true });
     } catch (e) {
       setError(errorMessage(e));
     }
@@ -78,11 +85,12 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
     </label>
   );
 
+  const title = approach ? s.approachTitle : fields ? s.title : s.visitTitle;
   if (!draft) {
     return (
       <div className="track-loader field full">
-        <span className="field-label">{s.title}</span>
-        <span className="hint-block">{s.hint}</span>
+        <span className="field-label">{title}</span>
+        <span className="hint-block">{approach ? s.approachHint(!!fields) : s.hint}</span>
         {fileInput(s.load)}
         <ErrorText error={error} />
       </div>
@@ -90,29 +98,37 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
   }
 
   const trackName = usefulTrackName(draft.file.name);
-  const proposals: { field: Field; label: string; value: string }[] = summary ? [
-    { field: 'name' as const, label: pf.name, value: trackName ?? (v.activity === 'alpine' ? '' : place.summit ?? '') },
-    ...(v.activity === 'alpine' ? [{ field: 'sectorName' as const, label: s.sectorMountain, value: place.summit ?? '' }] : []),
-    { field: 'coords' as const, label: v.activity === 'trail' ? s.pinStart : s.pinSummit, value: formatCoords(pinAt!.lat, pinAt!.lng) },
-    { field: 'parking' as const, label: s.parkingStart, value: formatCoords(summary.start.lat, summary.start.lng) },
+  const startAt = summary && formatCoords(summary.start.lat, summary.start.lng);
+  const endAt = summary && formatCoords(summary.end.lat, summary.end.lng);
+  const proposals: { field: Field; label: string; value: string }[] = !summary || !v ? [] : approach ? [
+    { field: 'parking' as const, label: s.parkingStart, value: startAt! },
+    { field: 'coords' as const, label: s.pinEnd, value: endAt! },
+    { field: 'start' as const, label: s.attaccoEnd, value: endAt! },
+    { field: 'startLocality' as const, label: pf.startLocality, value: place.locality ?? '' },
+  ].filter(p => p.value) : [
+    { field: 'name' as const, label: pf.name, value: trackName ?? (activity === 'alpine' ? '' : place.summit ?? '') },
+    ...(activity === 'alpine' ? [{ field: 'sectorName' as const, label: s.sectorMountain, value: place.summit ?? '' }] : []),
+    { field: 'coords' as const, label: activity === 'trail' ? s.pinStart : s.pinSummit, value: formatCoords(pinAt!.lat, pinAt!.lng) },
+    { field: 'parking' as const, label: s.parkingStart, value: startAt! },
     { field: 'startLocality' as const, label: pf.startLocality, value: place.locality ?? '' },
     ...(f.altitude && summary.maxEleM != null ? [{ field: 'altitude' as const, label: pf.maxAltitude, value: String(Math.round(summary.maxEleM)) }] : []),
     ...(f.altitude && summary.gainM != null ? [{ field: 'gain' as const, label: pf.elevationGain, value: String(Math.round(summary.gainM)) }] : []),
     ...(f.distance ? [{ field: 'distance' as const, label: pf.distance, value: summary.distanceKm.toFixed(1) }] : []),
-  ].filter(p => p.value) : [];
-  const isTicked = (p: { field: Field }) => ticked[p.field] ?? !v[p.field].trim();
-  const pending = proposals.filter(p => v[p.field] !== p.value);
+  ].filter(p => p.value);
+  const isTicked = (p: { field: Field }) => ticked[p.field] ?? !v![p.field].trim();
+  const pending = proposals.filter(p => v![p.field] !== p.value);
 
   const apply = () => {
     const patch: Partial<PlaceValues> = {};
     for (const p of pending) if (isTicked(p)) patch[p.field] = p.value;
-    onChange(patch);
+    fields!.onChange(patch);
     setTicked({});
   };
   const setTrim = (key: 'trimStartM' | 'trimEndM', raw: string) =>
-    onChange({ track: { ...draft, [key]: Math.max(0, Number(raw) || 0) } });
+    onDraft({ ...draft, [key]: Math.max(0, Number(raw) || 0) });
 
-  const visit = full && trackVisit(full);
+  // An approach track's times are the walk in, not the visit.
+  const visit = full && !approach ? trackVisit(full) : null;
   const stats = summary && [
     `${summary.distanceKm.toFixed(1)} km`,
     summary.gainM != null ? `+${Math.round(summary.gainM)} m` : null,
@@ -124,9 +140,9 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
   return (
     <div className="track-loader field full">
       <div className="track-head">
-        <span className="field-label">{s.title}</span>
+        <span className="field-label">{title}</span>
         <span className="track-file">{draft.fileName}</span>
-        <button type="button" className="link-btn" onClick={() => onChange({ track: null })}>{s.remove}</button>
+        <button type="button" className="link-btn" onClick={() => onDraft(null)}>{s.remove}</button>
       </div>
       <TrackPreview full={draft.file.segments} kept={segments} pin={pinAt} />
       {stats && <div className="hint-block num">{stats}</div>}
@@ -144,9 +160,10 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
       </div>
       {!summary && <ErrorText error={s.trimmedAll} />}
 
-      {proposals.length > 0 && (
+      {v && proposals.length > 0 && (
         <div className="track-proposals">
           <span className="field-label">{s.fillIn}</span>
+          <span className="hint-block">{s.fillInHint}</span>
           <ul>
             {proposals.map(p => {
               const done = v[p.field] === p.value;
@@ -171,7 +188,7 @@ export function TrackLoader({ values: v, onChange, withVisit }: Props) {
         <div className="hint-block">{s.visitFromTrack(formatDate(visit.date), visit.hours ? formatHours(visit.hours) : null)}</div>
       )}
       <label className="field-inline">
-        <input type="checkbox" checked={draft.save} onChange={e => onChange({ track: { ...draft, save: e.target.checked } })} />
+        <input type="checkbox" checked={draft.save} onChange={e => onDraft({ ...draft, save: e.target.checked })} />
         {s.save}
       </label>
       <span className="hint-block">{s.saveHint}</span>

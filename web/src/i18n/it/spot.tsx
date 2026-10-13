@@ -197,6 +197,14 @@ const it: Widen<typeof en> = {
     addToSharedList: "Aggiungi i nuovi nomi di via all'elenco condiviso di questo spot",
   },
   trackLoader: {
+    approachTitle: 'Traccia di avvicinamento',
+    approachHint: (fillIn: boolean) => fillIn
+      ? "GPX, TCX o KML dell'avvicinamento. L'inizio può compilare il parcheggio, la fine il segnaposto e l'attacco."
+      : "GPX, TCX o KML dell'avvicinamento, salvato sullo spot per chi ci va dopo.",
+    visitTitle: 'La tua traccia',
+    pinEnd: 'Segnaposto (la fine)',
+    attaccoEnd: 'Attacco (la fine)',
+    fillInHint: 'Non cambia niente finché non li compili, e dopo puoi comunque modificarli.',
     title: 'Compila da una traccia',
     hint: 'GPX, TCX o KML, come li esportano Strava, Garmin Connect, OruxMaps, Komoot, Wikiloc…',
     load: 'Carica una traccia',
