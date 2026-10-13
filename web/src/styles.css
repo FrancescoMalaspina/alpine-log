@@ -801,6 +801,11 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 .routes-list { display: flex; flex-direction: column; gap: 8px; }
 .route-row { display: flex; align-items: center; gap: 6px; }
 .route-item { display: flex; flex-direction: column; gap: 4px; }
+/* Your climb of a route-type spot: small labelled fields, the topo's values as placeholders. */
+.your-climb { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px 10px; margin-bottom: 4px; }
+.your-climb label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--slate); min-width: 0; }
+.your-climb input, .your-climb select { width: 100%; min-width: 0; }
+.your-climb .your-climb-wide { grid-column: 1 / -1; }
 .route-extra { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-left: 2px; }
 .route-extra select, .route-extra input { font-size: 14px; padding: 4px 8px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--plate); }
 .route-override { display: flex; align-items: center; gap: 4px; font-size: 13.5px; color: var(--slate); }

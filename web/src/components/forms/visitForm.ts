@@ -1,6 +1,7 @@
 import { tr } from '../../i18n';
 import { ACTIVITIES, localToday } from '../../lib/labels';
 import type { Activity, AscentStyle, Place, Visibility, VisitDetail, VisitInput } from '../../lib/types';
+import type { PlaceValues } from './placeForm';
 
 /**
  * A route row. `wallId` is another spot of the visit's sector the route was
@@ -36,14 +37,23 @@ export const ascentRow = (): AscentRow => ({
 });
 
 /**
- * Empty or existing visit values. For a new visit at a spot that is itself a
- * route (multipitch, alpine, ice), the first route row is that route.
+ * Empty or existing visit values. At a spot that is itself a route
+ * (multipitch, alpine, ice), the first row is your climb of that route: it
+ * holds only what you'd say differently from the topo, so its name, and a
+ * grade equal to the spot's, are left empty (the form shows the topo's as
+ * placeholders; saving fills them back in).
  */
 export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' | 'grade' | 'activity'>): VisitValues {
-  const first = ascentRow();
-  if (!visit && spot && ACTIVITIES[spot.activity].isRoute) {
-    first.name = spot.name;
-    first.grade = spot.grade ?? '';
+  const isRoute = !!spot && ACTIVITIES[spot.activity].isRoute;
+  const same = (a: string | null, b: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+  const rows: AscentRow[] = (visit?.ascents ?? []).map(a => ({
+    key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '',
+    wallId: a.place ? String(a.place.id) : '',
+    style: a.style, pitches: a.pitches?.toString() ?? '', aid: a.aid ?? '',
+  }));
+  if (isRoute && rows[0] && !rows[0].wallId && same(rows[0].name, spot.name)) {
+    rows[0].name = '';
+    if (same(rows[0].grade, spot.grade)) rows[0].grade = '';
   }
   return {
     date: visit ? visit.date ?? '' : localToday(),
@@ -56,13 +66,7 @@ export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' |
     descent: visit?.descent ?? '',
     conditions: visit?.conditions ?? '',
     duration: visit?.duration_hours?.toString() ?? '',
-    ascents: visit?.ascents.length
-      ? visit.ascents.map(a => ({
-        key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '',
-        wallId: a.place ? String(a.place.id) : '',
-        style: a.style, pitches: a.pitches?.toString() ?? '', aid: a.aid ?? '',
-      }))
-      : [first],
+    ascents: rows.length ? rows : [ascentRow()],
     addRoutes: false,
   };
 }
@@ -76,6 +80,13 @@ export function visitProblem(v: VisitValues): string | null {
     ? tr().spot.visitForm.empty
     : null;
 }
+
+/** A spot being written in the form, as the topo values a visit's climb overrides. */
+export const topoOf = (p: Pick<PlaceValues, 'grade' | 'pitches' | 'aid'>) => ({
+  grade: p.grade.trim() || null,
+  pitches: p.pitches.trim() ? Number(p.pitches) : null,
+  aid: p.aid.trim() || null,
+});
 
 /** The spot a visit is saved at: its route, when the spot is itself a route. */
 export type VisitSpot = { id: number; name: string; grade: string | null; activity: Activity };

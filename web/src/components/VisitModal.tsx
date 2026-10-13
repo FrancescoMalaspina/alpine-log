@@ -9,7 +9,7 @@ import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
 import { saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
-import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
+import { topoOf, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
 import type { PickOnMap } from './PlaceModal';
 
@@ -77,7 +77,7 @@ export function VisitModal({
     return () => { cancelled = true; };
   }, [place]);
 
-  // A new visit at a route-type spot starts with that route filled in.
+  // Picking another spot for a new visit resets the untouched route rows to that spot's.
   const choose = (next: string) => {
     setChoice(next);
     setDirty(true);
@@ -217,7 +217,9 @@ export function VisitModal({
           {isNew && <h3 className="section-title">{s.theVisit}</h3>}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity}
                        walls={walls} spotName={place?.name ?? newPlace.name} routes={routes}
-                       spotDetails={place ? { pitches: place.pitches, aid: place.aid } : undefined} />
+                       spotDetails={place
+                         ? { grade: place.grade, pitches: place.pitches, aid: place.aid }
+                         : topoOf(newPlace)} />
           {wish && (
             <label className="field-inline wish-tick">
               <input type="checkbox" checked={tickOff} onChange={e => setTickOff(e.target.checked)} />

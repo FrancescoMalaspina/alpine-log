@@ -19,8 +19,8 @@ type Props = {
   spotName: string;
   /** The spot's shared route list, offered while typing route names. */
   routes?: Route[];
-  /** The spot's own pitches and aid, shown as what a route row overrides. */
-  spotDetails?: { pitches: number | null; aid: string | null };
+  /** The spot's topo values, shown as what your climb overrides. */
+  spotDetails?: { grade: string | null; pitches: number | null; aid: string | null };
 };
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
@@ -35,6 +35,10 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
     const listed = !row.wallId && routes.find(r => r.name.toLowerCase() === name.trim().toLowerCase());
     updateAscent(row.key, listed ? { name, grade: row.grade || listed.grade || '' } : { name });
   };
+  // At a route-type spot, the first row is your climb of that route; any others are other routes that day.
+  const first = f.isRoute ? v.ascents[0] : undefined;
+  const others = f.isRoute ? v.ascents.slice(1) : v.ascents;
+  const topo = (value: string | null | undefined) => (value ? s.asTopo(value) : '');
   const unlisted = v.ascents.some(a => a.name.trim() && !routes.some(r => r.name.toLowerCase() === a.name.trim().toLowerCase()));
 
   return (
@@ -98,10 +102,45 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
       )}
 
       {f.routes && <>
-      <span className="field-label">{f.isRoute ? s.theRoute : s.routes}</span>
-      {f.isRoute && <span className="hint-block">{s.routeIsSpot}</span>}
+      {f.isRoute && first && <>
+        <span className="field-label">{s.yourClimb}</span>
+        <span className="hint-block">{s.yourClimbHint}</span>
+        <div className="your-climb">
+          {first.name.trim() !== '' && (
+            <label className="your-climb-wide"><span>{s.routeName}</span>
+              <input type="text" value={first.name} placeholder={spotName} onChange={e => updateAscent(first.key, { name: e.target.value })} />
+            </label>
+          )}
+          <label><span>{s.style}</span>
+            <select value={first.style ?? ''} onChange={e => updateAscent(first.key, { style: (e.target.value || null) as AscentStyle | null })}>
+              <option value="">–</option>
+              {ASCENT_STYLES.map(st => <option key={st} value={st}>{styleLabel(st)}</option>)}
+            </select>
+          </label>
+          <label><span>{s.yourGrade}</span>
+            <input type="text" className="num" value={first.grade} list="visitGradeOptions"
+                   placeholder={topo(spotDetails?.grade)} onChange={e => updateAscent(first.key, { grade: e.target.value })} />
+          </label>
+          {f.pitches && <>
+            <label><span>{s.pitchesDone}</span>
+              <input type="number" inputMode="numeric" min={1} max={200} value={first.pitches}
+                     placeholder={topo(spotDetails?.pitches?.toString())} onChange={e => updateAscent(first.key, { pitches: e.target.value })} />
+            </label>
+            <label><span>{s.aidUsed}</span>
+              <input type="text" value={first.aid} placeholder={topo(spotDetails?.aid)}
+                     onChange={e => updateAscent(first.key, { aid: e.target.value })} />
+            </label>
+          </>}
+          <label className="your-climb-wide"><span>{s.comment}</span>
+            <input type="text" value={first.comment} placeholder={s.yourClimbComment}
+                   onChange={e => updateAscent(first.key, { comment: e.target.value })} />
+          </label>
+        </div>
+        {others.length > 0 && <span className="field-label">{s.otherRoutes}</span>}
+      </>}
+      {!f.isRoute && <span className="field-label">{s.routes}</span>}
       <div className="routes-list">
-        {v.ascents.map(a => (
+        {others.map(a => (
           <div key={a.key} className="route-item">
           <div className="route-row">
             <input type="text" className="route-name" placeholder={s.routeName} aria-label={s.routeName} value={a.name}

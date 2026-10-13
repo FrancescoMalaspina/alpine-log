@@ -8,7 +8,7 @@ import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
 import { saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
-import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
+import { topoOf, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
 import { ErrorText, Modal } from './Modal';
 
 export type PickOnMap = (label: string, apply: (at: LatLng) => void) => void;
@@ -126,7 +126,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
             </label>
             {logVisit && (
               <VisitFields values={visit} onChange={changeVisit} partners={partners} activity={values.activity}
-                           walls={[]} spotName={values.name} />
+                           walls={[]} spotName={values.name} spotDetails={topoOf(values)} />
             )}
           </div>
         )}
