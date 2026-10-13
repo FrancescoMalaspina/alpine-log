@@ -3,7 +3,7 @@ import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers
 import { formatCoords } from '../lib/coords';
 import type { Track } from '../lib/gpx';
 import { useI18n } from '../i18n';
-import { ACTIVITIES, activityLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
+import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
 import type { Place, Route, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
@@ -106,6 +106,16 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
   if (p.elevation_gain != null) rows.push([s.elevationGain, `${p.elevation_gain} m`]);
   if (p.rock) rows.push([s.rock, p.rock]);
   if (p.exposition.length) rows.push([s.faces, p.exposition.join(', ')]);
+  if (p.grade_obligatory) rows.push([s.gradeObligatory, p.grade_obligatory]);
+  if (p.aid) rows.push([s.aid, p.aid]);
+  if (p.alpine_grade) rows.push([s.alpineGrade, p.alpine_grade]);
+  if (p.pitches != null || p.length_m != null) {
+    rows.push([s.pitchesLength, [p.pitches != null ? s.pitches(p.pitches) : null, p.length_m != null ? `${p.length_m} m` : null]
+      .filter(Boolean).join(', ')]);
+  }
+  if (p.protection) rows.push([s.protection, protectionLabel(p.protection)]);
+  if (p.start_locality) rows.push([s.startLocality, p.start_locality]);
+  if (p.country || p.province) rows.push([s.location, [p.province, p.country].filter(Boolean).join(', ')]);
 
   return (
     <div className="place-info">
@@ -194,7 +204,7 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
       <div className="visit-detail">
         {!visits && !error && <div className="empty">{t.common.loading}</div>}
         {visits && !selected && <div className="empty">{s.noVisits}</div>}
-        {selected && <VisitDetailBody visit={selected} mine={mine} />}
+        {selected && <VisitDetailBody visit={selected} mine={mine} spot={place} />}
         {selected && (
           <PhotoGallery key={selected.id} owner={{ visitId: selected.id }} userId={userId} isAdmin={isAdmin} canAdd={mine}
                         emptyText={mine ? s.noPhotosMine : s.noPhotosOther} />
@@ -210,18 +220,20 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
   );
 }
 
-function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean }) {
+function VisitDetailBody({ visit: v, mine, spot }: { visit: VisitDetail; mine: boolean; spot: Place }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const meta = [
     v.date ? formatDate(v.date) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
     v.partners.length ? s.with(v.partners.join(', ')) : null,
+    v.other_partners.length ? s.otherRopes(v.other_partners.join(', ')) : null,
     !mine && v.username ? s.by(v.username) : null,
   ].filter(Boolean).join(', ');
   return <>
     <div className="visit-meta">
       {meta && <span>{meta}</span>}
+      {v.rating != null && <Stars rating={v.rating} />}
       <VisibilityPill visibility={v.visibility} />
     </div>
     {v.summary && <div className="description">{v.summary}</div>}
@@ -237,6 +249,14 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
                 {a.name ? <b>{a.name}</b> : <b className="unnamed">{s.unnamedRoute}</b>}
                 {a.grade && <span className="ascent-grade num">{a.grade}</span>}
                 {a.place && <span className="ascent-sector">{a.place.name}</span>}
+                {a.style && <span className={`ascent-style ${a.style}`}>{styleLabel(a.style)}</span>}
+                {a.pitches != null && (
+                  <span className="ascent-override">
+                    {spot.pitches != null && spot.pitches !== a.pitches && !a.place
+                      ? s.pitchesOf(a.pitches, spot.pitches) : s.pitches(a.pitches)}
+                  </span>
+                )}
+                {a.aid && <span className="ascent-override">{a.aid}</span>}
               </span>,
               a.comment && <span key="c" className="ascent-comment">{a.comment}</span>,
             ]}
@@ -245,6 +265,16 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
       </ul>
     ) : <div className="empty">{s.noRoutesLogged}</div>}
   </>;
+}
+
+/** A 1–5 rating as stars. */
+export function Stars({ rating }: { rating: number }) {
+  const { t } = useI18n();
+  return (
+    <span className="stars" role="img" aria-label={t.spot.visitFields.stars(rating)}>
+      {'★'.repeat(rating)}<span className="stars-off">{'★'.repeat(5 - rating)}</span>
+    </span>
+  );
 }
 
 /**

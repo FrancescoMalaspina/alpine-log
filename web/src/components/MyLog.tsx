@@ -110,7 +110,8 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
           <table className="stats-table">
             <thead>
               <tr><th scope="col">{t.account.myLog.activity}</th><th scope="col">{t.account.myLog.days}</th>
-                <th scope="col">{t.account.myLog.routesTotal}</th><th scope="col">{t.account.myLog.hardest}</th></tr>
+                <th scope="col">{t.account.myLog.routesTotal}</th><th scope="col">{t.account.myLog.hardest}</th>
+                <th scope="col">{t.account.myLog.hardestSent}</th></tr>
             </thead>
             <tbody>
               {stats.byActivity.map(a => (
@@ -119,6 +120,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
                   <td className="num">{a.days}</td>
                   <td className="num">{a.routes}</td>
                   <td className="num">{a.hardest ?? '–'}</td>
+                  <td className="num">{a.hardestSent ?? '–'}</td>
                 </tr>
               ))}
             </tbody>

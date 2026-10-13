@@ -3,7 +3,8 @@ import { ACTIVITIES } from './labels';
 import { ACTIVITY_ORDER, type Activity, type VisitSummary } from './types';
 
 export type Tally = { days: number; routes: number };
-export type ActivityTally = Tally & { type: Activity; hardest: string | null };
+/** hardestSent: the hardest climbing grade not marked as an attempt. */
+export type ActivityTally = Tally & { type: Activity; hardest: string | null; hardestSent: string | null };
 export type LogStats = {
   totals: Tally & { places: number; areas: number; first: string | null; last: string | null };
   byActivity: ActivityTally[];
@@ -25,17 +26,22 @@ function difficulty(type: Activity, grade: string): number | null {
 /** A "day" is one visit, counted toward its spot's activity. */
 export function computeStats(visits: VisitSummary[]): LogStats {
   const dates = visits.map(v => v.date).filter((d): d is string => !!d).sort();
-  const acts = new Map<Activity, ActivityTally & { best: number }>();
+  const acts = new Map<Activity, ActivityTally & { best: number; bestSent: number }>();
   const years = new Map<string, Tally>();
 
   for (const v of visits) {
     const type = v.place_activity;
-    const a = acts.get(type) ?? { type, days: 0, routes: 0, hardest: null, best: -Infinity };
+    const a = acts.get(type) ?? { type, days: 0, routes: 0, hardest: null, hardestSent: null, best: -Infinity, bestSent: -Infinity };
     a.days += 1;
     a.routes += v.ascent_count;
     for (const g of v.grades) {
       const d = difficulty(type, g);
       if (d != null && d > a.best) { a.best = d; a.hardest = g; }
+    }
+    const sent = v.max_sent_grade_rank;
+    if (CLIMBING.includes(type) && sent != null && sent > a.bestSent) {
+      a.bestSent = sent;
+      a.hardestSent = v.grades.find(g => gradeRank(g) === sent) ?? a.hardestSent;
     }
     acts.set(type, a);
 
@@ -56,7 +62,7 @@ export function computeStats(visits: VisitSummary[]): LogStats {
       last: dates[dates.length - 1] ?? null,
     },
     byActivity: ACTIVITY_ORDER.filter(t => acts.has(t)).map(t => {
-      const { best: _best, ...tally } = acts.get(t)!;
+      const { best: _best, bestSent: _bestSent, ...tally } = acts.get(t)!;
       return tally;
     }),
     byYear: [...years.entries()]

@@ -216,7 +216,8 @@ export function VisitModal({
         <div className="visit-modal-body">
           {isNew && <h3 className="section-title">{s.theVisit}</h3>}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity}
-                       walls={walls} spotName={place?.name ?? newPlace.name} routes={routes} />
+                       walls={walls} spotName={place?.name ?? newPlace.name} routes={routes}
+                       spotDetails={place ? { pitches: place.pitches, aid: place.aid } : undefined} />
           {wish && (
             <label className="field-inline wish-tick">
               <input type="checkbox" checked={tickOff} onChange={e => setTickOff(e.target.checked)} />

@@ -1,7 +1,7 @@
 import { useI18n } from '../../i18n';
 import { PeopleField } from './PeopleField';
-import { ACTIVITIES, gradeSuggestions } from '../../lib/labels';
-import type { Activity, Partner, Route } from '../../lib/types';
+import { ACTIVITIES, gradeSuggestions, styleLabel } from '../../lib/labels';
+import { ASCENT_STYLES, type Activity, type AscentStyle, type Partner, type Route } from '../../lib/types';
 import { ascentRow, type AscentRow, type VisitValues } from './visitForm';
 
 type Props = {
@@ -19,10 +19,12 @@ type Props = {
   spotName: string;
   /** The spot's shared route list, offered while typing route names. */
   routes?: Route[];
+  /** The spot's own pitches and aid, shown as what a route row overrides. */
+  spotDetails?: { pitches: number | null; aid: string | null };
 };
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
-export function VisitFields({ values: v, onChange, partners, activity, walls, spotName, routes = [] }: Props) {
+export function VisitFields({ values: v, onChange, partners, activity, walls, spotName, routes = [], spotDetails }: Props) {
   const { t } = useI18n();
   const s = t.spot.visitFields;
   const f = ACTIVITIES[activity];
@@ -59,9 +61,22 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
 
       <PeopleField label={s.withLabel} partners={partners} value={v.withPeople}
                    onChange={withPeople => onChange({ withPeople })} />
+      <details className="other-ropes" open={v.otherPeople.length > 0 || undefined}>
+        <summary>{s.otherRopes(v.otherPeople.length)}</summary>
+        <PeopleField label={s.otherRopesLabel} partners={partners} value={v.otherPeople}
+                     onChange={otherPeople => onChange({ otherPeople })} />
+      </details>
 
       <textarea className="visit-summary" placeholder={s.summaryPlaceholder} aria-label={s.summary} value={v.summary}
                 onChange={e => onChange({ summary: e.target.value })} />
+      <div className="rating-field" role="radiogroup" aria-label={s.rating}>
+        <span className="field-label">{s.rating}</span>
+        {[1, 2, 3, 4, 5].map(n => (
+          <button key={n} type="button" role="radio" aria-checked={v.rating === n} aria-label={s.stars(n)}
+                  className={`star${v.rating != null && n <= v.rating ? ' on' : ''}`}
+                  onClick={() => onChange({ rating: v.rating === n ? null : n })}>★</button>
+        ))}
+      </div>
       {f.conditions && (
         <div className="visit-row">
           <input type="text" className="visit-conditions" placeholder={s.conditionsPlaceholder}
@@ -87,7 +102,8 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
       {f.isRoute && <span className="hint-block">{s.routeIsSpot}</span>}
       <div className="routes-list">
         {v.ascents.map(a => (
-          <div key={a.key} className="route-row">
+          <div key={a.key} className="route-item">
+          <div className="route-row">
             <input type="text" className="route-name" placeholder={s.routeName} aria-label={s.routeName} value={a.name}
                    list={routes.length ? 'spotRouteOptions' : undefined} onChange={e => setRouteName(a, e.target.value)} />
             <input type="text" className="route-grade num" placeholder={s.grade} aria-label={s.grade} value={a.grade}
@@ -103,6 +119,27 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
                    onChange={e => updateAscent(a.key, { comment: e.target.value })} />
             <button type="button" aria-label={s.removeRoute}
                     onClick={() => onChange({ ascents: v.ascents.filter(x => x.key !== a.key) })}>×</button>
+          </div>
+          <div className="route-extra">
+            <select className="route-style" value={a.style ?? ''} aria-label={s.style}
+                    onChange={e => updateAscent(a.key, { style: (e.target.value || null) as AscentStyle | null })}>
+              <option value="">{s.styleUnset}</option>
+              {ASCENT_STYLES.map(st => <option key={st} value={st}>{styleLabel(st)}</option>)}
+            </select>
+            {f.pitches && <>
+              <label className="route-override">
+                <span>{s.pitches}</span>
+                <input type="number" inputMode="numeric" min={1} max={200} value={a.pitches}
+                       placeholder={spotDetails?.pitches?.toString() ?? ''} aria-label={s.pitchesOverride}
+                       onChange={e => updateAscent(a.key, { pitches: e.target.value })} />
+              </label>
+              <label className="route-override">
+                <span>{s.aid}</span>
+                <input type="text" value={a.aid} placeholder={spotDetails?.aid ?? ''} aria-label={s.aidOverride}
+                       onChange={e => updateAscent(a.key, { aid: e.target.value })} />
+              </label>
+            </>}
+          </div>
           </div>
         ))}
       </div>

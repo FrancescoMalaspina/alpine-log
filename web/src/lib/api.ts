@@ -27,6 +27,7 @@ const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, ' ').trim();
 const PLACE_COLUMNS = `
   id, created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
   rock, exposition, description, grade, max_altitude, elevation_gain, distance_km, created_at, updated_at,
+  country, province, start_locality, protection, pitches, length_m, alpine_grade, grade_obligatory, grade_obligatory_rank, aid,
   area:areas (id, name),
   sector:sectors (id, name),
   visits (count)
@@ -53,12 +54,16 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
   if (f.areaId) q = q.eq('area_id', f.areaId);
   if (f.rock) q = q.eq('rock', f.rock);
   if (f.exposition.length) q = q.overlaps('exposition', f.exposition);
+  if (f.protection.length) q = q.in('protection', f.protection);
+  if (f.maxObligatoryRank != null) q = q.lte('grade_obligatory_rank', f.maxObligatoryRank);
+  if (f.country) q = q.eq('country', f.country);
   if (nearIds) q = q.in('id', nearIds);
 
   return unwrap(await q).map(({ visits, ...p }) => ({
     ...p,
     activity: p.activity as Place['activity'],
     exposition: p.exposition as Place['exposition'],
+    protection: p.protection as Place['protection'],
     visit_count: visits[0]?.count ?? 0,
   }));
 }
@@ -268,20 +273,24 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
   const rows = unwrap(await supabase
     .from('visits')
     .select(`
-      id, user_id, place_id, date, summary, approach, descent, conditions, duration_hours, visibility,
+      id, user_id, place_id, date, summary, approach, descent, conditions, duration_hours, visibility, rating,
       profile:profiles (username),
-      ascents (id, route_id, name, grade, comment, position, place:places (id, name)),
-      visit_partners (partner:partners (name))
+      ascents (id, route_id, name, grade, comment, position, style, pitches, aid, place:places (id, name)),
+      visit_partners (same_rope, partner:partners (name))
     `)
     .eq('place_id', placeId)
     .order('date', { ascending: false, nullsFirst: false })
     .order('position', { referencedTable: 'ascents' }));
 
-  return rows.map(({ profile, visit_partners, ...v }) => ({
+  const names = (list: { partner: { name: string } | null }[]) =>
+    list.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort();
+  return rows.map(({ profile, visit_partners, ascents, ...v }) => ({
     ...v,
     visibility: v.visibility as VisitDetail['visibility'],
     username: profile?.username ?? null,
-    partners: visit_partners.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort(),
+    ascents: ascents.map(a => ({ ...a, style: a.style as VisitDetail['ascents'][number]['style'] })),
+    partners: names(visit_partners.filter(vp => vp.same_rope)),
+    other_partners: names(visit_partners.filter(vp => !vp.same_rope)),
   }));
 }
 
@@ -290,18 +299,22 @@ export async function fetchLogbook(userId: string) {
   const rows = unwrap(await supabase
     .from('visits')
     .select(`
-      id, date, summary, approach, descent, conditions, duration_hours, visibility, created_at,
+      id, date, summary, approach, descent, conditions, duration_hours, visibility, rating, created_at,
       place:places (id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
+                    country, province, start_locality, protection, pitches, length_m, alpine_grade, grade_obligatory, aid,
                     area:areas (name), sector:sectors (name)),
-      ascents (name, grade, comment, position, wall:places (name)),
-      visit_partners (partner:partners (name))
+      ascents (name, grade, comment, position, style, pitches, aid, wall:places (name)),
+      visit_partners (same_rope, partner:partners (name))
     `)
     .eq('user_id', userId)
     .order('date', { ascending: false, nullsFirst: false })
     .order('position', { referencedTable: 'ascents' }));
+  const names = (list: { partner: { name: string } | null }[]) =>
+    list.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort();
   return rows.map(({ visit_partners, ...v }) => ({
     ...v,
-    partners: visit_partners.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort(),
+    partners: names(visit_partners.filter(vp => vp.same_rope)),
+    other_partners: names(visit_partners.filter(vp => !vp.same_rope)),
   }));
 }
 export type LogbookVisit = Awaited<ReturnType<typeof fetchLogbook>>[number];

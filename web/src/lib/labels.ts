@@ -1,6 +1,6 @@
 import { locale, tr } from '../i18n';
 import { GRADE_OPTIONS } from './grades';
-import type { Activity } from './types';
+import type { Activity, AscentStyle, Protection } from './types';
 
 /** Which fields make sense for a spot (and its visits) of each activity. */
 type Fields = {
@@ -18,6 +18,12 @@ type Fields = {
   isRoute: boolean;
   /** Visits log the routes climbed. */
   routes: boolean;
+  /** A route of several pitches: pitches, climbing length, mandatory grade, aid. */
+  pitches: boolean;
+  /** Bolted, trad or mixed. */
+  protection: boolean;
+  /** An overall alpine grade (F … ED) besides the technical one. */
+  alpineGrade: boolean;
 };
 
 type ActivityInfo = Fields & {
@@ -34,41 +40,50 @@ export const ACTIVITIES: Record<Activity, ActivityInfo> = {
   crag: {
     color: '#4A5560', grades: FRENCH,
     routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    pitches: false, protection: true, alpineGrade: false,
   },
   multipitch: {
     color: '#A55A17', grades: FRENCH,
     routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    pitches: true, protection: true, alpineGrade: true,
   },
   alpine: {
     color: '#6A4C93',
     grades: ['F', 'PD-', 'PD', 'PD+', 'AD-', 'AD', 'AD+', 'D-', 'D', 'D+', 'TD-', 'TD', 'TD+', 'ED'],
     routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    pitches: true, protection: true, alpineGrade: true,
   },
   ice: {
     color: '#1F7898',
     grades: ['WI2', 'WI3', 'WI3+', 'WI4', 'WI4+', 'WI5', 'WI5+', 'WI6', 'M4', 'M5', 'M6', 'M7'],
     routeList: false, rock: false, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    pitches: true, protection: false, alpineGrade: true,
   },
   dws: {
     color: '#2E4FA3', grades: ['S0', 'S1', 'S2', 'S3', ...FRENCH],
     routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: true, isRoute: false, routes: true,
+    pitches: false, protection: false, alpineGrade: false,
   },
   indoor: {
     color: '#8C6D1F', grades: [...FRENCH, ...FONT],
     routeList: true, rock: false, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    pitches: false, protection: false, alpineGrade: false,
   },
   ski: {
     color: '#2F7D5B',
     grades: ['MS', 'MSA', 'BS', 'BSA', 'OS', 'OSA', '1.2', '1.3', '2.1', '2.3', '3.1', '3.3', '4.1', '5.1'],
     routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    pitches: false, protection: false, alpineGrade: false,
   },
   hike: {
     color: '#6E7B22', grades: ['T', 'E', 'EE', 'EEA', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'],
     routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    pitches: false, protection: false, alpineGrade: false,
   },
   trail: {
     color: '#B03A6E', grades: [],
     routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    pitches: false, protection: false, alpineGrade: false,
   },
 };
 
@@ -78,6 +93,10 @@ export const gradeSuggestions = (a: Activity) => ACTIVITIES[a].grades;
 
 /** English-only plural; interface text uses the dictionary's plural functions instead. */
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+export const protectionLabel = (p: Protection) => tr().common.protections[p];
+export const styleLabel = (st: AscentStyle) => tr().common.styles[st];
+/** Alpine grades, for the overall grade of routes and alpine climbs. */
+export const ALPINE_GRADES = ['F', 'F+', 'PD-', 'PD', 'PD+', 'AD-', 'AD', 'AD+', 'D-', 'D', 'D+', 'TD-', 'TD', 'TD+', 'ED1', 'ED2', 'ED3'];
 export const priorityLabel = (p: 1 | 2 | 3) => tr().common.priorities[p];
 export const seasonLabel = (s: 'winter' | 'spring' | 'summer' | 'autumn') => tr().common.seasons[s];
 

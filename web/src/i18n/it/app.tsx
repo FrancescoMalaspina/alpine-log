@@ -31,6 +31,10 @@ const it: Widen<typeof en> = {
     me: 'Io',
   },
   sidebar: {
+    protection: 'Protezioni',
+    maxObligatory: 'Obbligatorio fino a',
+    country: 'Paese',
+    anyCountry: 'Qualsiasi',
     whatToList: 'Cosa mostrare',
     tabs: { places: 'Spot', areas: 'Aree', visits: 'Visite' },
     searchPlaceholder: {

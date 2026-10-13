@@ -30,7 +30,8 @@ import {
 } from './lib/types';
 
 const hasPlaceFilters = (f: PlaceFilters) =>
-  !!(f.search.trim() || f.activities.length || f.areaId || f.rock || f.exposition.length || f.near);
+  !!(f.search.trim() || f.activities.length || f.areaId || f.rock || f.exposition.length || f.near
+    || f.protection.length || f.maxObligatoryRank != null || f.country);
 
 const NO_TRACKS = new Map<number, Track>();
 

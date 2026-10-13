@@ -29,6 +29,10 @@ const en = {
     me: 'Me',
   },
   sidebar: {
+    protection: 'Protection',
+    maxObligatory: 'Mandatory grade up to',
+    country: 'Country',
+    anyCountry: 'Any',
     whatToList: 'What to list',
     tabs: { places: 'Spots', areas: 'Areas', visits: 'Visits' },
     searchPlaceholder: {

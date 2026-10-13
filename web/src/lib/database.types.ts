@@ -52,36 +52,45 @@ export type Database = {
       }
       ascents: {
         Row: {
+          aid: string | null
           comment: string | null
           grade: string | null
           grade_rank: number | null
           id: number
           name: string | null
+          pitches: number | null
           place_id: number | null
           position: number
           route_id: number | null
+          style: string | null
           visit_id: number
         }
         Insert: {
+          aid?: string | null
           comment?: string | null
           grade?: string | null
           grade_rank?: number | null
           id?: never
           name?: string | null
+          pitches?: number | null
           place_id?: number | null
           position?: number
           route_id?: number | null
+          style?: string | null
           visit_id: number
         }
         Update: {
+          aid?: string | null
           comment?: string | null
           grade?: string | null
           grade_rank?: number | null
           id?: never
           name?: string | null
+          pitches?: number | null
           place_id?: number | null
           position?: number
           route_id?: number | null
+          style?: string | null
           visit_id?: number
         }
         Relationships: [
@@ -318,7 +327,10 @@ export type Database = {
       places: {
         Row: {
           activity: string
+          aid: string | null
+          alpine_grade: string | null
           area_id: number | null
+          country: string | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -326,23 +338,33 @@ export type Database = {
           elevation_gain: number | null
           exposition: string[]
           grade: string | null
+          grade_obligatory: string | null
+          grade_obligatory_rank: number | null
           id: number
           lat: number
+          length_m: number | null
           lng: number
           location: unknown
           max_altitude: number | null
           name: string
           parking_lat: number | null
           parking_lng: number | null
+          pitches: number | null
+          protection: string | null
+          province: string | null
           rock: string | null
           sector_id: number | null
           start_lat: number | null
           start_lng: number | null
+          start_locality: string | null
           updated_at: string
         }
         Insert: {
           activity?: string
+          aid?: string | null
+          alpine_grade?: string | null
           area_id?: number | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -350,23 +372,33 @@ export type Database = {
           elevation_gain?: number | null
           exposition?: string[]
           grade?: string | null
+          grade_obligatory?: string | null
+          grade_obligatory_rank?: number | null
           id?: never
           lat: number
+          length_m?: number | null
           lng: number
           location?: unknown
           max_altitude?: number | null
           name: string
           parking_lat?: number | null
           parking_lng?: number | null
+          pitches?: number | null
+          protection?: string | null
+          province?: string | null
           rock?: string | null
           sector_id?: number | null
           start_lat?: number | null
           start_lng?: number | null
+          start_locality?: string | null
           updated_at?: string
         }
         Update: {
           activity?: string
+          aid?: string | null
+          alpine_grade?: string | null
           area_id?: number | null
+          country?: string | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -374,18 +406,25 @@ export type Database = {
           elevation_gain?: number | null
           exposition?: string[]
           grade?: string | null
+          grade_obligatory?: string | null
+          grade_obligatory_rank?: number | null
           id?: never
           lat?: number
+          length_m?: number | null
           lng?: number
           location?: unknown
           max_altitude?: number | null
           name?: string
           parking_lat?: number | null
           parking_lng?: number | null
+          pitches?: number | null
+          protection?: string | null
+          province?: string | null
           rock?: string | null
           sector_id?: number | null
           start_lat?: number | null
           start_lng?: number | null
+          start_locality?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -532,14 +571,17 @@ export type Database = {
       visit_partners: {
         Row: {
           partner_id: number
+          same_rope: boolean
           visit_id: number
         }
         Insert: {
           partner_id: number
+          same_rope?: boolean
           visit_id: number
         }
         Update: {
           partner_id?: number
+          same_rope?: boolean
           visit_id?: number
         }
         Relationships: [
@@ -577,6 +619,7 @@ export type Database = {
           id: number
           import_id: number | null
           place_id: number
+          rating: number | null
           summary: string | null
           updated_at: string
           user_id: string
@@ -592,6 +635,7 @@ export type Database = {
           id?: never
           import_id?: number | null
           place_id: number
+          rating?: number | null
           summary?: string | null
           updated_at?: string
           user_id?: string
@@ -607,6 +651,7 @@ export type Database = {
           id?: never
           import_id?: number | null
           place_id?: number
+          rating?: number | null
           summary?: string | null
           updated_at?: string
           user_id?: string
@@ -720,11 +765,13 @@ export type Database = {
           grades: string[] | null
           id: number | null
           max_grade_rank: number | null
+          max_sent_grade_rank: number | null
           partner_ids: number[] | null
           partner_names: string[] | null
           place_activity: string | null
           place_id: number | null
           place_name: string | null
+          rating: number | null
           search_text: string | null
           sector_id: number | null
           sector_name: string | null

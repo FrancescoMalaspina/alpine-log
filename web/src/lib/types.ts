@@ -6,6 +6,11 @@ type Tables = Database['public']['Tables'];
 export type Activity = 'crag' | 'multipitch' | 'alpine' | 'ice' | 'ski' | 'trail' | 'hike' | 'dws' | 'indoor';
 export type Exposition = 'Nord' | 'Sud' | 'Est' | 'Ovest';
 export type Visibility = 'private' | 'public';
+export type Protection = 'bolted' | 'trad' | 'mixed';
+export const PROTECTIONS: Protection[] = ['bolted', 'trad', 'mixed'];
+/** How a route went: sent (onsight, flash, redpoint), on top rope, or not finished. */
+export type AscentStyle = 'onsight' | 'flash' | 'redpoint' | 'toprope' | 'attempt';
+export const ASCENT_STYLES: AscentStyle[] = ['onsight', 'flash', 'redpoint', 'toprope', 'attempt'];
 
 export const ACTIVITY_ORDER: Activity[] = ['crag', 'multipitch', 'alpine', 'ice', 'dws', 'indoor', 'ski', 'hike', 'trail'];
 export const EXPOSITIONS: Exposition[] = ['Nord', 'Sud', 'Est', 'Ovest'];
@@ -17,9 +22,10 @@ export const EXPOSITIONS: Exposition[] = ['Nord', 'Sud', 'Est', 'Ovest'];
 export type Sector = Omit<Tables['sectors']['Row'], 'created_at' | 'updated_at'> & { place_count: number };
 
 /** A spot: one crag wall, route, icefall, trail, gym… (table "places"). Area › Sector › Spot. */
-export type Place = Omit<Tables['places']['Row'], 'location' | 'activity' | 'exposition'> & {
+export type Place = Omit<Tables['places']['Row'], 'location' | 'activity' | 'exposition' | 'protection'> & {
   activity: Activity;
   exposition: Exposition[];
+  protection: Protection | null;
   area: { id: number; name: string } | null;
   sector: { id: number; name: string } | null;
   visit_count: number;
@@ -63,6 +69,9 @@ export type VisitSummary = {
   grades: string[];
   /** Other spots of the sector where routes were climbed that day. */
   wall_names: string[];
+  rating: number | null;
+  /** Hardest grade among routes not marked as an attempt. */
+  max_sent_grade_rank: number | null;
   partner_ids: number[];
   partner_names: string[];
 };
@@ -88,6 +97,11 @@ export type Ascent = {
   position: number;
   /** Set when the route is on another spot of the visit's sector (another wall of the crag). */
   place: { id: number; name: string } | null;
+  style: AscentStyle | null;
+  /** Overrides the spot's pitches (pitches linked together…). */
+  pitches: number | null;
+  /** Overrides the spot's aid. */
+  aid: string | null;
 };
 
 /** A visit with everything needed to show or edit it. */
@@ -102,9 +116,13 @@ export type VisitDetail = {
   conditions: string | null;
   duration_hours: number | null;
   visibility: Visibility;
+  rating: number | null;
   username: string | null;
   ascents: Ascent[];
+  /** People in your rope. */
   partners: string[];
+  /** People in other ropes of the same group. */
+  other_partners: string[];
 };
 
 export type Partner = { id: number; name: string };
@@ -154,6 +172,15 @@ export type PlaceInput = {
   max_altitude: number | null;
   elevation_gain: number | null;
   distance_km: number | null;
+  country: string;
+  province: string;
+  start_locality: string;
+  protection: Protection | null;
+  pitches: number | null;
+  length_m: number | null;
+  alpine_grade: string;
+  grade_obligatory: string;
+  aid: string;
 };
 
 /** Payload of public.save_visit. */
@@ -167,11 +194,16 @@ export type VisitInput = {
   conditions: string;
   duration_hours: number | null;
   visibility: Visibility;
+  rating: number | null;
   partners: string[];
+  other_partners: string[];
   /** Add the visit's route names to the spot's shared route list. */
   add_routes: boolean;
   /** place_id: another spot of the same sector, when the route was climbed there. */
-  ascents: { name: string; grade: string; place_id: number | null; route_id: number | null; comment: string }[];
+  ascents: {
+    name: string; grade: string; place_id: number | null; route_id: number | null; comment: string;
+    style: AscentStyle | null; pitches: number | null; aid: string;
+  }[];
 };
 
 export type VisitScope = 'mine' | 'public' | 'all';
@@ -183,6 +215,10 @@ export type PlaceFilters = {
   rock: string;
   exposition: Exposition[];
   near: { lat: number; lng: number; km: number } | null;
+  protection: Protection[];
+  /** Only routes whose mandatory grade is at most this rank. */
+  maxObligatoryRank: number | null;
+  country: string;
   /** Only places on your open wishlist (filtered in the browser). */
   wishlist: boolean;
 };
@@ -199,7 +235,7 @@ export type VisitFilters = {
 };
 
 export const EMPTY_PLACE_FILTERS: PlaceFilters = {
-  search: '', activities: [], areaId: null, rock: '', exposition: [], near: null, wishlist: false,
+  search: '', activities: [], areaId: null, rock: '', exposition: [], near: null, protection: [], maxObligatoryRank: null, country: '', wishlist: false,
 };
 export const EMPTY_VISIT_FILTERS: VisitFilters = {
   search: '', scope: 'all', partnerId: null, areaId: null, from: '', to: '', minGradeRank: null, activity: '',

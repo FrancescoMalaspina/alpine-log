@@ -152,6 +152,8 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
           rock: s.rock, exposition: [], description: s.description, grade: s.grade,
           max_altitude: s.max_altitude, elevation_gain: s.elevation_gain, distance_km: s.distance_km,
           sector_name: '',
+          country: '', province: '', start_locality: '', protection: null, pitches: null, length_m: null,
+          alpine_grade: '', grade_obligatory: '', aid: '',
         },
       })),
     visits: used.flatMap(s => s.visits.map(v => {
@@ -172,11 +174,16 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
         conditions: v.conditions,
         duration_hours: v.duration_hours,
         visibility: v.visibility ?? visibility,
+        rating: null,
         partners: v.partners,
+        other_partners: [],
         add_routes: false,
         // A route's sector names another spot of the visit's sector, found by name on the
         // server; one that doesn't exist is kept in the route's comment.
-        ascents: f.routes ? ascents.map(a => ({ name: a.name, grade: a.grade, comment: a.comment, route_id: null, place_id: null, sector: a.sector })) : [],
+        ascents: f.routes ? ascents.map(a => ({
+          name: a.name, grade: a.grade, comment: a.comment, route_id: null, place_id: null, sector: a.sector,
+          style: null, pitches: null, aid: '',
+        })) : [],
       };
     })),
   };

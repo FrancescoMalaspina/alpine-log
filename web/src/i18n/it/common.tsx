@@ -32,6 +32,8 @@ const it: Widen<typeof en> = {
     hike: 'Escursionismo',
     trail: 'Trail running',
   },
+  protections: { bolted: 'Spittata', trad: 'Trad', mixed: 'Mista' },
+  styles: { onsight: 'A vista', flash: 'Flash', redpoint: 'Chiusa', toprope: 'In moulinette', attempt: 'Non chiusa' },
   priorities: { 1: 'Alta', 2: 'Normale', 3: 'Bassa' },
   seasons: { winter: 'Inverno', spring: 'Primavera', summer: 'Estate', autumn: 'Autunno' },
 

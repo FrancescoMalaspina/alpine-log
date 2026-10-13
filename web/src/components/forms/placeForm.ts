@@ -1,7 +1,7 @@
 import { formatCoords, parseCoordinates } from '../../lib/coords';
 import { tr } from '../../i18n';
 import { ACTIVITIES } from '../../lib/labels';
-import type { Activity, Exposition, Place, PlaceInput } from '../../lib/types';
+import type { Activity, Exposition, Place, PlaceInput, Protection } from '../../lib/types';
 
 /** Everything the place fields hold while being edited (raw strings, as typed). */
 export type PlaceValues = {
@@ -19,6 +19,15 @@ export type PlaceValues = {
   rock: string;
   exposition: Exposition[];
   description: string;
+  country: string;
+  province: string;
+  startLocality: string;
+  protection: Protection | null;
+  pitches: string;
+  length: string;
+  alpineGrade: string;
+  gradeObligatory: string;
+  aid: string;
 };
 
 /** Which coordinate field a "pick on map" request fills. */
@@ -41,6 +50,15 @@ export function placeValuesFrom(place?: Place): PlaceValues {
     rock: place?.rock ?? '',
     exposition: place?.exposition ?? [],
     description: place?.description ?? '',
+    country: place?.country ?? '',
+    province: place?.province ?? '',
+    startLocality: place?.start_locality ?? '',
+    protection: place?.protection ?? null,
+    pitches: place?.pitches?.toString() ?? '',
+    length: place?.length_m?.toString() ?? '',
+    alpineGrade: place?.alpine_grade ?? '',
+    gradeObligatory: place?.grade_obligatory ?? '',
+    aid: place?.aid ?? '',
   };
 }
 
@@ -59,6 +77,8 @@ export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | strin
   const f = ACTIVITIES[v.activity];
   const distance = v.distance.trim() === '' ? null : Number(v.distance.replace(',', '.'));
   if (distance != null && !(distance > 0 && distance < 1000)) return s.badDistance;
+  const country = v.country.trim().toUpperCase();
+  if (country && !/^[A-Z]{2}$/.test(country)) return s.badCountry;
 
   return {
     id,
@@ -79,5 +99,14 @@ export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | strin
     max_altitude: f.altitude ? intOrNull(v.altitude) : null,
     elevation_gain: f.altitude ? intOrNull(v.gain) : null,
     distance_km: f.distance ? distance : null,
+    country,
+    province: v.province,
+    start_locality: v.startLocality,
+    protection: f.protection ? v.protection : null,
+    pitches: f.pitches ? intOrNull(v.pitches) : null,
+    length_m: f.pitches ? intOrNull(v.length) : null,
+    alpine_grade: f.alpineGrade ? v.alpineGrade : '',
+    grade_obligatory: f.pitches ? v.gradeObligatory : '',
+    aid: f.pitches ? v.aid : '',
   };
 }

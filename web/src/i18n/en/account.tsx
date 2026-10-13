@@ -28,6 +28,7 @@ const en = {
     activity: 'Activity',
     days: 'Days',
     hardest: 'Hardest',
+    hardestSent: 'Hardest sent',
     byYear: 'By year',
     year: 'Year',
     noDate: 'No date',

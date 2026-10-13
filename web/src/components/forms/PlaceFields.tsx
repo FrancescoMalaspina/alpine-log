@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useI18n } from '../../i18n';
 import { currentPosition, formatCoords, parseCoordinates } from '../../lib/coords';
-import { ACTIVITIES, activityLabel, errorMessage, gradeSuggestions, isTouchLayout } from '../../lib/labels';
-import { ACTIVITY_ORDER, EXPOSITIONS, type Area, type Exposition, type Sector } from '../../lib/types';
+import { reverseGeocode } from '../../lib/geocode';
+import { ACTIVITIES, ALPINE_GRADES, activityLabel, errorMessage, gradeSuggestions, isTouchLayout, protectionLabel } from '../../lib/labels';
+import { ACTIVITY_ORDER, EXPOSITIONS, PROTECTIONS, type Area, type Exposition, type Sector } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
 import type { CoordField, PlaceValues } from './placeForm';
@@ -44,6 +45,21 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
   const areaSectors = sectors.filter(x => x.area_id === (area?.id ?? null));
   const isNewSector = v.sectorName.trim()
     && !areaSectors.some(x => x.name.toLowerCase() === v.sectorName.trim().toLowerCase());
+
+  // Country and province follow the pin while both are empty (they stay editable).
+  const pin = parseCoordinates(v.coords);
+  const needsPlace = !!pin && !v.country.trim() && !v.province.trim();
+  useEffect(() => {
+    if (!needsPlace || !pin) return;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      reverseGeocode(pin, ctrl.signal)
+        .then(({ country, province }) => onChange({ country: country ?? '', province: province ?? '' }))
+        .catch(() => { /* offline or rate-limited: the fields stay empty and editable */ });
+    }, 600);
+    return () => { clearTimeout(timer); ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refetch only when the pin moves
+  }, [needsPlace, pin?.lat, pin?.lng]);
 
   async function locate(field: CoordField) {
     setLocateError(null);
@@ -98,6 +114,21 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
       {coordField('parking', 'placeParking', s.parking)}
       {coordField('start', 'placeStart', s.start)}
       {locateError && <div className="field full"><ErrorText error={locateError} /></div>}
+      <div className="field full">
+        <label htmlFor="placeStartLocality">{s.startLocality} <span className="hint">{s.startLocalityHint}</span></label>
+        <input id="placeStartLocality" value={v.startLocality} placeholder="Noasca, Rif. Vallesinella…"
+               onChange={e => onChange({ startLocality: e.target.value })} />
+      </div>
+      <div className="field">
+        <label htmlFor="placeCountry">{s.country} <span className="hint">{s.countryHint}</span></label>
+        <input id="placeCountry" className="num" maxLength={2} value={v.country} placeholder="IT" autoCapitalize="characters"
+               onChange={e => onChange({ country: e.target.value.toUpperCase() })} />
+      </div>
+      <div className="field">
+        <label htmlFor="placeProvince">{s.province}</label>
+        <input id="placeProvince" value={v.province} placeholder="TO, LC, Hautes-Alpes…"
+               onChange={e => onChange({ province: e.target.value })} />
+      </div>
 
       <div className="field">
         <label htmlFor="placeGrade">{s.grade} <span className="hint">{s.optional}</span></label>
@@ -105,6 +136,49 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
                placeholder={f.isRoute ? '6a+ (5c obbl.)' : f.routeList ? '5b–7a' : ''} onChange={e => onChange({ grade: e.target.value })} />
         <datalist id="placeGradeOptions">{gradeSuggestions(v.activity).map(g => <option key={g} value={g} />)}</datalist>
       </div>
+      {f.pitches && <>
+        <div className="field">
+          <label htmlFor="placeGradeObligatory">{s.gradeObligatory} <span className="hint">{s.optional}</span></label>
+          <input id="placeGradeObligatory" className="num" list="placeGradeOptions" value={v.gradeObligatory} placeholder="5c"
+                 onChange={e => onChange({ gradeObligatory: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="placeAid">{s.aid} <span className="hint">{s.optional}</span></label>
+          <input id="placeAid" className="num" value={v.aid} placeholder="A0" onChange={e => onChange({ aid: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="placePitches">{s.pitches}</label>
+          <input id="placePitches" type="number" inputMode="numeric" min={1} max={200} value={v.pitches}
+                 onChange={e => onChange({ pitches: e.target.value })} />
+        </div>
+        <div className="field">
+          <label htmlFor="placeLength">{s.length} <span className="hint">{s.m}</span></label>
+          <input id="placeLength" type="number" inputMode="numeric" min={1} max={10000} value={v.length}
+                 onChange={e => onChange({ length: e.target.value })} />
+        </div>
+      </>}
+      {f.alpineGrade && (
+        <div className="field">
+          <label htmlFor="placeAlpineGrade">{s.alpineGrade} <span className="hint">{s.alpineGradeHint}</span></label>
+          <input id="placeAlpineGrade" className="num" list="alpineGradeOptions" value={v.alpineGrade} placeholder="D+"
+                 onChange={e => onChange({ alpineGrade: e.target.value })} />
+          <datalist id="alpineGradeOptions">{ALPINE_GRADES.map(g => <option key={g} value={g} />)}</datalist>
+        </div>
+      )}
+      {f.protection && (
+        <div className="field">
+          <span className="field-label">{s.protection}</span>
+          <div className="segmented small" role="radiogroup" aria-label={s.protection}>
+            {PROTECTIONS.map(p => (
+              <button key={p} type="button" role="radio" aria-checked={v.protection === p}
+                      className={v.protection === p ? 'active' : ''}
+                      onClick={() => onChange({ protection: v.protection === p ? null : p })}>
+                {protectionLabel(p)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {f.rock ? (
         <div className="field">
           <label htmlFor="placeRock">{s.rock} <span className="hint">{s.optional}</span></label>

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useI18n } from '../i18n';
 import { GRADE_OPTIONS } from '../lib/grades';
-import { activityLabel, formatDate, formatHours } from '../lib/labels';
+import { activityLabel, formatDate, formatHours, protectionLabel } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
 import { LocationResults } from './LocationResults';
 import type { Location } from '../lib/geocode';
 import type { LatLng } from '../lib/coords';
 import {
-  ACTIVITY_ORDER, EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS,
+  ACTIVITY_ORDER, EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS, PROTECTIONS,
   type Area, type Partner, type Place, type PlaceFilters, type VisitFilters, type VisitScope, type VisitSummary,
 } from '../lib/types';
 
@@ -43,7 +43,8 @@ type Props = {
 };
 
 function countPlaceFilters(f: PlaceFilters) {
-  return f.activities.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0) + (f.wishlist ? 1 : 0);
+  return f.activities.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0) + (f.wishlist ? 1 : 0)
+    + f.protection.length + (f.maxObligatoryRank != null ? 1 : 0) + (f.country ? 1 : 0);
 }
 function countVisitFilters(f: VisitFilters) {
   return (f.scope !== 'all' ? 1 : 0) + (f.partnerId ? 1 : 0) + (f.areaId ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0)
@@ -92,6 +93,7 @@ export function Sidebar(props: Props) {
 
       {filtersOpen && mode === 'places' && (
         <PlaceFiltersPanel f={pf} onChange={props.onPlaceFilters} rocks={props.rocks} areas={props.areas}
+                           countries={[...new Set(props.places.map(p => p.country).filter((c): c is string => !!c))].sort()}
                            getMapCenter={props.getMapCenter} signedIn={!!props.userId} />
       )}
       {filtersOpen && mode === 'visits' && (
@@ -271,8 +273,9 @@ function AreaSelect({ id, value, areas, onChange }:
   );
 }
 
-function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }: {
-  f: PlaceFilters; onChange: (f: PlaceFilters) => void; rocks: string[]; areas: Area[]; getMapCenter: () => LatLng; signedIn: boolean;
+function PlaceFiltersPanel({ f, onChange, rocks, areas, countries, getMapCenter, signedIn }: {
+  f: PlaceFilters; onChange: (f: PlaceFilters) => void; rocks: string[]; areas: Area[]; countries: string[];
+  getMapCenter: () => LatLng; signedIn: boolean;
 }) {
   const { t } = useI18n();
   return (
@@ -318,6 +321,35 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }
               {x}
             </label>
           ))}
+        </div>
+      </div>
+      <div className="filter-group">
+        <span className="filter-label">{t.app.sidebar.protection}</span>
+        <div className="chip-row">
+          {PROTECTIONS.map(x => (
+            <label key={x} className="type-option small">
+              <input type="checkbox" checked={f.protection.includes(x)}
+                     onChange={() => onChange({ ...f, protection: toggle(f.protection, x) })} />
+              {protectionLabel(x)}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="filter-row-2">
+        <div className="filter-group">
+          <label className="filter-label" htmlFor="obligatoryFilter">{t.app.sidebar.maxObligatory}</label>
+          <select id="obligatoryFilter" value={f.maxObligatoryRank ?? ''}
+                  onChange={e => onChange({ ...f, maxObligatoryRank: e.target.value ? +e.target.value : null })}>
+            <option value="">{t.app.sidebar.anyGrade}</option>
+            {GRADE_OPTIONS.map(g => <option key={g.label} value={g.rank}>{g.label}</option>)}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label className="filter-label" htmlFor="countryFilter">{t.app.sidebar.country}</label>
+          <select id="countryFilter" value={f.country} onChange={e => onChange({ ...f, country: e.target.value })}>
+            <option value="">{t.app.sidebar.anyCountry}</option>
+            {countries.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
         </div>
       </div>
       <div className="filter-group">

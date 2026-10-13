@@ -30,6 +30,8 @@ const en = {
     hike: 'Hiking',
     trail: 'Trail running',
   },
+  protections: { bolted: 'Bolted', trad: 'Trad', mixed: 'Mixed' },
+  styles: { onsight: 'Onsight', flash: 'Flash', redpoint: 'Sent', toprope: 'Top rope', attempt: 'Not sent' },
   priorities: { 1: 'High', 2: 'Normal', 3: 'Low' },
   seasons: { winter: 'Winter', spring: 'Spring', summer: 'Summer', autumn: 'Autumn' },
 
