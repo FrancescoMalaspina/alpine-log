@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { deleteArea, setPlacesArea, updateArea } from '../lib/api';
-import { activityLabel, errorMessage, plural } from '../lib/labels';
+import { useI18n } from '../i18n';
+import { activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Place } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Attachments } from './Attachments';
@@ -23,6 +24,8 @@ type Props = {
 };
 
 export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmin, onClose, onShowOnMap, onOpenPlace, onChanged, onDeleted }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.areaView;
   const canEdit = !!userId && (isAdmin || area.created_by === userId);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(area.name);
@@ -31,10 +34,10 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   const [adding, setAdding] = useState(false);
 
   async function removePlace(p: Place) {
-    if (!confirm(`Take "${p.name}" out of ${area.name}? The spot itself stays.`)) return;
+    if (!confirm(s.confirmRemovePlace(p.name, area.name))) return;
     setError(null);
     try {
-      if (!(await setPlacesArea([p.id], null))) throw new Error(`You can't change "${p.name}": only its creator or an admin can.`);
+      if (!(await setPlacesArea([p.id], null))) throw new Error(s.cantChangePlace(p.name));
       onChanged();
     } catch (e) {
       setError(errorMessage(e));
@@ -43,7 +46,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
 
   async function save() {
     setError(null);
-    if (!name.trim()) return setError('An area needs a name.');
+    if (!name.trim()) return setError(s.needName);
     try {
       await updateArea(area.id, { name, description });
       setEditing(false);
@@ -54,7 +57,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   }
 
   async function remove() {
-    if (!confirm(`Delete the area "${area.name}"? Its ${plural(places.length, 'spot')} stay, just without an area.`)) return;
+    if (!confirm(s.confirmDelete(area.name, places.length))) return;
     try {
       await deleteArea(area.id);
       onDeleted();
@@ -66,29 +69,29 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
   return (
     <Drawer
       title={area.name}
-      meta={<span className="meta-item">Area with {plural(places.length, 'spot')}</span>}
+      meta={<span className="meta-item">{s.meta(places.length)}</span>}
       onClose={onClose}
       footer={<>
-        {canEdit && !editing && <button className="btn btn-danger" type="button" onClick={remove}>Delete area</button>}
-        {canEdit && !editing && <button className="btn btn-ghost" type="button" onClick={() => setEditing(true)}>Edit</button>}
-        <button className="btn btn-ghost" type="button" disabled={!places.length} onClick={onShowOnMap}>Show on map</button>
+        {canEdit && !editing && <button className="btn btn-danger" type="button" onClick={remove}>{s.deleteArea}</button>}
+        {canEdit && !editing && <button className="btn btn-ghost" type="button" onClick={() => setEditing(true)}>{t.common.edit}</button>}
+        <button className="btn btn-ghost" type="button" disabled={!places.length} onClick={onShowOnMap}>{t.spot.placeView.showOnMap}</button>
       </>}
     >
       {editing ? (
         <div className="area-edit">
-          <div className="field"><label htmlFor="areaName">Name</label>
+          <div className="field"><label htmlFor="areaName">{s.name}</label>
             <input id="areaName" value={name} onChange={e => setName(e.target.value)} /></div>
-          <div className="field"><label htmlFor="areaDescription">Description</label>
+          <div className="field"><label htmlFor="areaDescription">{s.description}</label>
             <textarea id="areaDescription" value={description} onChange={e => setDescription(e.target.value)} /></div>
           <div className="area-edit-actions">
-            <button className="btn btn-ghost" type="button" onClick={() => setEditing(false)}>Cancel</button>
-            <button className="btn btn-add" type="button" onClick={save}>Save</button>
+            <button className="btn btn-ghost" type="button" onClick={() => setEditing(false)}>{t.common.cancel}</button>
+            <button className="btn btn-add" type="button" onClick={save}>{t.common.save}</button>
           </div>
         </div>
       ) : area.description && <p className="place-description">{area.description}</p>}
       <ErrorText error={error} />
 
-      <h3 className="section-title">Spots</h3>
+      <h3 className="section-title">{s.spots}</h3>
       <div className="area-places">
         {places.map(p => (
           <div key={p.id} className="area-place-row">
@@ -98,16 +101,16 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
             </button>
             {canEditPlace(p) && (
               <button type="button" className="link-btn remove-place" onClick={() => removePlace(p)}
-                      aria-label={`Remove ${p.name} from ${area.name}`}>Remove</button>
+                      aria-label={s.removeFromArea(p.name, area.name)}>{s.remove}</button>
             )}
           </div>
         ))}
-        {!places.length && !adding && <div className="empty">No spots in this area yet.</div>}
+        {!places.length && !adding && <div className="empty">{s.noSpots}</div>}
       </div>
       {userId && (adding
         ? <AddPlaces area={area} allPlaces={allPlaces} canEditPlace={canEditPlace}
                      onDone={changed => { setAdding(false); if (changed) onChanged(); }} />
-        : <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>Add spots</button>)}
+        : <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>{s.addSpots}</button>)}
 
       <Attachments owner={{ areaId: area.id }} userId={userId} isAdmin={isAdmin} />
     </Drawer>
@@ -118,6 +121,8 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
 function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
   area: Area; allPlaces: Place[]; canEditPlace: (p: Place) => boolean; onDone: (changed: boolean) => void;
 }) {
+  const { t } = useI18n();
+  const s = t.spot.areaView;
   const [query, setQuery] = useState('');
   const [picked, setPicked] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
@@ -140,7 +145,7 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
     try {
       const changed = await setPlacesArea(picked, area.id);
       if (changed < picked.length) {
-        setError(`Only ${changed} of ${picked.length} could be moved: you can only change spots you created.`);
+        setError(s.onlyMoved(changed, picked.length));
         setBusy(false);
         return;
       }
@@ -153,7 +158,7 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
 
   return (
     <div className="add-places">
-      <input type="search" placeholder="Find a spot" aria-label="Find a spot" value={query}
+      <input type="search" placeholder={s.findSpot} aria-label={s.findSpot} value={query}
              onChange={e => setQuery(e.target.value)} />
       <ul className="add-places-list">
         {candidates.map(p => {
@@ -165,19 +170,19 @@ function AddPlaces({ area, allPlaces, canEditPlace, onDone }: {
                 <ActivityBadge activity={p.activity} />
                 <span className="add-places-name">{p.name}</span>
                 <span className="add-places-meta">
-                  {!editable ? 'added by someone else' : p.area ? `now in ${p.area.name}` : ''}
+                  {!editable ? s.addedByOther : p.area ? s.nowIn(p.area.name) : ''}
                 </span>
               </label>
             </li>
           );
         })}
-        {!candidates.length && <li className="empty">No other spots match.</li>}
+        {!candidates.length && <li className="empty">{s.noMatch}</li>}
       </ul>
       <ErrorText error={error} />
       <div className="area-edit-actions">
-        <button className="btn btn-ghost" type="button" onClick={() => onDone(false)}>Cancel</button>
+        <button className="btn btn-ghost" type="button" onClick={() => onDone(false)}>{t.common.cancel}</button>
         <button className="btn btn-primary" type="button" disabled={!picked.length || busy} onClick={save}>
-          {picked.length ? `Add ${plural(picked.length, 'spot')}` : 'Add spots'}
+          {picked.length ? s.addN(picked.length) : s.addSpots}
         </button>
       </div>
     </div>

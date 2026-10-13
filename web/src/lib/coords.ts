@@ -1,3 +1,5 @@
+import { tr } from '../i18n';
+
 export type LatLng = { lat: number; lng: number };
 
 /**
@@ -45,10 +47,10 @@ export const formatCoords = (lat: number | null | undefined, lng: number | null 
 /** The device's current position (asks for permission the first time). */
 export function currentPosition(): Promise<LatLng> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('This browser has no location access.'));
+    if (!navigator.geolocation) return reject(new Error(tr().app.coords.noGeolocation));
     navigator.geolocation.getCurrentPosition(
       p => resolve({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6) }),
-      e => reject(new Error(e.code === e.PERMISSION_DENIED ? 'Location permission was denied.' : 'Could not get your location.')),
+      e => reject(new Error(e.code === e.PERMISSION_DENIED ? tr().app.coords.denied : tr().app.coords.unavailable)),
       { enableHighAccuracy: true, timeout: 15000 },
     );
   });

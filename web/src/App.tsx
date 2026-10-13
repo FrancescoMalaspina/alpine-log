@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './auth/useAuth';
+import { useI18n } from './i18n';
 import { AccountPanel } from './components/AccountPanel';
 import { AreaView } from './components/AreaView';
 import { AuthModal, NewPasswordModal } from './components/AuthModal';
@@ -67,6 +68,8 @@ async function loadTracks(placeId: number): Promise<Map<number, Track>> {
 
 export default function App() {
   const { session, profile, isAdmin, recovering, signOut } = useAuth();
+  // Subscribes the whole tree to the language: switching re-renders everything.
+  const { t } = useI18n();
   const userId = session?.user.id ?? null;
   const isMobile = useMediaQuery(MOBILE_QUERY);
 
@@ -150,8 +153,8 @@ export default function App() {
 
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timer);
   }, [notice]);
 
   const searched = (hasPlaceFilters(debouncedPlaceFilters) && filteredPlaces) || catalog;
@@ -277,7 +280,7 @@ export default function App() {
     reload();
     setFocusedId(placeId);
     setPanel({ kind: 'place', placeId, tab: visitLogged ? 'visits' : 'info' });
-    setNotice(visitLogged ? 'Visit saved' : 'Spot saved');
+    setNotice(visitLogged ? t.app.app.visitSaved : t.app.app.spotSaved);
   };
 
   useEffect(() => {
@@ -401,7 +404,7 @@ export default function App() {
         {panel?.kind === 'log' && userId && (
           <MyLog
             userId={userId}
-            username={profile?.username ?? 'Your'}
+            username={profile?.username ?? ''}
             reloadKey={reloadKey}
             onClose={() => setPanel(null)}
             onChanged={reload}
@@ -427,7 +430,7 @@ export default function App() {
             onDeleted={() => {
               setPanel(null);
               void signOut();
-              setNotice('Your account has been deleted.');
+              setNotice(t.app.app.accountDeleted);
               reload();
             }}
           />
@@ -461,7 +464,7 @@ export default function App() {
       {isMobile && (
         <MobileNav
           tab={mobileTab}
-          onTab={t => { setMobileTab(t); setPanel(null); }}
+          onTab={tab => { setMobileTab(tab); setPanel(null); }}
           stats={stats}
           onAddPlace={openAddPlace}
           onLogVisit={openLogVisit}
@@ -473,8 +476,8 @@ export default function App() {
 
       {picking && (
         <div className="toast show picking" role="status">
-          <span>{isMobile ? 'Tap' : 'Click'} the map to set {picking.label}.</span>
-          <button type="button" className="link-btn invert" onClick={() => setPicking(null)}>Cancel</button>
+          <span>{t.app.app.pickOnMap(isMobile, picking.label)}</span>
+          <button type="button" className="link-btn invert" onClick={() => setPicking(null)}>{t.common.cancel}</button>
         </div>
       )}
       {notice && <div className="toast show notice" role="status">{notice}</div>}
@@ -515,7 +518,7 @@ export default function App() {
           onClose={closeForms}
           onSaved={(placeId, wishResolved) => {
             showSaved(placeId, true);
-            if (wishResolved) setNotice('Visit saved, and ticked off your wishlist');
+            if (wishResolved) setNotice(t.app.app.visitSavedWishDone);
           }}
         />
       )}
@@ -538,7 +541,7 @@ export default function App() {
             setNewAreaOpen(false);
             reload();
             setPanel({ kind: 'area', areaId });
-            setNotice('Area created. Add spots to it below.');
+            setNotice(t.app.app.areaCreated);
           }}
         />
       )}

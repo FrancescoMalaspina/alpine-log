@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useI18n } from '../i18n';
 import L from 'leaflet';
 import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { badgeSvg, pinSvg, plainPinSvg } from '../lib/activityIcons';
@@ -160,6 +161,7 @@ function Controller({ pins, command, markers, armed, tempPin, focusedPlace, trac
 
 export function MapView(props: Props) {
   const { pins, focusedPlace, tracks, tempPin, signedIn } = props;
+  const { t } = useI18n();
   const markers = useRef(new Map<number, L.Marker>());
   // react-leaflet compares positions by reference and calls setLatLng on any
   // new array, which re-pans an open popup — keep them stable across renders.
@@ -187,11 +189,12 @@ export function MapView(props: Props) {
 
   return (
     <MapContainer id="map" center={[42.5, 12.5]} zoom={5} zoomControl>
-      <LayersControl position="topleft">
-        <LayersControl.BaseLayer checked name="Topographic">
+      {/* Keyed by a label: Leaflet only reads layer names on mount, so a language switch rebuilds the control. */}
+      <LayersControl key={t.app.map.topographic} position="topleft">
+        <LayersControl.BaseLayer checked name={t.app.map.topographic}>
           <TileLayer attribution={TOPO_ATTRIBUTION} url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png" maxZoom={17} />
         </LayersControl.BaseLayer>
-        <LayersControl.BaseLayer name="Streets">
+        <LayersControl.BaseLayer name={t.app.map.streets}>
           <TileLayer attribution={OSM_ATTRIBUTION} url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} />
         </LayersControl.BaseLayer>
       </LayersControl>
@@ -239,19 +242,19 @@ export function MapView(props: Props) {
           <Popup>
             <div className="pop">
               <h3>{p.name}</h3>
-              {p.area && <div className="pop-area">in {p.area.name}</div>}
-              <Row k="activity" v={activityLabel(p.activity)} />
-              {p.grade && <Row k="grade" v={p.grade} />}
-              {p.max_altitude != null && <Row k="altitude" v={`${p.max_altitude} m`} />}
-              {p.elevation_gain != null && <Row k="gain" v={`${p.elevation_gain} m`} />}
-              {p.rock && <Row k="rock" v={p.rock} />}
-              {p.exposition.length > 0 && <Row k="exposition" v={p.exposition.join(', ')} />}
+              {p.area && <div className="pop-area">{t.app.map.inArea(p.area.name)}</div>}
+              <Row k={t.app.map.activity} v={activityLabel(p.activity)} />
+              {p.grade && <Row k={t.app.map.grade} v={p.grade} />}
+              {p.max_altitude != null && <Row k={t.app.map.altitude} v={`${p.max_altitude} m`} />}
+              {p.elevation_gain != null && <Row k={t.app.map.gain} v={`${p.elevation_gain} m`} />}
+              {p.rock && <Row k={t.app.map.rock} v={p.rock} />}
+              {p.exposition.length > 0 && <Row k={t.app.map.exposition} v={p.exposition.join(', ')} />}
               <div className="pop-actions">
-                <button type="button" className="primary" onClick={() => props.onDetails(p)}>Details</button>
+                <button type="button" className="primary" onClick={() => props.onDetails(p)}>{t.app.map.details}</button>
                 {p.visit_count > 0 && (
-                  <button type="button" onClick={() => props.onViewVisits(p)}>Visits ({p.visit_count})</button>
+                  <button type="button" onClick={() => props.onViewVisits(p)}>{t.app.map.visits(p.visit_count)}</button>
                 )}
-                {signedIn && <button type="button" onClick={() => props.onAddVisit(p)}>Add visit</button>}
+                {signedIn && <button type="button" onClick={() => props.onAddVisit(p)}>{t.app.map.addVisit}</button>}
               </div>
             </div>
           </Popup>
@@ -260,12 +263,12 @@ export function MapView(props: Props) {
 
       {focusExtras?.parking && (
         <Marker position={focusExtras.parking} icon={PARKING_ICON}>
-          <Popup><div className="pop"><h3>Parking</h3><Row k="for" v={focusedPlace!.name} /></div></Popup>
+          <Popup><div className="pop"><h3>{t.app.map.parking}</h3><Row k={t.app.map.for} v={focusedPlace!.name} /></div></Popup>
         </Marker>
       )}
       {focusExtras?.start && (
         <Marker position={focusExtras.start} icon={START_ICON}>
-          <Popup><div className="pop"><h3>Start (attacco)</h3><Row k="of" v={focusedPlace!.name} /></div></Popup>
+          <Popup><div className="pop"><h3>{t.app.map.start}</h3><Row k={t.app.map.of} v={focusedPlace!.name} /></div></Popup>
         </Marker>
       )}
 
@@ -277,7 +280,7 @@ export function MapView(props: Props) {
               <div className="pop-area num">{props.searchPin.lat.toFixed(5)}, {props.searchPin.lng.toFixed(5)}</div>
               {signedIn && (
                 <div className="pop-actions">
-                  <button type="button" className="primary" onClick={() => props.onAddPlaceAt(props.searchPin!)}>Add a spot here</button>
+                  <button type="button" className="primary" onClick={() => props.onAddPlaceAt(props.searchPin!)}>{t.app.map.addSpotHere}</button>
                 </div>
               )}
             </div>
@@ -292,6 +295,7 @@ export function MapView(props: Props) {
 
 /** Which pin is which activity: colour and shape, folded away on small screens. */
 function Legend() {
+  const { t } = useI18n();
   const el = useRef<HTMLDetailsElement>(null);
   // Clicks and scrolls on the legend must not reach the map underneath.
   useEffect(() => {
@@ -300,7 +304,7 @@ function Legend() {
   }, []);
   return (
     <details ref={el} className="map-legend" open={!window.matchMedia('(max-width: 820px)').matches}>
-      <summary>Legend</summary>
+      <summary>{t.app.map.legend}</summary>
       <ul>
         {(Object.keys(ACTIVITIES) as Activity[]).map(t => (
           <li key={t}>
@@ -308,9 +312,9 @@ function Legend() {
             {activityLabel(t)}
           </li>
         ))}
-        <li><span className="map-badge small parking" aria-hidden="true">P</span>Parking</li>
-        <li><span className="map-badge small start" aria-hidden="true">⚑</span>Start</li>
-        <li><span className="legend-track" aria-hidden="true" />Approach (GPX)</li>
+        <li><span className="map-badge small parking" aria-hidden="true">P</span>{t.app.map.parking}</li>
+        <li><span className="map-badge small start" aria-hidden="true">⚑</span>{t.app.map.legendStart}</li>
+        <li><span className="legend-track" aria-hidden="true" />{t.app.map.legendApproach}</li>
       </ul>
     </details>
   );

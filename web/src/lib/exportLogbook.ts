@@ -3,6 +3,7 @@
  * spreadsheets, JSON as a complete backup, GPX waypoints for GPS apps.
  */
 import type { LogbookVisit } from './api';
+import { tr } from '../i18n';
 import { activityLabel, localToday } from './labels';
 import type { Activity } from './types';
 
@@ -11,11 +12,6 @@ export type ExportFormat = 'csv' | 'json' | 'gpx';
 const activityOf = (v: LogbookVisit) => (v.place ? activityLabel(v.place.activity as Activity) : '');
 
 // ---------------------------------------------------------------- CSV
-const CSV_COLUMNS = [
-  'date', 'spot', 'area', 'activity', 'latitude', 'longitude', 'visibility', 'with', 'duration_hours',
-  'conditions', 'summary', 'approach', 'descent', 'route', 'grade', 'sector', 'route_comment',
-] as const;
-
 const cell = (v: unknown) => {
   const s = v == null ? '' : String(v);
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -33,7 +29,7 @@ function toCsv(visits: LogbookVisit[]): string {
     return routes.map(a => [...base, a?.name, a?.grade, a?.sector?.name, a?.comment]);
   });
   // The byte-order mark makes Excel read the file as UTF-8 (accents, ° signs).
-  return '﻿' + [CSV_COLUMNS as readonly string[], ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
+  return '﻿' + [tr().account.export.csvHeader, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
 }
 
 // ---------------------------------------------------------------- JSON
@@ -82,8 +78,8 @@ function toGpx(visits: LogbookVisit[], username: string): string {
   const wpts = [...byPlace.values()].map(({ place: p, dates, routes }) => {
     const desc = [
       p.area?.name, activityLabel(p.activity as Activity), p.grade,
-      `${dates.length || 'undated'} visit${dates.length === 1 ? '' : 's'}${dates.length ? `: ${dates.sort().join(', ')}` : ''}`,
-      routes ? `${routes} routes` : null,
+      `${dates.length ? tr().account.export.gpxVisits(dates.length) : tr().account.export.undated}${dates.length ? `: ${dates.sort().join(', ')}` : ''}`,
+      routes ? tr().account.export.gpxRoutes(routes) : null,
     ].filter(Boolean).join(' — ');
     return `  <wpt lat="${p.lat}" lon="${p.lng}">
     <name>${xml(p.name)}</name>
@@ -93,7 +89,7 @@ function toGpx(visits: LogbookVisit[], username: string): string {
   });
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.1" creator="Alpine Log" xmlns="http://www.topografix.com/GPX/1/1">
-  <metadata><name>${xml(`${username}'s logbook`)}</name><time>${new Date().toISOString()}</time></metadata>
+  <metadata><name>${xml(tr().account.export.gpxTitle(username))}</name><time>${new Date().toISOString()}</time></metadata>
 ${wpts.join('\n')}
 </gpx>
 `;

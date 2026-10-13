@@ -1,3 +1,5 @@
+import { tr } from '../../i18n';
+
 /*
  * What an imported column can become. Every file format and every layout is
  * mapped onto these fields; nothing downstream knows about source headers.
@@ -75,6 +77,9 @@ export const FIELDS: FieldDef[] = [
   { id: 'note', label: 'Keep as a note on the visit', level: 'none', synonyms: [] },
   { id: 'ignore', label: 'Skip this column', level: 'none', synonyms: s(1, '#', 'id', 'n', 'nr', 'no', 'num') },
 ];
+
+/** The label shown in the interface. `label` above stays English: it is what the AI helper receives. */
+export const fieldLabel = (id: FieldId) => tr().import.fields[id];
 
 export const FIELD_BY_ID = Object.fromEntries(FIELDS.map(f => [f.id, f])) as Record<FieldId, FieldDef>;
 

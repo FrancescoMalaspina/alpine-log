@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { Track } from '../lib/gpx';
-import { ACTIVITIES, activityLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions, plural } from '../lib/labels';
+import { useI18n } from '../i18n';
+import { ACTIVITIES, activityLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
 import type { Place, Route, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
@@ -38,6 +39,7 @@ type Props = {
 
 export function PlaceView(props: Props) {
   const { place: p, tab } = props;
+  const { t } = useI18n();
   return (
     <Drawer
       title={p.name}
@@ -45,7 +47,7 @@ export function PlaceView(props: Props) {
         <span className="meta-item"><ActivityBadge activity={p.activity} />{activityLabel(p.activity)}</span>
         {p.area && (
           <button type="button" className="meta-item link-btn" onClick={() => props.onOpenArea(p.area!.id)}>
-            in {p.area.name}
+            {t.spot.placeView.inArea(p.area.name)}
           </button>
         )}
         {p.distance_km != null && <span className="meta-item num">{formatKm(p.distance_km)}</span>}
@@ -54,25 +56,25 @@ export function PlaceView(props: Props) {
       </>}
       onClose={props.onClose}
       footer={<>
-        {props.isMobile && <button className="btn btn-ghost" type="button" onClick={props.onShowOnMap}>Show on map</button>}
-        {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>Edit spot</button>}
+        {props.isMobile && <button className="btn btn-ghost" type="button" onClick={props.onShowOnMap}>{t.spot.placeView.showOnMap}</button>}
+        {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>{t.spot.placeView.editSpot}</button>}
         {props.userId && (
           <button className={`btn btn-ghost wish-btn${props.wish ? ' on' : ''}`} type="button" onClick={props.onWish}
                   aria-pressed={!!props.wish}>
-            {props.wish ? '★ On your wishlist' : '☆ Add to wishlist'}
+            {props.wish ? t.spot.placeView.onWishlist : t.spot.placeView.addToWishlist}
           </button>
         )}
-        {props.userId && <button className="btn btn-add" type="button" onClick={props.onAddVisit}>Add visit</button>}
+        {props.userId && <button className="btn btn-add" type="button" onClick={props.onAddVisit}>{t.spot.placeView.addVisit}</button>}
       </>}
     >
-      <div className="list-mode-tabs drawer-tabs" role="tablist" aria-label="Spot sections">
+      <div className="list-mode-tabs drawer-tabs" role="tablist" aria-label={t.spot.placeView.sections}>
         <button type="button" role="tab" aria-selected={tab === 'info'}
                 className={`list-mode-tab${tab === 'info' ? ' active' : ''}`} onClick={() => props.onTab('info')}>
-          Info
+          {t.spot.placeView.info}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'visits'}
                 className={`list-mode-tab${tab === 'visits' ? ' active' : ''}`} onClick={() => props.onTab('visits')}>
-          Visits<span className="tab-count">{p.visit_count}</span>
+          {t.spot.placeView.visits}<span className="tab-count">{p.visit_count}</span>
         </button>
       </div>
       {tab === 'info' ? <PlaceInfo {...props} /> : <PlaceVisits {...props} />}
@@ -81,6 +83,8 @@ export function PlaceView(props: Props) {
 }
 
 function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish, onChanged }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.placeView;
   const [wishers, setWishers] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -89,14 +93,14 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
   }, [p.id, reloadKey, wish]);
 
   const rows: [string, React.ReactNode][] = [];
-  rows.push(['Activity', activityLabel(p.activity)]);
-  if (p.grade) rows.push(['Grade', p.grade]);
-  if (p.distance_km != null) rows.push(['Distance', formatKm(p.distance_km)]);
-  if (p.max_altitude != null) rows.push(['Altitude', `${p.max_altitude} m`]);
-  if (p.elevation_gain != null) rows.push(['Elevation gain', `${p.elevation_gain} m`]);
-  if (p.rock) rows.push(['Rock', p.rock]);
-  if (p.exposition.length) rows.push(['Faces', p.exposition.join(', ')]);
-  if (p.sectors.length) rows.push([p.activity === 'indoor' ? 'Walls' : 'Sectors', p.sectors.map(s => s.name).join(', ')]);
+  rows.push([s.activity, activityLabel(p.activity)]);
+  if (p.grade) rows.push([s.grade, p.grade]);
+  if (p.distance_km != null) rows.push([s.distance, formatKm(p.distance_km)]);
+  if (p.max_altitude != null) rows.push([s.altitude, `${p.max_altitude} m`]);
+  if (p.elevation_gain != null) rows.push([s.elevationGain, `${p.elevation_gain} m`]);
+  if (p.rock) rows.push([s.rock, p.rock]);
+  if (p.exposition.length) rows.push([s.faces, p.exposition.join(', ')]);
+  if (p.sectors.length) rows.push([p.activity === 'indoor' ? s.walls : s.sectors, p.sectors.map(x => x.name).join(', ')]);
 
   return (
     <div className="place-info">
@@ -104,22 +108,22 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
         {rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
       {p.description && <p className="place-description">{p.description}</p>}
-      {wishers.length > 0 && <p className="hint-block">On the wishlist of {wishers.join(', ')}.</p>}
+      {wishers.length > 0 && <p className="hint-block">{s.wishlistOf(wishers.join(', '))}</p>}
 
-      <h3 className="section-title">Getting there</h3>
+      <h3 className="section-title">{s.gettingThere}</h3>
       <div className="waypoints">
-        <Waypoint label="Pin" lat={p.lat} lng={p.lng} />
-        <Waypoint label="Parking" icon="P" lat={p.parking_lat} lng={p.parking_lng} />
-        <Waypoint label="Start (attacco)" icon="⚑" lat={p.start_lat} lng={p.start_lng} />
+        <Waypoint label={s.pin} lat={p.lat} lng={p.lng} />
+        <Waypoint label={s.parking} icon="P" lat={p.parking_lat} lng={p.parking_lng} />
+        <Waypoint label={s.start} icon="⚑" lat={p.start_lat} lng={p.start_lng} />
       </div>
 
       {ACTIVITIES[p.activity].sectors && (
         <RouteList spot={p} userId={userId} isAdmin={isAdmin} canEditSpot={canEdit} reloadKey={reloadKey} />
       )}
 
-      <h3 className="section-title">Photos</h3>
+      <h3 className="section-title">{s.photos}</h3>
       <PhotoGallery owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} canAdd={!!userId}
-                    emptyText="No photos of this spot yet." />
+                    emptyText={s.noPhotos} />
 
       <Attachments owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} tracks={tracks} onChange={onChanged} />
     </div>
@@ -127,18 +131,21 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
 }
 
 function Waypoint({ label, icon, lat, lng }: { label: string; icon?: string; lat: number | null; lng: number | null }) {
+  const { t } = useI18n();
   if (lat == null || lng == null) return null;
   return (
     <div className="waypoint">
       <span className={`map-badge small ${icon === 'P' ? 'parking' : icon ? 'start' : 'pin'}`} aria-hidden="true">{icon ?? ''}</span>
       <span className="waypoint-label">{label}</span>
       <span className="waypoint-coords num">{formatCoords(lat, lng, 5)}</span>
-      <a href={directionsUrl(lat, lng)} target="_blank" rel="noopener noreferrer">Directions</a>
+      <a href={directionsUrl(lat, lng)} target="_blank" rel="noopener noreferrer">{t.spot.placeView.directions}</a>
     </div>
   );
 }
 
 function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEditVisit, onChanged }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.placeView;
   const [visits, setVisits] = useState<VisitDetail[] | null>(null);
   const [selectedId, setSelectedId] = useState<number | undefined>(initialVisitId);
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +162,7 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
   const mine = !!selected && selected.user_id === userId;
 
   async function remove() {
-    if (!selected || !confirm("Delete this visit? This can't be undone.")) return;
+    if (!selected || !confirm(s.confirmDeleteVisit)) return;
     try {
       await deleteVisit(selected.id);
       setSelectedId(undefined);
@@ -168,30 +175,30 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
   return (
     <div className="visits-view-body">
       <ErrorText error={error} />
-      {visits && <div className="hint-block">{plural(visits.length, 'visit')} you can see</div>}
+      {visits && <div className="hint-block">{s.visitsYouCanSee(visits.length)}</div>}
       {visits && visits.length > 0 && (
         <div className="visits-tabs">
           {visits.map((v, i) => (
             <button key={v.id} type="button" className={`visit-tab${v.id === selected?.id ? ' active' : ''}`}
                     onClick={() => setSelectedId(v.id)}>
-              {v.date ? formatDate(v.date) : `Visit ${i + 1}`}{v.user_id !== userId && v.username ? `, ${v.username}` : ''}
+              {v.date ? formatDate(v.date) : s.visitN(i + 1)}{v.user_id !== userId && v.username ? `, ${v.username}` : ''}
             </button>
           ))}
         </div>
       )}
       <div className="visit-detail">
-        {!visits && !error && <div className="empty">Loading…</div>}
-        {visits && !selected && <div className="empty">No visits you can see yet.</div>}
+        {!visits && !error && <div className="empty">{t.common.loading}</div>}
+        {visits && !selected && <div className="empty">{s.noVisits}</div>}
         {selected && <VisitDetailBody visit={selected} mine={mine} />}
         {selected && (
           <PhotoGallery key={selected.id} owner={{ visitId: selected.id }} userId={userId} isAdmin={isAdmin} canAdd={mine}
-                        emptyText={mine ? 'No photos from this day yet.' : 'No photos from this day.'} />
+                        emptyText={mine ? s.noPhotosMine : s.noPhotosOther} />
         )}
       </div>
       {selected && (mine || isAdmin) && (
         <div className="visit-detail-actions">
-          {mine && <button type="button" onClick={() => onEditVisit(selected)}>Edit visit</button>}
-          <button type="button" className="danger" onClick={remove}>Delete visit</button>
+          {mine && <button type="button" onClick={() => onEditVisit(selected)}>{s.editVisit}</button>}
+          <button type="button" className="danger" onClick={remove}>{s.deleteVisit}</button>
         </div>
       )}
     </div>
@@ -199,11 +206,13 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
 }
 
 function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean }) {
+  const { t } = useI18n();
+  const s = t.spot.placeView;
   const meta = [
     v.date ? formatDate(v.date) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
-    v.partners.length ? `with ${v.partners.join(', ')}` : null,
-    !mine && v.username ? `by ${v.username}` : null,
+    v.partners.length ? s.with(v.partners.join(', ')) : null,
+    !mine && v.username ? s.by(v.username) : null,
   ].filter(Boolean).join(', ');
   return <>
     <div className="visit-meta">
@@ -211,16 +220,16 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
       <VisibilityPill visibility={v.visibility} />
     </div>
     {v.summary && <div className="description">{v.summary}</div>}
-    {v.conditions && <div className="description"><b>Conditions:</b> {v.conditions}</div>}
-    {v.approach && <div className="description"><b>Avvicinamento:</b> {v.approach}</div>}
-    {v.descent && <div className="description"><b>Discesa:</b> {v.descent}</div>}
+    {v.conditions && <div className="description"><b>{s.conditions}</b> {v.conditions}</div>}
+    {v.approach && <div className="description"><b>{s.approach}</b> {v.approach}</div>}
+    {v.descent && <div className="description"><b>{s.descent}</b> {v.descent}</div>}
     {v.ascents.length ? (
       <ul>
         {v.ascents.map(a => (
           <li key={a.id}>
             {[
               <span key="h" className="ascent-head">
-                {a.name ? <b>{a.name}</b> : <b className="unnamed">Unnamed route</b>}
+                {a.name ? <b>{a.name}</b> : <b className="unnamed">{s.unnamedRoute}</b>}
                 {a.grade && <span className="ascent-grade num">{a.grade}</span>}
                 {a.sector && <span className="ascent-sector">{a.sector.name}</span>}
               </span>,
@@ -229,7 +238,7 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
           </li>
         ))}
       </ul>
-    ) : <div className="empty">No routes logged for this visit.</div>}
+    ) : <div className="empty">{s.noRoutesLogged}</div>}
   </>;
 }
 
@@ -240,6 +249,8 @@ function VisitDetailBody({ visit: v, mine }: { visit: VisitDetail; mine: boolean
 function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
   spot: Place; userId: string | null; isAdmin: boolean; canEditSpot: boolean; reloadKey: number;
 }) {
+  const { t } = useI18n();
+  const s = t.spot.placeView;
   const [routes, setRoutes] = useState<Route[] | null>(null);
   const [mine, setMine] = useState(0);
   const [adding, setAdding] = useState(false);
@@ -270,7 +281,7 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
   }
 
   async function remove(r: Route) {
-    if (!confirm(`Remove "${r.name}" from the list? Logged ascents keep their name.`)) return;
+    if (!confirm(s.confirmRemoveRoute(r.name))) return;
     try {
       await deleteRoute(r.id);
       setMine(n => n + 1);
@@ -281,14 +292,14 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
 
   const bySector = new Map<number | null, Route[]>();
   for (const r of routes ?? []) bySector.set(r.sector_id, [...(bySector.get(r.sector_id) ?? []), r]);
-  const sectorName = (id: number | null) => spot.sectors.find(s => s.id === id)?.name ?? 'Other';
-  const order = [...spot.sectors.map(s => s.id as number | null), null].filter(id => bySector.has(id));
+  const sectorName = (id: number | null) => spot.sectors.find(x => x.id === id)?.name ?? s.other;
+  const order = [...spot.sectors.map(x => x.id as number | null), null].filter(id => bySector.has(id));
 
   return (
     <section className="route-list">
-      <h3 className="section-title">Routes</h3>
+      <h3 className="section-title">{s.routes}</h3>
       {routes && !routes.length && (
-        <div className="empty">No shared route list yet. Visits can still log any route by name; add routes here so repeats are counted.</div>
+        <div className="empty">{s.noRouteList}</div>
       )}
       {order.map(id => (
         <div key={id ?? 'other'} className="route-group">
@@ -298,9 +309,9 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
               <li key={r.id}>
                 <span className="route-line-name">{r.name}</span>
                 {r.grade && <span className="num route-line-grade">{r.grade}</span>}
-                <span className="route-line-count">{r.ascent_count ? `logged ${r.ascent_count}×` : ''}</span>
+                <span className="route-line-count">{r.ascent_count ? s.logged(r.ascent_count) : ''}</span>
                 {(r.created_by === userId || canEditSpot || isAdmin) && (
-                  <button type="button" className="icon-btn small" aria-label={`Remove ${r.name}`} onClick={() => remove(r)}>×</button>
+                  <button type="button" className="icon-btn small" aria-label={s.removeRoute(r.name)} onClick={() => remove(r)}>×</button>
                 )}
               </li>
             ))}
@@ -310,21 +321,21 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
       <ErrorText error={error} />
       {userId && (adding ? (
         <form className="route-add" onSubmit={add}>
-          <input required placeholder="Route name" aria-label="Route name" value={name} onChange={e => setName(e.target.value)} />
-          <input className="num" placeholder="Grade" aria-label="Grade" list="routeGradeOptions" value={grade}
+          <input required placeholder={s.routeName} aria-label={s.routeName} value={name} onChange={e => setName(e.target.value)} />
+          <input className="num" placeholder={s.grade2} aria-label={s.grade2} list="routeGradeOptions" value={grade}
                  onChange={e => setGrade(e.target.value)} />
           <datalist id="routeGradeOptions">{gradeSuggestions(spot.activity).map(g => <option key={g} value={g} />)}</datalist>
           {spot.sectors.length > 0 && (
-            <select aria-label="Sector" value={sectorId} onChange={e => setSectorId(e.target.value)}>
-              <option value="">No sector</option>
-              {spot.sectors.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            <select aria-label={s.sector} value={sectorId} onChange={e => setSectorId(e.target.value)}>
+              <option value="">{s.noSector}</option>
+              {spot.sectors.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
             </select>
           )}
-          <button type="submit" className="btn btn-ghost">Add</button>
-          <button type="button" className="link-btn" onClick={() => setAdding(false)}>Done</button>
+          <button type="submit" className="btn btn-ghost">{s.add}</button>
+          <button type="button" className="link-btn" onClick={() => setAdding(false)}>{s.done}</button>
         </form>
       ) : (
-        <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>Add routes to the list</button>
+        <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>{s.addRoutes}</button>
       ))}
     </section>
   );

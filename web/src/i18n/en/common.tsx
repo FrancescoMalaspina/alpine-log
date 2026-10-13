@@ -1,0 +1,73 @@
+/** Shared words, labels used across the app, and the errors raised in web/src/lib. */
+const en = {
+  cancel: 'Cancel',
+  close: 'Close',
+  save: 'Save',
+  delete: 'Delete',
+  edit: 'Edit',
+  remove: 'Remove',
+  add: 'Add',
+  back: '← Back',
+  done: 'Done',
+  loading: 'Loading…',
+  private: 'Private',
+  public: 'Public',
+  admin: 'admin',
+  you: '(you)',
+  never: 'Never',
+
+  language: 'Language',
+  languages: { en: 'English', it: 'Italiano' },
+
+  activities: {
+    crag: 'Crag',
+    multipitch: 'Multipitch',
+    alpine: 'Alpinism',
+    ice: 'Ice climbing',
+    dws: 'Deep water solo',
+    indoor: 'Indoor climbing',
+    ski: 'Ski mountaineering',
+    hike: 'Hiking',
+    trail: 'Trail running',
+  },
+  priorities: { 1: 'High', 2: 'Normal', 3: 'Low' },
+  seasons: { winter: 'Winter', spring: 'Spring', summer: 'Summer', autumn: 'Autumn' },
+
+  timeAgo: {
+    justNow: 'just now',
+    minutes: (n: number) => `${n} minutes ago`,
+    hour: 'an hour ago',
+    hours: (n: number) => `${n} hours ago`,
+    yesterday: 'yesterday',
+    days: (n: number) => `${n} days ago`,
+  },
+  hours: (h: string) => `${h} h`,
+
+  usernameHint: 'Usernames are 3–30 letters, digits, dots, dashes or underscores.',
+
+  errors: {
+    usernameTaken: (name: string) => `"${name}" is already taken.`,
+    cantRename: "You can't rename this user.",
+    routeExists: (name: string) => `"${name}" is already in the list.`,
+    cantRemoveRoute: 'Only whoever added this route, or whoever can edit the spot, can remove it.',
+    placeHasOthersVisits: 'This place has visits logged by other people, so only an admin can delete it.',
+    areaExists: (name: string) => `There is already an area called "${name}".`,
+    cantChangeArea: 'Only the creator of this area or an admin can change it.',
+    cantDeleteArea: 'Only the creator of this area or an admin can delete it.',
+    linkScheme: 'Links must start with http:// or https://',
+    fileTypes: 'Only .gpx and .pdf files can be uploaded.',
+    cantRemoveAttachment: 'Only the person who added this (or an admin) can remove it.',
+    cantDeleteVisit: "You can't delete this visit.",
+    cantUndoImport: "You can't undo this import.",
+    aiBusy: 'The AI helper is busy (free quota reached). Try again in a minute, or map the columns yourself.',
+    aiFailed: (message: string) => `The AI helper didn't answer: ${message}`,
+    cantEditWish: 'You can only edit your own wishlist.',
+    alreadyWished: 'This place is already on your wishlist.',
+    photoUnreadable: (name: string) =>
+      `"${name}" can't be read by this browser. Try a JPEG or PNG (on iPhone, share it as "Most compatible").`,
+    cantDeletePhoto: 'Only the person who added this photo (or an admin) can delete it.',
+    locationSearch: (status: number) => `Location search failed (${status})`,
+  },
+};
+
+export default en;

@@ -77,6 +77,9 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offs
 }
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .app-header > .btn { margin-left: auto; }
+.header-lang { margin-left: auto; align-self: center; }
+.header-lang + .header-actions, .header-lang + .btn { margin-left: 0; }
+.lang-switch button { font-size: 12.5px; padding: 4px 8px; letter-spacing: .04em; }
 .header-hint { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--blaze-deep); }
 .account { display: flex; align-items: center; gap: 12px; padding-left: 12px; border-left: 1px solid var(--rule); }
 .account-name {
@@ -500,6 +503,9 @@ aside {
 .downloads-panel > summary::-webkit-details-marker { display: none; }
 .downloads-panel > summary::after { content: 'Show'; font-family: var(--font); font-size: 13.5px; font-weight: 600; color: var(--slate); }
 .downloads-panel[open] > summary::after { content: 'Hide'; }
+/* The page language comes from src/i18n (it sets <html lang>). */
+html[lang="it"] .downloads-panel > summary::after { content: 'Mostra'; }
+html[lang="it"] .downloads-panel[open] > summary::after { content: 'Nascondi'; }
 .downloads-panel[open] > summary { margin-bottom: 10px; }
 
 /* Segmented controls */

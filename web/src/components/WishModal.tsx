@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { useI18n } from '../i18n';
 import { useConfirm } from '../hooks/useConfirm';
 import { deleteWish, saveWish } from '../lib/api';
-import { PRIORITY_LABELS, errorMessage, isTouchLayout, seasonLabel } from '../lib/labels';
+import { priorityLabel, errorMessage, isTouchLayout, seasonLabel } from '../lib/labels';
 import { SEASONS, type Partner, type Place, type Season, type Visibility, type Wish } from '../lib/types';
 import { PeopleField } from './forms/PeopleField';
 import { ErrorText, Modal } from './Modal';
@@ -17,6 +18,8 @@ type Props = {
 
 /** Adds a place to your wishlist, or edits / removes its open wish. */
 export function WishModal({ place, wish, partners, onClose, onSaved }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.wish;
   const [priority, setPriority] = useState<Wish['priority']>(wish?.priority ?? 2);
   const [seasons, setSeasons] = useState<Season[]>(wish?.seasons ?? []);
   const [people, setPeople] = useState<string[]>(wish?.with_people ?? []);
@@ -35,7 +38,7 @@ export function WishModal({ place, wish, partners, onClose, onSaved }: Props) {
     setBusy(true);
     try {
       await saveWish({ id: wish?.id, place_id: place.id, priority, seasons, with_people: people, notes, visibility });
-      onSaved(wish ? 'Wishlist updated' : `${place.name} is on your wishlist`);
+      onSaved(wish ? s.updated : s.added(place.name));
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -44,11 +47,11 @@ export function WishModal({ place, wish, partners, onClose, onSaved }: Props) {
 
   async function remove() {
     if (!wish) return;
-    if (!await confirm({ title: 'Remove from your wishlist?', message: place.name, confirmLabel: 'Remove', danger: true })) return;
+    if (!await confirm({ title: s.removedTitle, message: place.name, confirmLabel: t.common.remove, danger: true })) return;
     setBusy(true);
     try {
       await deleteWish(wish.id);
-      onSaved(`${place.name} is off your wishlist`);
+      onSaved(s.removed(place.name));
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
@@ -57,29 +60,29 @@ export function WishModal({ place, wish, partners, onClose, onSaved }: Props) {
 
   return <>
     <Modal
-      title={wish ? 'On your wishlist' : 'Add to wishlist'}
+      title={wish ? s.titleEdit : s.titleAdd}
       subtitle={<>{place.name}{place.area && <> · {place.area.name}</>}</>}
       onClose={onClose}
       footer={<>
-        {wish && <button className="btn btn-danger" type="button" onClick={remove} disabled={busy}>Remove</button>}
-        <button className="btn btn-ghost" type="button" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" type="submit" form="wishForm" disabled={busy}>{wish ? 'Save' : 'Add to wishlist'}</button>
+        {wish && <button className="btn btn-danger" type="button" onClick={remove} disabled={busy}>{t.common.remove}</button>}
+        <button className="btn btn-ghost" type="button" onClick={onClose}>{t.common.cancel}</button>
+        <button className="btn btn-primary" type="submit" form="wishForm" disabled={busy}>{wish ? t.common.save : s.titleAdd}</button>
       </>}
     >
       <form id="wishForm" className="auth-form" onSubmit={save}>
         <div className="field">
-          <span className="field-label">Priority</span>
-          <div className="segmented" role="radiogroup" aria-label="Priority">
+          <span className="field-label">{s.priority}</span>
+          <div className="segmented" role="radiogroup" aria-label={s.priority}>
             {([1, 2, 3] as const).map(p => (
               <button key={p} type="button" role="radio" aria-checked={priority === p}
                       className={priority === p ? 'active' : ''} onClick={() => setPriority(p)}>
-                {PRIORITY_LABELS[p]}
+                {priorityLabel(p)}
               </button>
             ))}
           </div>
         </div>
         <div className="field">
-          <span className="field-label">Best season</span>
+          <span className="field-label">{s.bestSeason}</span>
           <div className="chip-row">
             {SEASONS.map(s => (
               <label key={s} className="type-option small">
@@ -88,25 +91,25 @@ export function WishModal({ place, wish, partners, onClose, onSaved }: Props) {
             ))}
           </div>
         </div>
-        <PeopleField label="Who you'd go with" partners={partners} value={people} onChange={setPeople} />
+        <PeopleField label={s.withLabel} partners={partners} value={people} onChange={setPeople} />
         <div className="field">
-          <label htmlFor="wishNotes">Notes <span className="hint">(optional)</span></label>
-          <textarea id="wishNotes" value={notes} placeholder="Which line, conditions to wait for, gear to bring…"
+          <label htmlFor="wishNotes">{s.notes} <span className="hint">{t.spot.placeFields.optional}</span></label>
+          <textarea id="wishNotes" value={notes} placeholder={s.notesPlaceholder}
                     autoFocus={!wish && !isTouchLayout()} onChange={e => setNotes(e.target.value)} />
         </div>
         <div className="field">
-          <div className="segmented" role="radiogroup" aria-label="Who can see this wish">
+          <div className="segmented" role="radiogroup" aria-label={s.whoCanSee}>
             {(['private', 'public'] as const).map(vis => (
               <button key={vis} type="button" role="radio" aria-checked={visibility === vis}
                       className={visibility === vis ? 'active' : ''} onClick={() => setVisibility(vis)}>
-                {vis === 'private' ? 'Private' : 'Public'}
+                {vis === 'private' ? t.common.private : t.common.public}
               </button>
             ))}
           </div>
           <span className="hint-block">
             {visibility === 'private'
-              ? 'Only you (and admins) can see this wish.'
-              : 'Anyone can see that this place is on your wishlist, with these notes and names.'}
+              ? s.privateHint
+              : s.publicHint}
           </span>
         </div>
         <ErrorText error={error} />

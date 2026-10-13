@@ -1,0 +1,169 @@
+/** Text for the "account" part of the app: logbook, wishlist, account panel, users page. */
+const en = {
+  visits: (n: number) => (n === 1 ? '1 visit' : `${n} visits`),
+  routes: (n: number) => (n === 1 ? '1 route' : `${n} routes`),
+
+  confirm: {
+    cancel: 'Cancel',
+    typeToConfirm: (name: string) => <>Type <strong translate="no">{name}</strong> to confirm</>,
+  },
+
+  myLog: {
+    title: (name: string) => `${name}'s logbook`,
+    titleNoName: 'My logbook',
+    since: (first: string, last: string) => `Since ${first}, last out ${last}`,
+    download: 'Download logbook',
+    downloadUse: 'CSV, JSON or GPX',
+    import: 'Import visits',
+    importPast: (n: number) => `From a file, or undo one of ${n} past imports`,
+    importNew: 'From Excel, CSV or JSON',
+    loading: 'Loading your visits…',
+    empty: 'Nothing logged yet. Use Log a visit to start your logbook, or import it from a spreadsheet.',
+    daysOut: 'Days out',
+    routesTotal: 'Routes',
+    spots: 'Spots',
+    areas: 'Areas',
+    statistics: 'Statistics',
+    byActivity: 'By activity',
+    activity: 'Activity',
+    days: 'Days',
+    hardest: 'Hardest',
+    byYear: 'By year',
+    year: 'Year',
+    noDate: 'No date',
+    allVisits: 'All visits',
+    onlyOne: 'Show only one activity',
+    all: 'All',
+  },
+
+  logbookModals: {
+    exports: {
+      csv: { name: 'Spreadsheet (CSV)', use: 'One row per route, for Excel, Numbers or Google Sheets' },
+      json: { name: 'Full backup (JSON)', use: 'Every detail of every visit, for keeping or importing elsewhere' },
+      gpx: { name: 'Spots for GPS (GPX)', use: 'The spots you visited as waypoints, for Garmin, Komoot, OsmAnd, Google Earth' },
+    },
+    downloadError: (message: string) => `Couldn't prepare the download: ${message}`,
+    downloadTitle: 'Download your logbook',
+    downloadSubtitle: 'Every visit you logged, in the format you need.',
+    preparing: 'Preparing…',
+    undoTitle: 'Undo this import?',
+    undoMessage: (n: number, file: string) =>
+      `Deletes the ${n === 1 ? '1 visit' : `${n} visits`} imported from “${file}”. Spots it created stay on the map.`,
+    undoConfirm: 'Undo import',
+    undoError: (message: string) => `Couldn't undo the import: ${message}`,
+    importTitle: 'Import visits',
+    importSubtitle: 'Bring in a logbook you kept somewhere else.',
+    fromFile: 'From a file',
+    fromFileUse: 'Excel, CSV or JSON, in any layout: you check every column before anything is saved',
+    pastImports: 'Past imports',
+    undoing: 'Undoing…',
+    undo: 'Undo',
+  },
+
+  wishlist: {
+    title: 'Wishlist',
+    empty: () => <>Places you want to go to. Open a spot and choose <strong>Add to wishlist</strong>; logging a visit there ticks it off.</>,
+    with: (people: string) => `with ${people}`,
+    logVisit: 'Log visit',
+    done: (n: number) => `Done (${n})`,
+    visited: (date: string) => `visited ${date}`,
+    doneOn: (date: string) => `done ${date}`,
+    reopen: 'Reopen',
+  },
+
+  accountPanel: {
+    title: 'Account',
+    profile: 'Profile',
+    email: 'Email',
+    username: 'Username',
+    usernameSaved: 'Username saved.',
+    users: 'Users',
+    usersHint: 'Everyone who signed up: when they were last active and how much they logged.',
+    manageUsers: 'Manage users',
+    deleteTitle: 'Delete account',
+    deleteHint: 'Deletes your visits, photos, attachments, imports and wishlist. Spots, areas and routes you added stay for everyone.',
+    deleteButton: 'Delete my account…',
+    deleteQuestion: 'Delete your account?',
+    deleteMessage: (email: string) => <>
+      <p>Your visits, photos, attachments, imports and wishlist are deleted for good, and you can no longer sign in
+        as <strong>{email}</strong>.</p>
+      <p>Spots, areas and routes you added stay on the map, without an owner.</p>
+    </>,
+    deleteConfirm: 'Delete my account',
+  },
+
+  users: {
+    title: 'Users',
+    columns: {
+      username: 'User',
+      email: 'Email',
+      created_at: 'Signed up',
+      last_active_at: 'Last active',
+      visits: 'Visits',
+      last_visit: 'Last visit',
+      spots_added: 'Spots',
+    },
+    sorts: {
+      active: 'Recently active',
+      newest: 'Newest sign-ups',
+      oldest: 'Oldest sign-ups',
+      visits: 'Most visits',
+      lastVisit: 'Most recent visit',
+      spots: 'Most spots added',
+      name: 'Username A–Z',
+    },
+    users: (n: number) => (n === 1 ? '1 user' : `${n} users`),
+    meta: (accounts: number, active: number, visits: number) =>
+      `${accounts === 1 ? '1 account' : `${accounts} accounts`} · ${active} active in the last 30 days · ${visits === 1 ? '1 visit' : `${visits} visits`} logged`,
+    search: 'Search by username or email',
+    searchLabel: 'Search users',
+    role: 'Role',
+    everyone: 'Everyone',
+    admins: 'Admins',
+    usersOpt: 'Users',
+    active: 'Active',
+    anyTime: 'Any time',
+    last7: 'In the last 7 days',
+    last30: 'In the last 30 days',
+    idle: 'Not for 30+ days',
+    never: 'Never',
+    logged: 'Logged',
+    anything: 'Anything',
+    someVisits: 'Some visits',
+    noVisits: 'No visits',
+    publicVisits: 'Public visits',
+    sort: 'Sort',
+    byColumn: 'By column',
+    count: (shown: number, total: number) => `${shown} of ${total}`,
+    clear: 'Clear',
+    noMatch: 'No users match.',
+    actions: 'Actions',
+    newUsername: (name: string) => `New username for ${name}`,
+    publicCount: (n: number) => `(${n} public)`,
+    rename: 'Rename',
+    removeAdmin: 'Remove admin',
+    makeAdmin: 'Make admin',
+    removeAdminTitle: (name: string) => `Remove admin rights from ${name}?`,
+    removeAdminMessage: 'They keep their account and everything they added, but can no longer edit other people’s spots or see private visits.',
+    deleteTitle: (name: string) => `Delete ${name}'s account?`,
+    deleteMessage: (visits: number, email: string) => <>
+      <p>Their {visits === 1 ? '1 visit' : `${visits} visits`}, photos, attachments, imports and wishlist are deleted for good, and they
+        can no longer sign in as <strong>{email}</strong>.</p>
+      <p>Spots, areas and routes they added stay on the map, without an owner.</p>
+    </>,
+    deleteConfirm: 'Delete account',
+  },
+
+  export: {
+    csvHeader: [
+      'date', 'spot', 'area', 'activity', 'latitude', 'longitude', 'visibility', 'with', 'duration_hours',
+      'conditions', 'summary', 'approach', 'descent', 'route', 'grade', 'sector', 'route_comment',
+    ],
+    gpxTitle: (name: string) => `${name}'s logbook`,
+    undated: 'undated',
+    gpxVisits: (n: number) => (n === 1 ? '1 visit' : `${n} visits`),
+    gpxRoutes: (n: number) => (n === 1 ? '1 route' : `${n} routes`),
+  },
+};
+
+export default en;

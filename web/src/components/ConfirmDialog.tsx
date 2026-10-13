@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { useI18n } from '../i18n';
 import { errorMessage, isTouchLayout } from '../lib/labels';
 import { ErrorText, Modal } from './Modal';
 
@@ -20,7 +21,8 @@ type Props = ConfirmOptions & {
 };
 
 /** In-app replacement for window.confirm. See also useConfirm. */
-export function ConfirmDialog({ title, message, confirmLabel, cancelLabel = 'Cancel', danger, requireText, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ title, message, confirmLabel, cancelLabel, danger, requireText, onConfirm, onCancel }: Props) {
+  const { t } = useI18n();
   const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function ConfirmDialog({ title, message, confirmLabel, cancelLabel = 'Can
       onClose={() => { if (!busy) onCancel(); }}
       footer={<>
         <button className="btn btn-ghost" type="button" onClick={onCancel} disabled={busy}
-                autoFocus={!requireText}>{cancelLabel}</button>
+                autoFocus={!requireText}>{cancelLabel ?? t.account.confirm.cancel}</button>
         <button className={`btn ${danger ? 'btn-danger confirm-danger' : 'btn-primary'}`} type="submit" form="confirmForm"
                 disabled={!ready || busy}>{confirmLabel}</button>
       </>}
@@ -54,7 +56,7 @@ export function ConfirmDialog({ title, message, confirmLabel, cancelLabel = 'Can
         {message && <div className="confirm-message">{message}</div>}
         {requireText && (
           <div className="field">
-            <label htmlFor="confirmText">Type <strong translate="no">{requireText}</strong> to confirm</label>
+            <label htmlFor="confirmText">{t.account.confirm.typeToConfirm(requireText)}</label>
             <input id="confirmText" autoComplete="off" autoCapitalize="off" spellCheck={false}
                    autoFocus={!isTouchLayout()} value={typed} onChange={e => setTyped(e.target.value)} />
           </div>

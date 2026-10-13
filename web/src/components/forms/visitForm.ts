@@ -1,3 +1,4 @@
+import { tr } from '../../i18n';
 import { ACTIVITIES, localToday } from '../../lib/labels';
 import type { Activity, Place, Visibility, VisitDetail, VisitInput } from '../../lib/types';
 
@@ -59,7 +60,7 @@ const filledAscents = (v: VisitValues) =>
 /** A message if the visit has nothing in it yet, otherwise null. */
 export function visitProblem(v: VisitValues): string | null {
   return !v.date && !v.summary.trim() && !v.withPeople.length && !filledAscents(v).length
-    ? 'Fill in at least a date, who you were with, or a route.'
+    ? tr().spot.visitForm.empty
     : null;
 }
 

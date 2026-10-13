@@ -6,6 +6,7 @@
 import { matchPlaces, type PlaceMatch } from '../api';
 import { searchLocations } from '../geocode';
 import type { PlaceInput, VisitInput, Visibility } from '../types';
+import { tr } from '../../i18n';
 import { ACTIVITIES } from '../labels';
 import type { DraftSpot } from './rows';
 
@@ -50,7 +51,7 @@ export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]>
       matches: mine,
       choice: sure ? best.place_id : 'new',
       pinSource: s.lat != null ? 'file' : null,
-      pinLabel: s.lat != null ? 'from the file' : '',
+      pinLabel: s.lat != null ? tr().import.spots.fromFile : '',
     };
   });
 }

@@ -217,6 +217,18 @@ secret already set in Supabase stays as it is.
 `GEMINI_MODEL` defaults to `gemini-2.5-flash`. All the Gemini code is in one
 function, `proposeMapping()`, so another provider can replace it there.
 
+## Languages
+
+The interface is in English and Italian. It starts in the browser's language
+and the EN | IT switch in the header changes it; signed-in users keep their
+choice on their profile (`profiles.language`), so it follows them to other
+devices. Dates and numbers follow the same language.
+
+All text lives in `web/src/i18n/`: `en/` is the source and `it/` must have the
+same keys (TypeScript fails the build otherwise). Components read it with
+`const { t } = useI18n()`; code outside components uses `tr()`. To add a
+language, add a folder next to `en/` and `it/` and list it in `i18n/types.ts`.
+
 ## Grades
 
 `public.grade_rank()` turns French (`6b+`) and UIAA (`VI-`) grades into one

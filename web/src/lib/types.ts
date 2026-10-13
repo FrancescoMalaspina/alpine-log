@@ -102,7 +102,7 @@ export type VisitDetail = {
 
 export type Partner = { id: number; name: string };
 
-export type Profile = { id: string; username: string; role: 'user' | 'admin' };
+export type Profile = { id: string; username: string; role: 'user' | 'admin'; language: 'en' | 'it' | null };
 
 export const SEASONS = ['winter', 'spring', 'summer', 'autumn'] as const;
 export type Season = typeof SEASONS[number];

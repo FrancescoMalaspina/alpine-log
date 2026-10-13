@@ -1,3 +1,4 @@
+import { useI18n } from '../../i18n';
 import { PeopleField } from './PeopleField';
 import { ACTIVITIES, gradeSuggestions } from '../../lib/labels';
 import type { Activity, Partner, Route } from '../../lib/types';
@@ -17,6 +18,8 @@ type Props = {
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
 export function VisitFields({ values: v, onChange, partners, activity, sectors, routes = [] }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.visitFields;
   const f = ACTIVITIES[activity];
   const updateAscent = (key: number, patch: Partial<AscentRow>) =>
     onChange({ ascents: v.ascents.map(a => (a.key === key ? { ...a, ...patch } : a)) });
@@ -33,69 +36,69 @@ export function VisitFields({ values: v, onChange, partners, activity, sectors, 
     <div className="visit-block">
       <div className="visit-row">
         <label className="field-inline">
-          <span className="field-label">Date</span>
+          <span className="field-label">{s.date}</span>
           <input type="date" className="visit-date" value={v.date} onChange={e => onChange({ date: e.target.value })} />
         </label>
-        <div className="segmented" role="radiogroup" aria-label="Who can see this visit">
+        <div className="segmented" role="radiogroup" aria-label={s.whoCanSee}>
           {(['private', 'public'] as const).map(vis => (
             <button key={vis} type="button" role="radio" aria-checked={v.visibility === vis}
                     className={v.visibility === vis ? 'active' : ''} onClick={() => onChange({ visibility: vis })}>
-              {vis === 'private' ? 'Private' : 'Public'}
+              {vis === 'private' ? t.common.private : t.common.public}
             </button>
           ))}
         </div>
       </div>
       <div className="hint-block">
         {v.visibility === 'private'
-          ? 'Only you (and admins) can see this visit.'
-          : 'Anyone, even without an account, can see this visit and the names of who you were with.'}
+          ? s.privateHint
+          : s.publicHint}
       </div>
 
-      <PeopleField label="Who you were with" partners={partners} value={v.withPeople}
+      <PeopleField label={s.withLabel} partners={partners} value={v.withPeople}
                    onChange={withPeople => onChange({ withPeople })} />
 
-      <textarea className="visit-summary" placeholder="How did it go? (optional)" aria-label="Summary" value={v.summary}
+      <textarea className="visit-summary" placeholder={s.summaryPlaceholder} aria-label={s.summary} value={v.summary}
                 onChange={e => onChange({ summary: e.target.value })} />
       {f.conditions && (
         <div className="visit-row">
-          <input type="text" className="visit-conditions" placeholder="Conditions: snow, ice, weather (optional)"
-                 aria-label="Conditions" value={v.conditions} onChange={e => onChange({ conditions: e.target.value })} />
+          <input type="text" className="visit-conditions" placeholder={s.conditionsPlaceholder}
+                 aria-label={s.conditions} value={v.conditions} onChange={e => onChange({ conditions: e.target.value })} />
           <label className="duration-field">
             <input type="number" inputMode="decimal" min={0.5} max={999} step={0.5} placeholder="h"
-                   aria-label="Duration in hours" value={v.duration} onChange={e => onChange({ duration: e.target.value })} />
-            <span>hours</span>
+                   aria-label={s.durationHours} value={v.duration} onChange={e => onChange({ duration: e.target.value })} />
+            <span>{s.hoursUnit}</span>
           </label>
         </div>
       )}
       {f.approach && (
         <div className="visit-approach">
-          <textarea placeholder="Avvicinamento: how to reach the start (optional)" aria-label="Approach" value={v.approach}
+          <textarea placeholder={s.approachPlaceholder} aria-label={s.approach} value={v.approach}
                     onChange={e => onChange({ approach: e.target.value })} />
-          <textarea placeholder="Discesa: how to get down (optional)" aria-label="Descent" value={v.descent}
+          <textarea placeholder={s.descentPlaceholder} aria-label={s.descent} value={v.descent}
                     onChange={e => onChange({ descent: e.target.value })} />
         </div>
       )}
 
       {f.routes && <>
-      <span className="field-label">{f.isRoute ? 'The route' : 'Routes'}</span>
-      {f.isRoute && <span className="hint-block">This spot is the route: a row left without a name is saved as it.</span>}
+      <span className="field-label">{f.isRoute ? s.theRoute : s.routes}</span>
+      {f.isRoute && <span className="hint-block">{s.routeIsSpot}</span>}
       <div className="routes-list">
         {v.ascents.map(a => (
           <div key={a.key} className="route-row">
-            <input type="text" className="route-name" placeholder="Route name" aria-label="Route name" value={a.name}
+            <input type="text" className="route-name" placeholder={s.routeName} aria-label={s.routeName} value={a.name}
                    list={routes.length ? 'spotRouteOptions' : undefined} onChange={e => setRouteName(a, e.target.value)} />
-            <input type="text" className="route-grade num" placeholder="Grade" aria-label="Grade" value={a.grade}
+            <input type="text" className="route-grade num" placeholder={s.grade} aria-label={s.grade} value={a.grade}
                    list="visitGradeOptions" onChange={e => updateAscent(a.key, { grade: e.target.value })} />
             {sectors.length > 0 && (
-              <select className="route-sector" value={a.sectorKey} aria-label="Sector"
+              <select className="route-sector" value={a.sectorKey} aria-label={s.sector}
                       onChange={e => updateAscent(a.key, { sectorKey: e.target.value })}>
-                <option value="">No sector</option>
+                <option value="">{s.noSector}</option>
                 {sectors.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
               </select>
             )}
-            <input type="text" className="route-comment" placeholder="Comment" aria-label="Comment" value={a.comment}
+            <input type="text" className="route-comment" placeholder={s.comment} aria-label={s.comment} value={a.comment}
                    onChange={e => updateAscent(a.key, { comment: e.target.value })} />
-            <button type="button" aria-label="Remove route"
+            <button type="button" aria-label={s.removeRoute}
                     onClick={() => onChange({ ascents: v.ascents.filter(x => x.key !== a.key) })}>×</button>
           </div>
         ))}
@@ -107,12 +110,12 @@ export function VisitFields({ values: v, onChange, partners, activity, sectors, 
         </datalist>
       )}
       <button type="button" className="btn-add-route" onClick={() => onChange({ ascents: [...v.ascents, ascentRow()] })}>
-        {f.isRoute ? 'Add another route' : 'Add a route'}
+        {f.isRoute ? s.addAnotherRoute : s.addRoute}
       </button>
       {f.sectors && unlisted && (
         <label className="switch small">
           <input type="checkbox" checked={v.addRoutes} onChange={e => onChange({ addRoutes: e.target.checked })} />
-          Add new route names to this spot's shared list
+          {s.addToSharedList}
         </label>
       )}
       </>}

@@ -4,6 +4,7 @@
  * with no field of their own, and fields the spot's activity has no use
  * for, end up as "Header: value" lines in the visit notes.
  */
+import { tr } from '../../i18n';
 import { ACTIVITIES } from '../labels';
 import type { Activity, Visibility } from '../types';
 import type { AlpineLogBackup, Cell, RawTable } from './parse';
@@ -109,11 +110,11 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
     const source = `${table.name}, row ${r + 2}`;
     const name = text(first(row, 'spot.name'));
     if (!name) {
-      if (row.some(c => !isBlank(c.v))) skipped.push({ source, reason: 'no spot name' });
+      if (row.some(c => !isBlank(c.v))) skipped.push({ source, reason: tr().import.reasons.noSpotName });
       return;
     }
     const activity = parseActivity(first(row, 'spot.activity')?.v) ?? m.activity;
-    if (!activity) { skipped.push({ source, reason: 'no activity' }); return; }
+    if (!activity) { skipped.push({ source, reason: tr().import.reasons.noActivity }); return; }
     const f = ACTIVITIES[activity];
 
     const spot = emptySpot(name, activity);
@@ -193,7 +194,7 @@ export function fromBackup(data: AlpineLogBackup): { spots: DraftSpot[]; skipped
   data.visits.forEach((v, i) => {
     const source = `visit ${i + 1}`;
     const activity = v.spot && parseActivity(v.spot.activity);
-    if (!v.spot || !activity) { skipped.push({ source, reason: 'no spot' }); return; }
+    if (!v.spot || !activity) { skipped.push({ source, reason: tr().import.reasons.noSpot }); return; }
     const spot = emptySpot(v.spot.name, activity);
     Object.assign(spot, {
       area: v.spot.area ?? '', grade: v.spot.grade ?? '', rock: v.spot.rock ?? '',

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useI18n } from '../i18n';
 import { createArea } from '../lib/api';
 import { errorMessage, isTouchLayout } from '../lib/labels';
 import { ErrorText, Modal } from './Modal';
@@ -10,6 +11,8 @@ type Props = {
 
 /** Creates an empty area; spots are added to it from its panel. */
 export function NewAreaModal({ onClose, onCreated }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.newArea;
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +21,7 @@ export function NewAreaModal({ onClose, onCreated }: Props) {
   async function save(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
-    if (!name.trim()) return setError('Give the area a name.');
+    if (!name.trim()) return setError(s.needName);
     setBusy(true);
     try {
       onCreated(await createArea(name, description));
@@ -30,22 +33,22 @@ export function NewAreaModal({ onClose, onCreated }: Props) {
 
   return (
     <Modal
-      title="New area"
-      subtitle="An area groups nearby spots: crags, routes, icefalls, trails… like Albard, Grignetta or Valsassina. You'll add spots to it next."
+      title={s.title}
+      subtitle={s.subtitle}
       onClose={onClose}
       footer={<>
-        <button className="btn btn-ghost" type="button" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" type="submit" form="newAreaForm" disabled={busy}>Create area</button>
+        <button className="btn btn-ghost" type="button" onClick={onClose}>{t.common.cancel}</button>
+        <button className="btn btn-primary" type="submit" form="newAreaForm" disabled={busy}>{s.create}</button>
       </>}
     >
       <form id="newAreaForm" className="auth-form" onSubmit={save}>
         <div className="field">
-          <label htmlFor="newAreaName">Name</label>
+          <label htmlFor="newAreaName">{s.name}</label>
           <input id="newAreaName" required autoFocus={!isTouchLayout()} value={name} onChange={e => setName(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="newAreaDescription">Description <span className="hint">(optional)</span></label>
-          <textarea id="newAreaDescription" value={description} placeholder="Where it is, rock, best season…"
+          <label htmlFor="newAreaDescription">{s.description} <span className="hint">{s.optional}</span></label>
+          <textarea id="newAreaDescription" value={description} placeholder={s.placeholder}
                     onChange={e => setDescription(e.target.value)} />
         </div>
         <ErrorText error={error} />

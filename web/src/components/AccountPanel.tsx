@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useI18n } from '../i18n';
 import { deleteUser, renameUser } from '../lib/api';
 import { errorMessage } from '../lib/labels';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -17,6 +18,7 @@ type Props = {
 /** Your profile and account; admins also reach the Users page from here. */
 export function AccountPanel(props: Props) {
   const { userId } = props;
+  const { t } = useI18n();
   const { session, profile, isAdmin, refreshProfile } = useAuth();
   const [username, setUsername] = useState<string | null>(null);
   const [renameState, setRenameState] = useState<{ busy: boolean; error: string | null; saved: boolean }>(
@@ -41,22 +43,22 @@ export function AccountPanel(props: Props) {
   }
 
   return (
-    <Drawer title="Account" meta={profile && <span className="meta-item">{profile.username}</span>} onClose={props.onClose}>
+    <Drawer title={t.account.accountPanel.title} meta={profile && <span className="meta-item">{profile.username}</span>} onClose={props.onClose}>
       <section className="account-section">
-        <h3 className="section-title">Profile</h3>
+        <h3 className="section-title">{t.account.accountPanel.profile}</h3>
         <form className="account-profile" onSubmit={rename}>
           <div className="field">
-            <label htmlFor="accountEmail">Email</label>
+            <label htmlFor="accountEmail">{t.account.accountPanel.email}</label>
             <input id="accountEmail" value={session?.user.email ?? ''} readOnly />
           </div>
           <div className="field">
-            <label htmlFor="accountUsername">Username</label>
+            <label htmlFor="accountUsername">{t.account.accountPanel.username}</label>
             <div className="field-inline">
               <input id="accountUsername" value={name} autoComplete="username"
                      onChange={e => { setUsername(e.target.value); setRenameState(s => ({ ...s, saved: false })); }} />
-              <button type="submit" className="btn btn-primary" disabled={!changed || renameState.busy}>Save</button>
+              <button type="submit" className="btn btn-primary" disabled={!changed || renameState.busy}>{t.common.save}</button>
             </div>
-            {renameState.saved && <span className="hint-block" role="status">Username saved.</span>}
+            {renameState.saved && <span className="hint-block" role="status">{t.account.accountPanel.usernameSaved}</span>}
           </div>
           <ErrorText error={renameState.error} />
         </form>
@@ -64,29 +66,25 @@ export function AccountPanel(props: Props) {
 
       {isAdmin && (
         <section className="account-section">
-          <h3 className="section-title">Users</h3>
-          <p className="hint-block">Everyone who signed up: when they were last active and how much they logged.</p>
-          <button type="button" className="btn btn-ghost account-users-btn" onClick={props.onOpenUsers}>Manage users</button>
+          <h3 className="section-title">{t.account.accountPanel.users}</h3>
+          <p className="hint-block">{t.account.accountPanel.usersHint}</p>
+          <button type="button" className="btn btn-ghost account-users-btn" onClick={props.onOpenUsers}>{t.account.accountPanel.manageUsers}</button>
         </section>
       )}
 
       <section className="account-section danger-zone">
-        <h3 className="section-title">Delete account</h3>
+        <h3 className="section-title">{t.account.accountPanel.deleteTitle}</h3>
         <p className="hint-block">
-          Deletes your visits, photos, attachments, imports and wishlist. Spots, areas and routes you added stay for everyone.
+          {t.account.accountPanel.deleteHint}
         </p>
-        <button type="button" className="btn btn-danger" onClick={() => setDeleting(true)}>Delete my account…</button>
+        <button type="button" className="btn btn-danger" onClick={() => setDeleting(true)}>{t.account.accountPanel.deleteButton}</button>
       </section>
 
       {deleting && profile && (
         <ConfirmDialog
-          title="Delete your account?"
-          message={<>
-            <p>Your visits, photos, attachments, imports and wishlist are deleted for good, and you can no longer sign in
-              as <strong>{session?.user.email}</strong>.</p>
-            <p>Spots, areas and routes you added stay on the map, without an owner.</p>
-          </>}
-          confirmLabel="Delete my account"
+          title={t.account.accountPanel.deleteQuestion}
+          message={t.account.accountPanel.deleteMessage(session?.user.email ?? '')}
+          confirmLabel={t.account.accountPanel.deleteConfirm}
           danger
           requireText={profile.username}
           onCancel={() => setDeleting(false)}

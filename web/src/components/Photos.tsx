@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
 import { deletePhoto, fetchPhotos, uploadPhoto, type Photo, type PhotoOwner } from '../lib/photos';
 import { ErrorText } from './Modal';
@@ -15,6 +16,8 @@ type Props = {
 
 /** Thumbnail grid with an add button and a full-screen viewer. */
 export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.photos;
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
@@ -37,7 +40,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
     const list = [...files];
     try {
       for (const [i, f] of list.entries()) {
-        setProgress(list.length > 1 ? `Uploading ${i + 1} of ${list.length}…` : 'Uploading…');
+        setProgress(list.length > 1 ? s.uploadingOf(i + 1, list.length) : s.uploading);
         await uploadPhoto(owner, userId, f);
       }
     } catch (e) {
@@ -50,7 +53,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
   }
 
   const remove = useCallback(async (photo: Photo) => {
-    if (!confirm('Delete this photo?')) return;
+    if (!confirm(s.confirmDelete)) return;
     try {
       await deletePhoto(owner, photo);
       setOpen(null);
@@ -58,7 +61,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [owner]);
+  }, [owner, s]);
 
   return (
     <div className="photos">
@@ -66,7 +69,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
         <ul className="photo-grid">
           {photos.map((p, i) => (
             <li key={p.id}>
-              <button type="button" className="photo-thumb" onClick={() => setOpen(i)} aria-label={p.caption ?? `Photo ${i + 1}`}>
+              <button type="button" className="photo-thumb" onClick={() => setOpen(i)} aria-label={p.caption ?? s.photoN(i + 1)}>
                 <img src={p.thumbUrl} alt={p.caption ?? ''} loading="lazy" width={160} height={120} />
               </button>
             </li>
@@ -78,7 +81,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
         <label className={`btn btn-ghost add-photos${progress ? ' busy' : ''}`}>
           <input ref={input} type="file" accept="image/*" multiple disabled={!!progress}
                  onChange={e => add(e.target.files)} />
-          {progress ?? 'Add photos'}
+          {progress ?? s.addPhotos}
         </label>
       )}
       <ErrorText error={error} />
@@ -94,6 +97,8 @@ function Lightbox({ photos, index, onIndex, onClose, canDelete, onDelete }: {
   photos: Photo[]; index: number; onIndex: (i: number) => void; onClose: () => void;
   canDelete: (p: Photo) => boolean; onDelete: (p: Photo) => void;
 }) {
+  const { t } = useI18n();
+  const s = t.spot.photos;
   const photo = photos[index];
   const many = photos.length > 1;
   const step = useCallback((d: number) => onIndex((index + d + photos.length) % photos.length), [index, photos.length, onIndex]);
@@ -113,21 +118,21 @@ function Lightbox({ photos, index, onIndex, onClose, canDelete, onDelete }: {
 
   // Portalled to <body>: inside the side panel it would sit under the header and map controls.
   return createPortal(
-    <div className="lightbox" role="dialog" aria-modal="true" aria-label="Photo"
+    <div className="lightbox" role="dialog" aria-modal="true" aria-label={s.photo}
          onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <img src={photo.url} alt={photo.caption ?? ''} width={photo.width ?? undefined} height={photo.height ?? undefined} />
       <div className="lightbox-bar">
         <span className="lightbox-info">
           {many && <span className="num">{index + 1} / {photos.length}</span>}
           {photo.caption && <span>{photo.caption}</span>}
-          {photo.username && <span>by {photo.username}</span>}
+          {photo.username && <span>{s.by(photo.username)}</span>}
         </span>
-        {canDelete(photo) && <button type="button" onClick={() => onDelete(photo)}>Delete</button>}
-        <button ref={closeBtn} type="button" onClick={onClose}>Close</button>
+        {canDelete(photo) && <button type="button" onClick={() => onDelete(photo)}>{t.common.delete}</button>}
+        <button ref={closeBtn} type="button" onClick={onClose}>{t.common.close}</button>
       </div>
       {many && <>
-        <button type="button" className="lightbox-nav prev" aria-label="Previous photo" onClick={() => step(-1)}>‹</button>
-        <button type="button" className="lightbox-nav next" aria-label="Next photo" onClick={() => step(1)}>›</button>
+        <button type="button" className="lightbox-nav prev" aria-label={s.previous} onClick={() => step(-1)}>‹</button>
+        <button type="button" className="lightbox-nav next" aria-label={s.next} onClick={() => step(1)}>›</button>
       </>}
     </div>,
     document.body,

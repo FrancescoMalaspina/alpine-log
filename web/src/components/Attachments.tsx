@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { tr, useI18n } from '../i18n';
 import { addLink, attachmentUrl, deleteAttachment, fetchAttachments, uploadAttachment, type AttachmentOwner } from '../lib/api';
 import { parseGpx, type Track } from '../lib/gpx';
 import { errorMessage, formatBytes } from '../lib/labels';
@@ -18,6 +19,8 @@ type Props = {
 const ICONS: Record<Attachment['kind'], string> = { gpx: 'GPX', pdf: 'PDF', link: 'URL' };
 
 export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.attachments;
   const [items, setItems] = useState<Attachment[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props)
   };
 
   async function remove(a: Attachment) {
-    if (!confirm(`Remove "${a.title ?? a.url}"?`)) return;
+    if (!confirm(s.confirmRemove(a.title ?? a.url ?? ''))) return;
     try {
       await deleteAttachment(a);
       changed();
@@ -51,15 +54,15 @@ export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props)
 
   return (
     <div className="attachments">
-      <h3 className="section-title">Approach tracks</h3>
-      {items && !gpx.length && <div className="empty">No GPX yet.</div>}
+      <h3 className="section-title">{s.approachTracks}</h3>
+      {items && !gpx.length && <div className="empty">{s.noGpx}</div>}
       {gpx.map(a => (
         <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)}
               detail={trackSummary(tracks?.get(a.id))} />
       ))}
 
-      <h3 className="section-title">Guides and links</h3>
-      {items && !guides.length && <div className="empty">No guides yet.</div>}
+      <h3 className="section-title">{s.guides}</h3>
+      {items && !guides.length && <div className="empty">{s.noGuides}</div>}
       {guides.map(a => (
         <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)} />
       ))}
@@ -72,19 +75,21 @@ export function Attachments({ owner, userId, isAdmin, tracks, onChange }: Props)
 
 function trackSummary(t: Track | undefined) {
   if (!t) return undefined;
+  const s = tr().spot.attachments;
   return [
     `${t.distanceKm.toFixed(1)} km`,
-    t.gainM != null && `${Math.round(t.gainM)} m up`,
-    t.maxEleM != null && `top ${Math.round(t.maxEleM)} m`,
+    t.gainM != null && s.up(Math.round(t.gainM)),
+    t.maxEleM != null && s.top(Math.round(t.maxEleM)),
   ].filter(Boolean).join(', ');
 }
 
 function Item({ a, canDelete, onDelete, detail }:
   { a: Attachment; canDelete: boolean; onDelete: () => void; detail?: string }) {
+  const { t } = useI18n();
   const meta = [
     detail,
     a.kind === 'link' ? new URL(a.url!).hostname.replace(/^www\./, '') : a.size_bytes && formatBytes(a.size_bytes),
-    a.username && `by ${a.username}`,
+    a.username && t.spot.attachments.by(a.username),
   ].filter(Boolean).join(', ');
   return (
     <div className="attachment">
@@ -94,12 +99,14 @@ function Item({ a, canDelete, onDelete, detail }:
         <span className="attachment-title">{a.title || a.url}</span>
         {meta && <span className="attachment-meta">{meta}</span>}
       </a>
-      {canDelete && <button type="button" aria-label={`Remove ${a.title ?? 'attachment'}`} onClick={onDelete}>×</button>}
+      {canDelete && <button type="button" aria-label={t.spot.attachments.removeNamed(a.title ?? t.spot.attachments.attachment)} onClick={onDelete}>×</button>}
     </div>
   );
 }
 
 function AddAttachment({ owner, userId, onAdded }: { owner: AttachmentOwner; userId: string; onAdded: () => void }) {
+  const { t } = useI18n();
+  const s = t.spot.attachments;
   const [mode, setMode] = useState<'link' | 'file'>('link');
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
@@ -117,9 +124,9 @@ function AddAttachment({ owner, userId, onAdded }: { owner: AttachmentOwner; use
         await addLink(owner, title, url);
         setUrl('');
       } else {
-        if (!file) throw new Error('Pick a .gpx or .pdf file first.');
+        if (!file) throw new Error(s.pickFile);
         if (file.name.toLowerCase().endsWith('.gpx')) {
-          if (!parseGpx(await file.text())) throw new Error("That GPX file doesn't contain a track.");
+          if (!parseGpx(await file.text())) throw new Error(s.noTrack);
         }
         await uploadAttachment(owner, userId, file, title);
         setFile(null);
@@ -137,19 +144,19 @@ function AddAttachment({ owner, userId, onAdded }: { owner: AttachmentOwner; use
   return (
     <form className="add-attachment" onSubmit={submit}>
       <div className="segmented small">
-        <button type="button" className={mode === 'link' ? 'active' : ''} onClick={() => setMode('link')}>Paste a link</button>
-        <button type="button" className={mode === 'file' ? 'active' : ''} onClick={() => setMode('file')}>Upload GPX / PDF</button>
+        <button type="button" className={mode === 'link' ? 'active' : ''} onClick={() => setMode('link')}>{s.pasteLink}</button>
+        <button type="button" className={mode === 'file' ? 'active' : ''} onClick={() => setMode('file')}>{s.uploadFile}</button>
       </div>
       {mode === 'link' ? (
-        <input type="url" required placeholder="https://www.thecrag.com/…" value={url} aria-label="Link" spellCheck={false}
+        <input type="url" required placeholder="https://www.thecrag.com/…" value={url} aria-label={s.link} spellCheck={false}
                onChange={e => setUrl(e.target.value)} />
       ) : (
-        <input key={fileKey} type="file" required accept=".gpx,.pdf,application/pdf,application/gpx+xml" aria-label="File"
+        <input key={fileKey} type="file" required accept=".gpx,.pdf,application/pdf,application/gpx+xml" aria-label={s.file}
                onChange={e => setFile(e.target.files?.[0] ?? null)} />
       )}
       <div className="add-attachment-row">
-        <input type="text" placeholder="Title (optional)" value={title} aria-label="Title" onChange={e => setTitle(e.target.value)} />
-        <button type="submit" className="btn btn-ghost" disabled={busy}>{busy ? 'Adding…' : mode === 'link' ? 'Add link' : 'Upload'}</button>
+        <input type="text" placeholder={s.titleOptional} value={title} aria-label={s.title} onChange={e => setTitle(e.target.value)} />
+        <button type="submit" className="btn btn-ghost" disabled={busy}>{busy ? s.adding : mode === 'link' ? s.addLink : s.upload}</button>
       </div>
       <ErrorText error={error} />
     </form>

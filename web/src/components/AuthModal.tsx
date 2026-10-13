@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { useI18n } from '../i18n';
 import { errorMessage, isTouchLayout } from '../lib/labels';
 import { ErrorText, Modal } from './Modal';
 
@@ -7,6 +8,7 @@ type Tab = 'signin' | 'signup' | 'reset';
 
 export function AuthModal({ onClose }: { onClose: () => void }) {
   const auth = useAuth();
+  const { t } = useI18n();
   const [tab, setTab] = useState<Tab>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,11 +28,11 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
         onClose();
       } else if (tab === 'signup') {
         const mustConfirm = await auth.signUp(email, password, username.trim());
-        if (mustConfirm) setInfo(`Almost there — we sent a confirmation link to ${email}.`);
+        if (mustConfirm) setInfo(t.app.auth.confirmSent(email));
         else onClose();
       } else {
         await auth.sendPasswordReset(email);
-        setInfo(`If ${email} has an account, a reset link is on its way.`);
+        setInfo(t.app.auth.resetSent(email));
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -39,49 +41,47 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const titles: Record<Tab, string> = { signin: 'Sign in', signup: 'Create an account', reset: 'Reset your password' };
-
   return (
     <Modal
-      title={titles[tab]}
+      title={t.app.auth.titles[tab]}
       subtitle={tab === 'signup'
-        ? 'Log your own climbs. Visits are private until you make them public.'
-        : tab === 'reset' ? "We'll email you a link to choose a new password." : undefined}
+        ? t.app.auth.signupSubtitle
+        : tab === 'reset' ? t.app.auth.resetSubtitle : undefined}
       onClose={onClose}
       closeOnBackdrop
       footer={<>
-        <button className="btn btn-ghost" type="button" onClick={onClose}>Close</button>
+        <button className="btn btn-ghost" type="button" onClick={onClose}>{t.common.close}</button>
         <button className="btn btn-add" type="submit" form="authForm" disabled={busy}>
-          {tab === 'signin' ? 'Sign in' : tab === 'signup' ? 'Create account' : 'Send reset link'}
+          {tab === 'signin' ? t.app.auth.signIn : tab === 'signup' ? t.app.auth.signUp : t.app.auth.sendReset}
         </button>
       </>}
     >
       <form id="authForm" className="auth-form" onSubmit={submit}>
         <div className="list-mode-tabs auth-tabs">
-          {(['signin', 'signup'] as const).map(t => (
-            <button key={t} type="button" className={`list-mode-tab${tab === t ? ' active' : ''}`}
-                    onClick={() => { setTab(t); setError(null); setInfo(null); }}>
-              {t === 'signin' ? 'Sign in' : 'Create account'}
+          {(['signin', 'signup'] as const).map(k => (
+            <button key={k} type="button" className={`list-mode-tab${tab === k ? ' active' : ''}`}
+                    onClick={() => { setTab(k); setError(null); setInfo(null); }}>
+              {k === 'signin' ? t.app.auth.signIn : t.app.auth.signUp}
             </button>
           ))}
         </div>
         {tab === 'signup' && (
           <div className="field">
-            <label htmlFor="authUsername">Username</label>
+            <label htmlFor="authUsername">{t.app.auth.username}</label>
             <input id="authUsername" name="username" required autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} minLength={3} maxLength={30}
-                   pattern="[A-Za-z0-9_.\-]{3,30}" title="3–30 letters, digits, dots, dashes or underscores"
+                   pattern="[A-Za-z0-9_.\-]{3,30}" title={t.app.auth.usernameTitle}
                    onChange={e => setUsername(e.target.value)} />
           </div>
         )}
         <div className="field">
-          <label htmlFor="authEmail">Email</label>
+          <label htmlFor="authEmail">{t.app.auth.email}</label>
           <input id="authEmail" name="email" type="email" required autoComplete="email" autoFocus={!isTouchLayout()}
                  spellCheck={false} value={email}
                  onChange={e => setEmail(e.target.value)} />
         </div>
         {tab !== 'reset' && (
           <div className="field">
-            <label htmlFor="authPassword">Password</label>
+            <label htmlFor="authPassword">{t.app.auth.password}</label>
             <input id="authPassword" name="password" type="password" required minLength={8} value={password}
                    autoComplete={tab === 'signup' ? 'new-password' : 'current-password'}
                    onChange={e => setPassword(e.target.value)} />
@@ -89,11 +89,11 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
         )}
         {tab === 'signin' && (
           <button type="button" className="link-btn" onClick={() => { setTab('reset'); setError(null); }}>
-            Forgot your password?
+            {t.app.auth.forgot}
           </button>
         )}
         {tab === 'reset' && (
-          <button type="button" className="link-btn" onClick={() => setTab('signin')}>Back to sign in</button>
+          <button type="button" className="link-btn" onClick={() => setTab('signin')}>{t.app.auth.backToSignIn}</button>
         )}
         <ErrorText error={error} />
         {info && <div className="form-info" role="status">{info}</div>}
@@ -105,6 +105,7 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
 /** Shown after following a password-reset email link. */
 export function NewPasswordModal() {
   const auth = useAuth();
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -122,13 +123,13 @@ export function NewPasswordModal() {
 
   return (
     <Modal
-      title="Choose a new password"
+      title={t.app.auth.newPasswordTitle}
       onClose={() => auth.signOut()}
-      footer={<button className="btn btn-add" type="submit" form="newPasswordForm" disabled={busy}>Save password</button>}
+      footer={<button className="btn btn-add" type="submit" form="newPasswordForm" disabled={busy}>{t.app.auth.savePassword}</button>}
     >
       <form id="newPasswordForm" className="auth-form" onSubmit={submit}>
         <div className="field">
-          <label htmlFor="newPassword">New password</label>
+          <label htmlFor="newPassword">{t.app.auth.newPassword}</label>
           <input id="newPassword" type="password" required minLength={8} autoComplete="new-password" autoFocus
                  value={password} onChange={e => setPassword(e.target.value)} />
         </div>

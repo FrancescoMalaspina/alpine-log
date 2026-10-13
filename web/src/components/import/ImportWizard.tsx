@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { askImportAssist, importLogbook, type ImportResult } from '../../lib/api';
-import { errorMessage, plural } from '../../lib/labels';
+import { errorMessage } from '../../lib/labels';
 import { autoMap, loadPreset, savePreset, type SheetMapping } from '../../lib/import/automap';
 import { FIELDS, type FieldId } from '../../lib/import/fields';
 import { parseFile, type ParsedFile, type RawTable } from '../../lib/import/parse';
 import { buildPayload, geocodeSpots, isReady, matchExisting, type ResolvedSpot } from '../../lib/import/resolve';
 import { applyMapping, fromBackup, mergeSpots } from '../../lib/import/rows';
 import type { Activity, Visibility } from '../../lib/types';
+import { useI18n } from '../../i18n';
 import { ErrorText, Modal } from '../Modal';
 import { ColumnsStep } from './ColumnsStep';
 import { SpotsStep } from './SpotsStep';
@@ -26,6 +27,8 @@ const cellText = (v: unknown) => (v == null ? '' : String(v));
 
 /** Imports visits from a spreadsheet, CSV or JSON file: pick, map columns, place spots, confirm. */
 export function ImportWizard({ onClose, onImported }: Props) {
+  const { t } = useI18n();
+  const w = t.import.wizard;
   const [step, setStep] = useState<Step>('file');
   const [file, setFile] = useState<ParsedFile | null>(null);
   const [mappings, setMappings] = useState<SheetMapping[]>([]);
@@ -52,12 +55,12 @@ export function ImportWizard({ onClose, onImported }: Props) {
 
   async function pick(f: File) {
     setError(null);
-    setProgress('Reading the file…');
+    setProgress(w.reading);
     try {
       const parsed = await parseFile(f);
       setFile(parsed);
       if (parsed.kind === 'tables') {
-        if (!parsed.tables.length) throw new Error('No table found in this file.');
+        if (!parsed.tables.length) throw new Error(w.noTable);
         setMappings(parsed.tables.map(t => loadPreset(t) ?? autoMap(t)));
         setStep('columns');
         setProgress(null);
@@ -65,7 +68,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
         await resolve(fromBackup(parsed.data).spots);
       }
     } catch (e) {
-      setError(`Couldn't read this file: ${errorMessage(e)}`);
+      setError(w.cantRead(errorMessage(e)));
       setProgress(null);
     }
   }
@@ -73,7 +76,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
   async function findPins(list: ResolvedSpot[], ctrl: AbortController) {
     // Pins from the file or set by hand stay; geocoded ones are looked up again.
     const reset = list.map(s => (s.pinSource === 'geocoded' ? { ...s, lat: null, lng: null, pinSource: null, pinLabel: '' } : s));
-    const done = await geocodeSpots(reset, country, (n, total) => setProgress(`Finding pins… ${n} of ${total}`), ctrl.signal);
+    const done = await geocodeSpots(reset, country, (n, total) => setProgress(w.findingPins(n, total)), ctrl.signal);
     setSpots(done);
   }
 
@@ -84,7 +87,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
     const ctrl = new AbortController();
     abort.current = ctrl;
     try {
-      setProgress('Looking for spots already on the map…');
+      setProgress(w.lookingForSpots);
       const matched = await matchExisting(list);
       setSpots(matched);
       await findPins(matched, ctrl);
@@ -148,8 +151,8 @@ export function ImportWizard({ onClose, onImported }: Props) {
   function toSpots() {
     const unset = tables.filter((_, i) => mappings[i].include && !mappings[i].activity
       && !mappings[i].columns.some(c => c.field === 'spot.activity'));
-    if (unset.length) return setError(`Choose the activity for ${unset.map(t => `“${t.name}”`).join(', ')}.`);
-    if (!drafts?.spots.length) return setError('Nothing to import: map a column to “Spot name”.');
+    if (unset.length) return setError(w.chooseActivity(unset.map(x => `“${x.name}”`).join(', ')));
+    if (!drafts?.spots.length) return setError(w.nothingToImport);
     tables.forEach((t, i) => { if (mappings[i].include) savePreset(t, mappings[i]); });
     void resolve();
   }
@@ -166,7 +169,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
       setStep('done');
       onImported();
     } catch (e) {
-      setError(`The import failed and nothing was saved: ${errorMessage(e)}`);
+      setError(w.failed(errorMessage(e)));
     } finally {
       setSaving(false);
     }
@@ -177,39 +180,39 @@ export function ImportWizard({ onClose, onImported }: Props) {
   const notReady = spots.filter(s => !isReady(s)).length;
 
   const subtitle = {
-    file: 'From a spreadsheet (Excel, Numbers, LibreOffice), a CSV, or a JSON file, including this app\'s own backup.',
-    columns: 'Check what each column becomes. Columns kept as notes are added to the visit\'s notes as “Column: value”.',
-    spots: 'Each spot either joins one already on the map or becomes a new one with a pin.',
-    confirm: 'Last check before saving.',
+    file: t.import.steps.file,
+    columns: t.import.steps.columns,
+    spots: t.import.steps.spots,
+    confirm: t.import.steps.confirm,
     done: null,
   }[step];
 
   const back = (to: Step) => () => { abort.current?.abort(); setProgress(null); setError(null); setStep(to); };
 
   const footer = {
-    file: <button className="btn btn-ghost" type="button" onClick={onClose}>Cancel</button>,
+    file: <button className="btn btn-ghost" type="button" onClick={onClose}>{t.common.cancel}</button>,
     columns: <>
-      <button className="btn btn-ghost" type="button" onClick={back('file')}>Back</button>
-      <button className="btn btn-primary" type="button" onClick={toSpots}>Next: spots</button>
+      <button className="btn btn-ghost" type="button" onClick={back('file')}>{t.common.back}</button>
+      <button className="btn btn-primary" type="button" onClick={toSpots}>{w.next}</button>
     </>,
     spots: <>
-      <button className="btn btn-ghost" type="button" onClick={back(file?.kind === 'tables' ? 'columns' : 'file')}>Back</button>
+      <button className="btn btn-ghost" type="button" onClick={back(file?.kind === 'tables' ? 'columns' : 'file')}>{t.common.back}</button>
       <button className="btn btn-primary" type="button" disabled={!!progress || notReady > 0 || !used.length}
               onClick={() => { setError(null); setStep('confirm'); }}>
-        {notReady > 0 ? `${plural(notReady, 'spot')} without a pin` : 'Next: confirm'}
+        {notReady > 0 ? t.import.counts.spotsWithoutPin(notReady) : w.nextConfirm}
       </button>
     </>,
     confirm: <>
-      <button className="btn btn-ghost" type="button" onClick={back('spots')}>Back</button>
+      <button className="btn btn-ghost" type="button" onClick={back('spots')}>{t.common.back}</button>
       <button className="btn btn-primary" type="button" disabled={saving} onClick={save}>
-        {saving ? 'Importing…' : `Import ${plural(visitCount, 'visit')}`}
+        {saving ? w.importing : w.importVisits(visitCount)}
       </button>
     </>,
-    done: <button className="btn btn-primary" type="button" onClick={onClose}>Done</button>,
+    done: <button className="btn btn-primary" type="button" onClick={onClose}>{t.common.done}</button>,
   }[step];
 
   return (
-    <Modal title="Import visits" subtitle={subtitle} onClose={onClose} className="modal-wide" footer={footer}>
+    <Modal title={t.import.title} subtitle={subtitle} onClose={onClose} className="modal-wide" footer={footer}>
       {step === 'file' && (
         <div className="import-body">
           <label className="import-drop"
@@ -217,13 +220,11 @@ export function ImportWizard({ onClose, onImported }: Props) {
                  onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) void pick(f); }}>
             <input type="file" accept=".xlsx,.xls,.xlsm,.ods,.csv,.tsv,.txt,.json,.numbers"
                    onChange={e => { const f = e.target.files?.[0]; if (f) void pick(f); e.target.value = ''; }} />
-            <span className="import-drop-title">{progress ?? 'Choose a file or drop it here'}</span>
-            <span className="hint">.xlsx, .ods, .csv, .json · every sheet of a workbook is read</span>
+            <span className="import-drop-title">{progress ?? w.dropTitle}</span>
+            <span className="hint">{w.dropHint}</span>
           </label>
           <p className="hint-block">
-            Any layout works: one row per visit or one row per route, columns in any language, extra visits in
-            columns like “Date (2)”. You'll check every column before anything is saved, and an import can be undone
-            from your logbook.
+            {w.anyLayout}
           </p>
         </div>
       )}
@@ -251,22 +252,21 @@ export function ImportWizard({ onClose, onImported }: Props) {
       {step === 'confirm' && (
         <div className="import-body">
           <dl className="log-totals">
-            <div><dt>Visits</dt><dd className="num">{visitCount}</dd></div>
-            <div><dt>Routes</dt><dd className="num">{payload?.visits.reduce((n, v) => n + v.ascents.length, 0) ?? 0}</dd></div>
-            <div><dt>New spots</dt><dd className="num">{used.filter(s => s.choice === 'new').length}</dd></div>
-            <div><dt>Existing spots</dt><dd className="num">{used.filter(s => typeof s.choice === 'number').length}</dd></div>
+            <div><dt>{w.totals.visits}</dt><dd className="num">{visitCount}</dd></div>
+            <div><dt>{w.totals.routes}</dt><dd className="num">{payload?.visits.reduce((n, v) => n + v.ascents.length, 0) ?? 0}</dd></div>
+            <div><dt>{w.totals.newSpots}</dt><dd className="num">{used.filter(s => s.choice === 'new').length}</dd></div>
+            <div><dt>{w.totals.existingSpots}</dt><dd className="num">{used.filter(s => typeof s.choice === 'number').length}</dd></div>
           </dl>
           <div className="field">
-            <span className="field-label">Who can see the imported visits</span>
+            <span className="field-label">{w.whoCanSee}</span>
             <div className="chip-row">
-              <label className="type-option"><input type="radio" name="importVis" checked={visibility === 'private'} onChange={() => setVisibility('private')} />Only me</label>
-              <label className="type-option"><input type="radio" name="importVis" checked={visibility === 'public'} onChange={() => setVisibility('public')} />Everyone</label>
+              <label className="type-option"><input type="radio" name="importVis" checked={visibility === 'private'} onChange={() => setVisibility('private')} />{w.onlyMe}</label>
+              <label className="type-option"><input type="radio" name="importVis" checked={visibility === 'public'} onChange={() => setVisibility('public')} />{w.everyone}</label>
             </div>
           </div>
           <p className="hint-block">
-            New spots are shared with everyone, like spots you add by hand. A visit on the same day at the same spot as
-            one already in your logbook is skipped, so importing a file twice is safe.
-            {drafts && drafts.skipped.length > 0 && <> {plural(drafts.skipped.length, 'row')} of the file had no spot name and won't be imported.</>}
+            {w.confirmNote}
+            {drafts && drafts.skipped.length > 0 && w.noSpotName(drafts.skipped.length)}
           </p>
         </div>
       )}
@@ -275,10 +275,10 @@ export function ImportWizard({ onClose, onImported }: Props) {
         <div className="import-body">
           {result && (
             <p className="form-info">
-              {result.visits ? <>Imported {plural(result.visits, 'visit')}</> : <>Nothing new to import</>}
-              {result.skipped ? ` (${plural(result.skipped, 'visit')} you already had ${result.skipped === 1 ? 'was' : 'were'} skipped)` : ''}
-              {result.new_spots ? `, with ${plural(result.new_spots, 'new spot')}` : ''}.
-              {result.import_id != null && ' You can undo this import from your logbook.'}
+              {result.visits ? w.imported(result.visits) : w.nothingNew}
+              {result.skipped ? w.skipped(result.skipped) : ''}
+              {result.new_spots ? w.withNewSpots(result.new_spots) : ''}.
+              {result.import_id != null && w.canUndo}
             </p>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useI18n } from '../../i18n';
 import type { Partner } from '../../lib/types';
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
 
 /** Pick people from your partners, or add a new name. */
 export function PeopleField({ label, partners, value, onChange }: Props) {
+  const { t } = useI18n();
   const [newPerson, setNewPerson] = useState('');
   const knownNames = [...new Set([...partners.map(p => p.name), ...value])].sort((a, b) => a.localeCompare(b));
   const toggle = (n: string) => onChange(value.includes(n) ? value.filter(x => x !== n) : [...value, n]);
@@ -31,10 +33,10 @@ export function PeopleField({ label, partners, value, onChange }: Props) {
         ))}
       </div>
       <div className="add-person-row">
-        <input type="text" placeholder="Add someone new" aria-label="Add someone new" value={newPerson}
+        <input type="text" placeholder={t.spot.peopleField.addSomeone} aria-label={t.spot.peopleField.addSomeone} value={newPerson}
                onChange={e => setNewPerson(e.target.value)}
                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
-        <button type="button" onClick={add}>Add</button>
+        <button type="button" onClick={add}>{t.common.add}</button>
       </div>
     </div>
   );

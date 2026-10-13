@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useI18n } from '../i18n';
 import { GRADE_OPTIONS } from '../lib/grades';
-import { activityLabel, formatDate, formatHours, plural } from '../lib/labels';
+import { activityLabel, formatDate, formatHours } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
 import { LocationResults } from './LocationResults';
 import type { Location } from '../lib/geocode';
@@ -50,14 +51,9 @@ function countVisitFilters(f: VisitFilters) {
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
-const SEARCH_PLACEHOLDER: Record<ListMode, string> = {
-  places: 'Search spots, peaks, huts, villages…',
-  areas: 'Search areas…',
-  visits: 'Search by spot, person, or route…',
-};
-
 export function Sidebar(props: Props) {
   const { mode, placeFilters: pf, visitFilters: vf } = props;
+  const { t } = useI18n();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const active = mode === 'places' ? countPlaceFilters(pf) : mode === 'visits' ? countVisitFilters(vf) : 0;
   const search = mode === 'places' ? pf.search : mode === 'visits' ? vf.search : props.areaSearch;
@@ -72,23 +68,23 @@ export function Sidebar(props: Props) {
 
   return (
     <aside>
-      <div className="list-mode-tabs" role="tablist" aria-label="What to list">
+      <div className="list-mode-tabs" role="tablist" aria-label={t.app.sidebar.whatToList}>
         {(['places', 'areas', 'visits'] as const).map(m => (
           <button key={m} type="button" role="tab" aria-selected={mode === m}
                   className={`list-mode-tab${mode === m ? ' active' : ''}`} onClick={() => props.onModeChange(m)}>
-            {m === 'places' ? 'Spots' : m === 'areas' ? 'Areas' : 'Visits'}
+            {t.app.sidebar.tabs[m]}
             <span className="tab-count">{m === 'visits' && props.loading ? '' : counts[m]}</span>
           </button>
         ))}
       </div>
 
       <div className="search">
-        <input type="search" value={search} placeholder={SEARCH_PLACEHOLDER[mode]} aria-label={SEARCH_PLACEHOLDER[mode]}
+        <input type="search" value={search} placeholder={t.app.sidebar.searchPlaceholder[mode]} aria-label={t.app.sidebar.searchPlaceholder[mode]}
                spellCheck={false} onChange={e => setSearch(e.target.value)} />
         {mode !== 'areas' && (
           <button type="button" className={`btn btn-quiet filter-toggle${filtersOpen ? ' active' : ''}`}
                   aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}>
-            Filters{active > 0 && <span className="filter-count">{active}</span>}
+            {t.app.sidebar.filters}{active > 0 && <span className="filter-count">{active}</span>}
           </button>
         )}
       </div>
@@ -104,16 +100,16 @@ export function Sidebar(props: Props) {
 
       <div className="list" aria-busy={visitsLoading}>
         <p className="visually-hidden" aria-live="polite">
-          {visitsLoading ? '' : `${count} ${mode === 'places' ? 'spots' : mode === 'areas' ? 'areas' : 'visits'} shown`}
+          {visitsLoading ? '' : t.app.sidebar.shown[mode](count)}
         </p>
         {props.error && <div className="list-empty form-error">{props.error}</div>}
         {!props.error && !visitsLoading && count === 0 && !(mode === 'places' && search.trim().length >= 3) && (
           <div className="list-empty">
             {mode === 'visits' && !props.userId
-              ? 'No public visits match. Sign in to see your own.'
+              ? t.app.sidebar.emptyPublicVisits
               : mode === 'areas' && !props.areaSearch
-                ? 'No areas yet. Create one with New area, or type one in a spot\'s "Area" field.'
-                : 'Nothing matches. Try clearing the search or filters.'}
+                ? t.app.sidebar.emptyAreas
+                : t.app.sidebar.emptyNothing}
           </div>
         )}
         {mode === 'places' && <PlaceGroups {...props} />}
@@ -122,7 +118,7 @@ export function Sidebar(props: Props) {
         )}
         {mode === 'areas' && props.userId && (
           <div className="list-action">
-            <button type="button" className="btn btn-ghost" onClick={props.onNewArea}>New area</button>
+            <button type="button" className="btn btn-ghost" onClick={props.onNewArea}>{t.app.sidebar.newArea}</button>
           </div>
         )}
         {mode === 'areas' && (
@@ -131,7 +127,7 @@ export function Sidebar(props: Props) {
               <li key={a.id} className="row-item">
                 <button type="button" className="row-main" onClick={() => props.onAreaClick(a.id)}>
                   <span className="row-title">{a.name}</span>
-                  <span className="row-meta">{plural(a.place_count, 'spot')}</span>
+                  <span className="row-meta">{t.app.sidebar.spots(a.place_count)}</span>
                   {a.description && <span className="row-summary">{a.description}</span>}
                 </button>
               </li>
@@ -152,6 +148,7 @@ export function Sidebar(props: Props) {
 
 /** Spots grouped under their area; the area heading opens the area. */
 function PlaceGroups(props: Props) {
+  const { t } = useI18n();
   const groups = new Map<string, { areaId: number | null; places: Place[] }>();
   for (const p of props.places) {
     const key = p.area?.name ?? '';
@@ -168,7 +165,7 @@ function PlaceGroups(props: Props) {
           <h2 className="group-head">
             {g.areaId
               ? <button type="button" onClick={() => props.onAreaClick(g.areaId!)}>{name}</button>
-              : <span>Not in an area</span>}
+              : <span>{t.app.sidebar.notInArea}</span>}
             <span className="group-count">{g.places.length}</span>
           </h2>
         )}
@@ -181,14 +178,15 @@ function PlaceGroups(props: Props) {
 }
 
 function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }: { place: Place } & Props) {
+  const { t } = useI18n();
   const facts = [
     activityLabel(p.activity),
     p.distance_km != null ? `${p.distance_km} km` : null,
     p.grade,
     p.rock,
-    p.exposition.length ? `faces ${p.exposition.join('/')}` : null,
-    p.sectors.length ? plural(p.sectors.length, 'sector') : null,
-    p.visit_count ? plural(p.visit_count, 'visit') : null,
+    p.exposition.length ? t.app.sidebar.faces(p.exposition.join('/')) : null,
+    p.sectors.length ? t.app.sidebar.sectors(p.sectors.length) : null,
+    p.visit_count ? t.app.sidebar.visits(p.visit_count) : null,
   ].filter(Boolean);
   return (
     <li className="row-item">
@@ -197,16 +195,17 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
         <span className="row-meta">{facts.join(', ')}</span>
       </button>
       <div className="row-actions">
-        <button type="button" onClick={() => onPlaceDetails(p)}>Details</button>
-        {userId && <button type="button" onClick={() => onAddVisit(p)}>Add visit</button>}
+        <button type="button" onClick={() => onPlaceDetails(p)}>{t.app.sidebar.details}</button>
+        {userId && <button type="button" onClick={() => onAddVisit(p)}>{t.app.sidebar.addVisit}</button>}
       </div>
     </li>
   );
 }
 
 export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; mine: boolean; onClick: () => void }) {
+  const { t } = useI18n();
   const facts = [
-    v.partner_names.length ? `with ${v.partner_names.join(', ')}` : null,
+    v.partner_names.length ? t.app.sidebar.withPeople(v.partner_names.join(', ')) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
     v.grades.length ? v.grades.join(', ') : null,
     v.sector_names.length ? v.sector_names.join(', ') : null,
@@ -215,8 +214,8 @@ export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; min
     <li className="row-item">
       <button type="button" className="row-main" onClick={onClick}>
         <span className="row-kicker">
-          {v.date ? <time dateTime={v.date}>{formatDate(v.date)}</time> : 'No date'}
-          {!mine && v.username && <span> by {v.username}</span>}
+          {v.date ? <time dateTime={v.date}>{formatDate(v.date)}</time> : t.app.sidebar.noDate}
+          {!mine && v.username && <span>{t.app.sidebar.by(v.username)}</span>}
           <VisibilityPill visibility={v.visibility} />
         </span>
         <span className="row-title"><ActivityBadge activity={v.place_activity} />{v.place_name}</span>
@@ -229,16 +228,18 @@ export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; min
 }
 
 export function VisibilityPill({ visibility }: { visibility: 'private' | 'public' }) {
+  const { t } = useI18n();
   return visibility === 'public'
-    ? <span className="vis-pill public" title="Anyone can see this visit">Public</span>
-    : <span className="vis-pill private" title="Only you (and admins) can see this visit">Private</span>;
+    ? <span className="vis-pill public" title={t.app.sidebar.publicTitle}>{t.common.public}</span>
+    : <span className="vis-pill private" title={t.app.sidebar.privateTitle}>{t.common.private}</span>;
 }
 
 function AreaSelect({ id, value, areas, onChange }:
   { id: string; value: number | null; areas: Area[]; onChange: (id: number | null) => void }) {
+  const { t } = useI18n();
   return (
     <select id={id} value={value ?? ''} onChange={e => onChange(e.target.value ? +e.target.value : null)}>
-      <option value="">Any area</option>
+      <option value="">{t.app.sidebar.anyArea}</option>
       {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
     </select>
   );
@@ -247,16 +248,17 @@ function AreaSelect({ id, value, areas, onChange }:
 function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }: {
   f: PlaceFilters; onChange: (f: PlaceFilters) => void; rocks: string[]; areas: Area[]; getMapCenter: () => LatLng; signedIn: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <div className="filters">
       {signedIn && (
         <label className="type-option small wishlist-filter">
           <input type="checkbox" checked={f.wishlist} onChange={() => onChange({ ...f, wishlist: !f.wishlist })} />
-          ★ Only my wishlist
+          {t.app.sidebar.onlyWishlist}
         </label>
       )}
       <div className="filter-group">
-        <span className="filter-label">Activity</span>
+        <span className="filter-label">{t.app.sidebar.activity}</span>
         <div className="chip-row">
           {ACTIVITY_ORDER.map(t => (
             <label key={t} className="type-option small">
@@ -269,19 +271,19 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }
       </div>
       <div className="filter-row-2">
         <div className="filter-group">
-          <label className="filter-label" htmlFor="areaFilter">Area</label>
+          <label className="filter-label" htmlFor="areaFilter">{t.app.sidebar.area}</label>
           <AreaSelect id="areaFilter" value={f.areaId} areas={areas} onChange={areaId => onChange({ ...f, areaId })} />
         </div>
         <div className="filter-group">
-          <label className="filter-label" htmlFor="rockFilter">Rock</label>
+          <label className="filter-label" htmlFor="rockFilter">{t.app.sidebar.rock}</label>
           <select id="rockFilter" value={f.rock} onChange={e => onChange({ ...f, rock: e.target.value })}>
-            <option value="">Any rock</option>
+            <option value="">{t.app.sidebar.anyRock}</option>
             {rocks.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </div>
       </div>
       <div className="filter-group">
-        <span className="filter-label">Exposition</span>
+        <span className="filter-label">{t.app.sidebar.exposition}</span>
         <div className="chip-row">
           {EXPOSITIONS.map(x => (
             <label key={x} className="type-option small">
@@ -293,24 +295,24 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }
         </div>
       </div>
       <div className="filter-group">
-        <span className="filter-label">Distance</span>
+        <span className="filter-label">{t.app.sidebar.distance}</span>
         {f.near ? (
           <div className="near-row">
-            <span>within</span>
-            <input type="number" min={1} max={1000} value={f.near.km} className="mono" aria-label="Radius in km"
+            <span>{t.app.sidebar.within}</span>
+            <input type="number" min={1} max={1000} value={f.near.km} className="mono" aria-label={t.app.sidebar.radiusKm}
                    onChange={e => onChange({ ...f, near: { ...f.near!, km: Math.max(1, +e.target.value || 1) } })} />
-            <span>km of the pinned centre</span>
+            <span>{t.app.sidebar.kmOfCentre}</span>
             <button type="button" className="link-btn"
-                    onClick={() => onChange({ ...f, near: { ...getMapCenter(), km: f.near!.km } })}>use current map centre</button>
-            <button type="button" className="link-btn" onClick={() => onChange({ ...f, near: null })}>clear</button>
+                    onClick={() => onChange({ ...f, near: { ...getMapCenter(), km: f.near!.km } })}>{t.app.sidebar.useMapCentre}</button>
+            <button type="button" className="link-btn" onClick={() => onChange({ ...f, near: null })}>{t.app.sidebar.clear}</button>
           </div>
         ) : (
           <button type="button" className="btn-add-sector"
-                  onClick={() => onChange({ ...f, near: { ...getMapCenter(), km: 30 } })}>Near the map centre…</button>
+                  onClick={() => onChange({ ...f, near: { ...getMapCenter(), km: 30 } })}>{t.app.sidebar.nearMapCentre}</button>
         )}
       </div>
       <button type="button" className="link-btn clear-all"
-              onClick={() => onChange({ ...EMPTY_PLACE_FILTERS, search: f.search })}>Clear filters</button>
+              onClick={() => onChange({ ...EMPTY_PLACE_FILTERS, search: f.search })}>{t.app.sidebar.clearFilters}</button>
     </div>
   );
 }
@@ -318,16 +320,17 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, getMapCenter, signedIn }
 function VisitFiltersPanel({ f, onChange, partners, areas, signedIn, isAdmin }: {
   f: VisitFilters; onChange: (f: VisitFilters) => void; partners: Partner[]; areas: Area[]; signedIn: boolean; isAdmin: boolean;
 }) {
+  const { t } = useI18n();
   const scopes: { value: VisitScope; label: string }[] = [
-    { value: 'all', label: isAdmin ? 'Everything' : signedIn ? 'Mine + public' : 'Public' },
-    ...(signedIn ? [{ value: 'mine' as const, label: 'Only mine' }] : []),
-    ...(signedIn ? [{ value: 'public' as const, label: 'Only public' }] : []),
+    { value: 'all', label: isAdmin ? t.app.sidebar.scopeEverything : signedIn ? t.app.sidebar.scopeMinePublic : t.app.sidebar.scopePublic },
+    ...(signedIn ? [{ value: 'mine' as const, label: t.app.sidebar.scopeOnlyMine }] : []),
+    ...(signedIn ? [{ value: 'public' as const, label: t.app.sidebar.scopeOnlyPublic }] : []),
   ];
   return (
     <div className="filters">
       {scopes.length > 1 && (
         <div className="filter-group">
-          <span className="filter-label">Show</span>
+          <span className="filter-label">{t.app.sidebar.show}</span>
           <div className="segmented">
             {scopes.map(s => (
               <button key={s.value} type="button" className={f.scope === s.value ? 'active' : ''}
@@ -338,46 +341,46 @@ function VisitFiltersPanel({ f, onChange, partners, areas, signedIn, isAdmin }: 
       )}
       <div className="filter-row-2">
         <div className="filter-group">
-          <label className="filter-label" htmlFor="activityFilter">Activity</label>
+          <label className="filter-label" htmlFor="activityFilter">{t.app.sidebar.activity}</label>
           <select id="activityFilter" value={f.activity}
                   onChange={e => onChange({ ...f, activity: e.target.value as VisitFilters['activity'] })}>
-            <option value="">Any</option>
+            <option value="">{t.app.sidebar.any}</option>
             {ACTIVITY_ORDER.map(t => <option key={t} value={t}>{activityLabel(t)}</option>)}
           </select>
         </div>
         <div className="filter-group">
-          <label className="filter-label" htmlFor="visitAreaFilter">Area</label>
+          <label className="filter-label" htmlFor="visitAreaFilter">{t.app.sidebar.area}</label>
           <AreaSelect id="visitAreaFilter" value={f.areaId} areas={areas} onChange={areaId => onChange({ ...f, areaId })} />
         </div>
       </div>
       {signedIn && partners.length > 0 && (
         <div className="filter-group">
-          <label className="filter-label" htmlFor="partnerFilter">Climbed with</label>
+          <label className="filter-label" htmlFor="partnerFilter">{t.app.sidebar.climbedWith}</label>
           <select id="partnerFilter" value={f.partnerId ?? ''}
                   onChange={e => onChange({ ...f, partnerId: e.target.value ? +e.target.value : null })}>
-            <option value="">Anyone</option>
+            <option value="">{t.app.sidebar.anyone}</option>
             {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </div>
       )}
       <div className="filter-group">
-        <span className="filter-label">Date</span>
+        <span className="filter-label">{t.app.sidebar.date}</span>
         <div className="date-row">
-          <input type="date" value={f.from} aria-label="From date" onChange={e => onChange({ ...f, from: e.target.value })} />
-          <span>to</span>
-          <input type="date" value={f.to} aria-label="To date" onChange={e => onChange({ ...f, to: e.target.value })} />
+          <input type="date" value={f.from} aria-label={t.app.sidebar.fromDate} onChange={e => onChange({ ...f, from: e.target.value })} />
+          <span>{t.app.sidebar.to}</span>
+          <input type="date" value={f.to} aria-label={t.app.sidebar.toDate} onChange={e => onChange({ ...f, to: e.target.value })} />
         </div>
       </div>
       <div className="filter-group">
-        <label className="filter-label" htmlFor="gradeFilter">Hardest climbing grade ≥</label>
+        <label className="filter-label" htmlFor="gradeFilter">{t.app.sidebar.hardestGrade}</label>
         <select id="gradeFilter" value={f.minGradeRank ?? ''}
                 onChange={e => onChange({ ...f, minGradeRank: e.target.value ? +e.target.value : null })}>
-          <option value="">Any grade</option>
+          <option value="">{t.app.sidebar.anyGrade}</option>
           {GRADE_OPTIONS.map(g => <option key={g.label} value={g.rank}>{g.label}</option>)}
         </select>
       </div>
       <button type="button" className="link-btn clear-all"
-              onClick={() => onChange({ ...EMPTY_VISIT_FILTERS, search: f.search })}>Clear filters</button>
+              onClick={() => onChange({ ...EMPTY_VISIT_FILTERS, search: f.search })}>{t.app.sidebar.clearFilters}</button>
     </div>
   );
 }

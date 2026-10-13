@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { deletePlace, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
+import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
 import type { Area, Partner, Place } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { COORD_LABELS, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
+import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
 import { newSectorOptions, saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
 import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
@@ -31,6 +32,8 @@ type Props = {
 
 /** Add or edit a place; a new place can be saved together with a visit there. */
 export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.placeModal;
   const [values, setValues] = useState<PlaceValues>(() => ({
     ...placeValuesFrom(place),
     ...(initialAt && !place ? { coords: formatCoords(initialAt.lat, initialAt.lng) } : {}),
@@ -46,7 +49,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
   const change = (patch: Partial<PlaceValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
   const changeVisit = (patch: Partial<VisitValues>) => { setVisit(v => ({ ...v, ...patch })); setDirty(true); };
   const close = () => {
-    if (!dirty || confirm('Discard what you typed?')) onClose();
+    if (!dirty || confirm(s.confirmDiscard)) onClose();
   };
 
   useEffect(() => {
@@ -54,14 +57,14 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
   }, [values.coords, onCoordsChange]);
 
   const pick = (field: CoordField) =>
-    onPickOnMap(COORD_LABELS[field], at => change({ [field]: formatCoords(at.lat, at.lng) }));
+    onPickOnMap(coordLabel(field), at => change({ [field]: formatCoords(at.lat, at.lng) }));
 
   async function save() {
     setError(null);
     const input = buildPlaceInput(values, savedId);
     if (typeof input === 'string') return setError(input);
     const problem = logVisit ? visitProblem(visit) : null;
-    if (problem) return setError(`The visit: ${problem}`);
+    if (problem) return setError(s.visitProblem(problem));
 
     setBusy(true);
     let id = savedId;
@@ -73,7 +76,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
       }
       onSaved(id, logVisit);
     } catch (e) {
-      setError(id && logVisit && !place ? `The place is saved, but the visit isn't: ${errorMessage(e)}` : errorMessage(e));
+      setError(id && logVisit && !place ? s.savedButVisitFailed(errorMessage(e)) : errorMessage(e));
       setBusy(false);
     }
   }
@@ -81,8 +84,8 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
   async function remove() {
     if (!place) return;
     const msg = place.visit_count
-      ? `Delete "${place.name}" and all ${place.visit_count} visit(s) logged there? This can't be undone.`
-      : `Delete "${place.name}"? This can't be undone.`;
+      ? s.confirmDeleteWithVisits(place.name, place.visit_count)
+      : s.confirmDelete(place.name);
     if (!confirm(msg)) return;
     setBusy(true);
     try {
@@ -96,17 +99,17 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
 
   return (
     <Modal
-      title={place ? 'Edit spot' : 'Add a spot'}
+      title={place ? s.editTitle : s.addTitle}
       subtitle={place
-        ? 'Spots are shared: everyone sees them, only you (and admins) can change this one.'
-        : 'One crag, route, icefall, trail or gym. Everyone sees spots; your visits stay private unless you make them public.'}
+        ? s.editSubtitle
+        : s.addSubtitle}
       onClose={close}
       hidden={hidden}
       footer={<>
-        {place && canDelete && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>Delete</button>}
-        <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
+        {place && canDelete && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>{t.common.delete}</button>}
+        <button className="btn btn-ghost" type="button" onClick={close}>{t.common.cancel}</button>
         <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
-          {place ? 'Save changes' : logVisit ? 'Save spot and visit' : 'Save spot'}
+          {place ? s.saveChanges : logVisit ? s.saveSpotAndVisit : s.saveSpot}
         </button>
       </>}
     >
@@ -118,7 +121,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
           <div className="form-section">
             <label className="switch">
               <input type="checkbox" checked={logVisit} onChange={e => setLogVisit(e.target.checked)} />
-              Log a visit here too
+              {s.logVisitToo}
             </label>
             {logVisit && (
               <VisitFields values={visit} onChange={changeVisit} partners={partners} activity={values.activity}
@@ -126,7 +129,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, partners, canDelete
             )}
           </div>
         )}
-        {place && <p className="form-note">Photos, guide links, PDFs and the approach GPX are added from the spot's Details panel.</p>}
+        {place && <p className="form-note">{s.editNote}</p>}
         <div className="form-error-row"><ErrorText error={error} /></div>
         <button type="submit" hidden />
       </form>

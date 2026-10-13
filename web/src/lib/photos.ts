@@ -8,6 +8,7 @@
  * in the private "visit-photos" bucket and are shown through signed URLs,
  * so they're only visible to whoever can see the visit.
  */
+import { tr } from '../i18n';
 import { supabase } from './supabase';
 
 export type PhotoOwner = { placeId: number } | { visitId: number };
@@ -33,7 +34,7 @@ async function shrink(file: File, maxSide: number, quality: number) {
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   } catch {
-    throw new Error(`"${file.name}" can't be read by this browser. Try a JPEG or PNG (on iPhone, share it as "Most compatible").`);
+    throw new Error(tr().common.errors.photoUnreadable(file.name));
   }
   const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
   const width = Math.round(bitmap.width * scale);
@@ -109,6 +110,6 @@ export async function fetchPhotos(owner: PhotoOwner): Promise<Photo[]> {
 export async function deletePhoto(owner: PhotoOwner, photo: Photo): Promise<void> {
   const { data, error } = await supabase.from('photos').delete().eq('id', photo.id).select('id');
   if (error) throw new Error(error.message);
-  if (!data.length) throw new Error('Only the person who added this photo (or an admin) can delete it.');
+  if (!data.length) throw new Error(tr().common.errors.cantDeletePhoto);
   await supabase.storage.from(bucketOf(owner)).remove([photo.storage_path, photo.thumb_path]);
 }

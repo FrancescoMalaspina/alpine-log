@@ -3,6 +3,7 @@
  * built on OpenStreetMap that, unlike Nominatim's public API, allows
  * search-as-you-type. Results are biased toward the current map centre.
  */
+import { tr } from '../i18n';
 import type { LatLng } from './coords';
 
 export type Location = {
@@ -37,7 +38,7 @@ export async function searchLocations(query: string, near: LatLng, signal?: Abor
   url.searchParams.set('lat', near.lat.toFixed(3));
   url.searchParams.set('lon', near.lng.toFixed(3));
   const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`Location search failed (${res.status})`);
+  if (!res.ok) throw new Error(tr().common.errors.locationSearch(res.status));
   const data: { features: PhotonFeature[] } = await res.json();
 
   const seen = new Set<string>();

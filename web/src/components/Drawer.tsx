@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useI18n } from '../i18n';
 
 type Props = {
   title: string;
@@ -15,6 +16,7 @@ type Props = {
  * Docked right of the map on desktop, full-screen on phones.
  */
 export function Drawer({ title, meta, onClose, footer, children }: Props) {
+  const { t } = useI18n();
   return (
     <section className="drawer" role="dialog" aria-labelledby="drawerTitle">
       <div className="drawer-head">
@@ -22,7 +24,7 @@ export function Drawer({ title, meta, onClose, footer, children }: Props) {
           <span className="signpost-edge" aria-hidden="true" />
           <h2 id="drawerTitle" className="signpost-name">{title}</h2>
         </div>
-        <button type="button" className="icon-btn drawer-close" aria-label="Close panel" onClick={onClose}>×</button>
+        <button type="button" className="icon-btn drawer-close" aria-label={t.app.drawer.closePanel} onClick={onClose}>×</button>
       </div>
       {meta && <div className="drawer-meta">{meta}</div>}
       <div className="drawer-body">{children}</div>

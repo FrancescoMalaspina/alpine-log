@@ -1,4 +1,5 @@
 import { formatCoords, parseCoordinates } from '../../lib/coords';
+import { tr } from '../../i18n';
 import { ACTIVITIES } from '../../lib/labels';
 import type { Activity, Exposition, Place, PlaceInput } from '../../lib/types';
 
@@ -24,7 +25,7 @@ export type PlaceValues = {
 
 /** Which coordinate field a "pick on map" request fills. */
 export type CoordField = 'coords' | 'parking' | 'start';
-export const COORD_LABELS: Record<CoordField, string> = { coords: 'the map pin', parking: 'the parking', start: 'the start' };
+export const coordLabel = (field: CoordField) => tr().spot.placeForm.pickLabels[field];
 
 let nextKey = 1;
 export const sectorRow = (name = '', id?: number): SectorRow => ({ key: nextKey++, id, name });
@@ -52,18 +53,19 @@ const intOrNull = (s: string) => (s.trim() === '' ? null : Math.round(Number(s))
 
 /** The save_place payload, or a message saying what to fix. */
 export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | string {
+  const s = tr().spot.placeForm;
   const pin = parseCoordinates(v.coords);
-  if (!v.name.trim()) return 'Give the spot a name.';
-  if (!pin) return 'Set the map pin: type coordinates, use your location, or pick it on the map.';
+  if (!v.name.trim()) return s.needName;
+  if (!pin) return s.needPin;
   const parking = parseCoordinates(v.parking);
-  if (v.parking.trim() && !parking) return "Couldn't read the parking coordinates.";
+  if (v.parking.trim() && !parking) return s.parkingUnreadable;
   const start = parseCoordinates(v.start);
-  if (v.start.trim() && !start) return "Couldn't read the start coordinates.";
+  if (v.start.trim() && !start) return s.startUnreadable;
   const sectorNames = v.sectors.map(s => s.name.trim()).filter(Boolean);
-  if (new Set(sectorNames.map(s => s.toLowerCase())).size !== sectorNames.length) return 'Two sectors have the same name.';
+  if (new Set(sectorNames.map(s => s.toLowerCase())).size !== sectorNames.length) return s.duplicateSector;
   const f = ACTIVITIES[v.activity];
   const distance = v.distance.trim() === '' ? null : Number(v.distance.replace(',', '.'));
-  if (distance != null && !(distance > 0 && distance < 1000)) return 'The distance should be in km, between 0 and 1000.';
+  if (distance != null && !(distance > 0 && distance < 1000)) return s.badDistance;
 
   return {
     id,

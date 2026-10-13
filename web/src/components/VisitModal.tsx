@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../i18n';
 import { uploadPhoto } from '../lib/photos';
 import { completeWish, fetchRoutes, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Route, VisitDetail, Wish } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { COORD_LABELS, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
+import { coordLabel, buildPlaceInput, placeValuesFrom, type CoordField, type PlaceValues } from './forms/placeForm';
 import { newSectorOptions, saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
 import { visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
@@ -39,6 +40,8 @@ const NEW = 'new';
 export function VisitModal({
   placeId, visit, places, areas, userId, rocks, partners, openWishByPlace, initialWithPeople, hidden, onPickOnMap, onCoordsChange, onClose, onSaved,
 }: Props) {
+  const { t } = useI18n();
+  const s = t.spot.visitModal;
   const [choice, setChoice] = useState<string>(visit ? String(visit.place_id) : placeId ? String(placeId) : '');
   const [newPlace, setNewPlace] = useState<PlaceValues>(() => placeValuesFrom());
   // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.
@@ -90,7 +93,7 @@ export function VisitModal({
   const change = (patch: Partial<VisitValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
   const changePlace = (patch: Partial<PlaceValues>) => { setNewPlace(v => ({ ...v, ...patch })); setDirty(true); };
   const close = () => {
-    if (!dirty || confirm('Discard this visit? What you typed will be lost.')) onClose();
+    if (!dirty || confirm(s.confirmDiscard)) onClose();
   };
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export function VisitModal({
   }, [isNew, newPlace.coords, onCoordsChange]);
 
   const pick = (field: CoordField) =>
-    onPickOnMap(COORD_LABELS[field], at => changePlace({ [field]: formatCoords(at.lat, at.lng) }));
+    onPickOnMap(coordLabel(field), at => changePlace({ [field]: formatCoords(at.lat, at.lng) }));
 
   // Places grouped by area for the picker; places without an area last.
   const groups = useMemo(() => {
@@ -112,9 +115,9 @@ export function VisitModal({
 
   async function save() {
     setError(null);
-    if (!choice) return setError('Choose where you went, or pick "New spot".');
+    if (!choice) return setError(s.chooseWhere);
     const placeInput = isNew ? buildPlaceInput(newPlace, savedPlaceId) : null;
-    if (typeof placeInput === 'string') return setError(`The new spot: ${placeInput}`);
+    if (typeof placeInput === 'string') return setError(s.newSpotProblem(placeInput));
     const problem = visitProblem(values);
     if (problem) return setError(problem);
 
@@ -136,11 +139,11 @@ export function VisitModal({
           await completeWish(wish.id, visitId);
           wishResolved = true;
         } catch (e) {
-          failed.push(`Couldn't tick it off your wishlist: ${errorMessage(e)}`);
+          failed.push(s.wishTickFailed(errorMessage(e)));
         }
       }
       for (const [i, f] of photos.entries()) {
-        setProgress(`Uploading photo ${i + 1} of ${photos.length}…`);
+        setProgress(s.uploadingPhoto(i + 1, photos.length));
         try {
           await uploadPhoto({ visitId }, userId, f);
         } catch (e) {
@@ -150,8 +153,7 @@ export function VisitModal({
       setProgress(null);
       if (failed.length) {
         setSavedVisit({ placeId: id!, wishResolved });
-        setError(`The visit is saved, but ${failed.length} thing(s) went wrong: ${failed[0]} `
-          + 'You can add photos later from the visit.');
+        setError(s.savedWithProblems(failed.length, failed[0]));
         setBusy(false);
         return;
       }
@@ -164,17 +166,17 @@ export function VisitModal({
 
   return (
     <Modal
-      title={visit ? 'Edit visit' : 'Log a visit'}
-      subtitle={visit && place ? <>At <b>{place.name}</b>.</> : 'Where you went, who with, and what you climbed or skied.'}
+      title={visit ? s.editTitle : s.logTitle}
+      subtitle={visit && place ? s.atPlace(place.name) : s.subtitle}
       onClose={close}
       hidden={hidden}
       footer={<>
-        <button className="btn btn-ghost" type="button" onClick={close}>Cancel</button>
+        <button className="btn btn-ghost" type="button" onClick={close}>{t.common.cancel}</button>
         {savedVisit ? (
-          <button className="btn btn-primary" type="button" onClick={() => onSaved(savedVisit.placeId, savedVisit.wishResolved)}>Done</button>
+          <button className="btn btn-primary" type="button" onClick={() => onSaved(savedVisit.placeId, savedVisit.wishResolved)}>{t.common.done}</button>
         ) : (
           <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
-            {progress ?? (isNew ? 'Save spot and visit' : 'Save visit')}
+            {progress ?? (isNew ? s.saveSpotAndVisit : s.saveVisit)}
           </button>
         )}
       </>}
@@ -182,12 +184,12 @@ export function VisitModal({
       <div className="visit-modal-body">
         {!visit && (
           <div className="field">
-            <label htmlFor="visitPlace">Where</label>
+            <label htmlFor="visitPlace">{s.where}</label>
             <select id="visitPlace" value={choice} onChange={e => choose(e.target.value)}>
-              <option value="" disabled>Choose a spot…</option>
-              <option value={NEW}>New spot…</option>
+              <option value="" disabled>{s.chooseSpot}</option>
+              <option value={NEW}>{s.newSpotOption}</option>
               {groups.map(([area, list]) => (
-                <optgroup key={area || 'none'} label={area || 'Not in an area'}>
+                <optgroup key={area || 'none'} label={area || s.noArea}>
                   {list.map(p => <option key={p.id} value={p.id}>{p.name} ({activityLabel(p.activity)})</option>)}
                 </optgroup>
               ))}
@@ -198,30 +200,30 @@ export function VisitModal({
 
       {isNew && (
         <div className="form-section nested">
-          <h3 className="section-title">The new spot</h3>
+          <h3 className="section-title">{s.newSpot}</h3>
           <PlaceFields values={newPlace} onChange={changePlace} areas={areas} rocks={rocks} onPickOnMap={pick} />
         </div>
       )}
 
       {(place || isNew) && (
         <div className="visit-modal-body">
-          {isNew && <h3 className="section-title">The visit</h3>}
+          {isNew && <h3 className="section-title">{s.theVisit}</h3>}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity} sectors={sectors} routes={routes} />
           {wish && (
             <label className="field-inline wish-tick">
               <input type="checkbox" checked={tickOff} onChange={e => setTickOff(e.target.checked)} />
-              Tick off from my wishlist
+              {s.tickOff}
             </label>
           )}
           {!visit && (
             <div className="field">
-              <span className="field-label">Photos <span className="hint">(optional, shrunk before upload)</span></span>
+              <span className="field-label">{s.photos} <span className="hint">{s.photosHint}</span></span>
               {photos.length > 0 && (
                 <ul className="photo-grid staged">
                   {photos.map((f, i) => (
                     <li key={previews[i]}>
                       <img src={previews[i]} alt={f.name} width={160} height={120} />
-                      <button type="button" className="unstage" aria-label={`Remove ${f.name}`}
+                      <button type="button" className="unstage" aria-label={s.removePhoto(f.name)}
                               onClick={() => setPhotos(ps => ps.filter((_, j) => j !== i))}>×</button>
                     </li>
                   ))}
@@ -236,7 +238,7 @@ export function VisitModal({
                          setPhotos(ps => [...ps, ...picked]);
                          setDirty(true);
                        }} />
-                {photos.length ? 'Add more photos' : 'Add photos'}
+                {photos.length ? s.addMorePhotos : s.addPhotos}
               </label>
             </div>
           )}

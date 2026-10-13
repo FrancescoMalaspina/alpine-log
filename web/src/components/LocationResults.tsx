@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '../i18n';
 import type { LatLng } from '../lib/coords';
 import { searchLocations, type Location } from '../lib/geocode';
 
@@ -10,6 +11,7 @@ type Props = {
 
 /** Mountains, huts, villages… matching the search, from OpenStreetMap. */
 export function LocationResults({ query, getMapCenter, onPick }: Props) {
+  const { t } = useI18n();
   const [found, setFound] = useState<{ query: string; results: Location[] } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const q = query.trim();
@@ -32,13 +34,13 @@ export function LocationResults({ query, getMapCenter, onPick }: Props) {
   const results = found?.query === q ? found.results : null;
 
   return (
-    <section className="row-group location-results" aria-label="Locations on the map">
+    <section className="row-group location-results" aria-label={t.app.locations.aria}>
       <h2 className="group-head">
-        <span>On the map</span>
+        <span>{t.app.locations.head}</span>
         <span className="group-count">{results ? results.length : '…'}</span>
       </h2>
-      {failed?.startsWith(q) && <div className="list-empty">Location search isn't reachable right now.</div>}
-      {results && !results.length && <div className="list-empty">No locations called "{q}".</div>}
+      {failed?.startsWith(q) && <div className="list-empty">{t.app.locations.unreachable}</div>}
+      {results && !results.length && <div className="list-empty">{t.app.locations.none(q)}</div>}
       {results && results.length > 0 && (
         <ul className="rows">
           {results.map(r => (
@@ -51,7 +53,7 @@ export function LocationResults({ query, getMapCenter, onPick }: Props) {
           ))}
         </ul>
       )}
-      <p className="attribution">Location search by Photon, data © OpenStreetMap contributors</p>
+      <p className="attribution">{t.app.locations.attribution}</p>
     </section>
   );
 }

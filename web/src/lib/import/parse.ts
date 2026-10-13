@@ -3,6 +3,7 @@
  * Excel / OpenDocument / CSV via SheetJS (loaded only when someone imports),
  * JSON by flattening its largest list of records.
  */
+import { tr } from '../../i18n';
 import { excelSerialToIso, isBlank } from './transforms';
 
 /** One cell: its value, and the URL behind it when it is a hyperlink. */
@@ -152,7 +153,7 @@ function flatten(obj: Record<string, unknown>, prefix = '', out: Record<string, 
 
 export function jsonToTable(data: unknown, name: string): RawTable {
   const records = largestRecordList(data).slice(0, MAX_ROWS).map(r => flatten(r));
-  if (!records.length) throw new Error('No list of records found in this JSON file.');
+  if (!records.length) throw new Error(tr().import.errors.noRecords);
   const headers = [...new Set(records.flatMap(r => Object.keys(r)))];
   return {
     name,

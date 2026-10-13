@@ -8,7 +8,8 @@ import type {
   Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, VisitDetail, VisitFilters, VisitInput, VisitSummary,
   Wish, WishInput,
 } from './types';
-import { USERNAME_HINT, USERNAME_RE } from './labels';
+import { tr } from '../i18n';
+import { USERNAME_RE, usernameHint } from './labels';
 
 /** Public storage bucket for GPX tracks and PDF guides (supabase/migrations). */
 const BUCKET = 'place-files';
@@ -89,13 +90,13 @@ export async function addRoute(placeId: number, route: { name: string; grade: st
     place_id: placeId, name: route.name.trim(), grade: route.grade.trim() || null, sector_id: route.sectorId,
   });
   if (error) {
-    throw new Error(error.code === '23505' ? `"${route.name.trim()}" is already in the list.` : error.message);
+    throw new Error(error.code === '23505' ? tr().common.errors.routeExists(route.name.trim()) : error.message);
   }
 }
 
 export async function deleteRoute(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('routes').delete().eq('id', id).select('id'));
-  if (!rows.length) throw new Error('Only whoever added this route, or whoever can edit the spot, can remove it.');
+  if (!rows.length) throw new Error(tr().common.errors.cantRemoveRoute);
 }
 
 export async function fetchSectors(placeId: number): Promise<{ id: number; name: string }[]> {
@@ -105,7 +106,7 @@ export async function fetchSectors(placeId: number): Promise<{ id: number; name:
 export async function deletePlace(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('places').delete().eq('id', id).select('id'));
   if (!rows.length) {
-    throw new Error('This place has visits logged by other people, so only an admin can delete it.');
+    throw new Error(tr().common.errors.placeHasOthersVisits);
   }
 }
 
@@ -124,7 +125,7 @@ export async function createArea(name: string, description: string): Promise<num
     .insert({ name: name.trim(), description: description.trim() || null })
     .select('id').single();
   if (error) {
-    throw new Error(error.code === '23505' ? `There is already an area called "${name.trim()}".` : error.message);
+    throw new Error(error.code === '23505' ? tr().common.errors.areaExists(name.trim()) : error.message);
   }
   return data.id;
 }
@@ -141,14 +142,14 @@ export async function updateArea(id: number, patch: { name: string; description:
     .update({ name: patch.name.trim(), description: patch.description.trim() || null })
     .eq('id', id).select('id');
   if (error) {
-    throw new Error(error.code === '23505' ? `There is already an area called "${patch.name.trim()}".` : error.message);
+    throw new Error(error.code === '23505' ? tr().common.errors.areaExists(patch.name.trim()) : error.message);
   }
-  if (!rows.length) throw new Error('Only the creator of this area or an admin can change it.');
+  if (!rows.length) throw new Error(tr().common.errors.cantChangeArea);
 }
 
 export async function deleteArea(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('areas').delete().eq('id', id).select('id'));
-  if (!rows.length) throw new Error('Only the creator of this area or an admin can delete it.');
+  if (!rows.length) throw new Error(tr().common.errors.cantDeleteArea);
 }
 
 // ---------------------------------------------------------------- attachments
@@ -172,7 +173,7 @@ const ownerColumns = (owner: AttachmentOwner) =>
   'placeId' in owner ? { place_id: owner.placeId } : { area_id: owner.areaId };
 
 export async function addLink(owner: AttachmentOwner, title: string, url: string): Promise<void> {
-  if (!/^https?:\/\//i.test(url.trim())) throw new Error('Links must start with http:// or https://');
+  if (!/^https?:\/\//i.test(url.trim())) throw new Error(tr().common.errors.linkScheme);
   unwrap(await supabase.from('attachments').insert({
     ...ownerColumns(owner), kind: 'link', title: title.trim() || null, url: url.trim(),
   }));
@@ -180,7 +181,7 @@ export async function addLink(owner: AttachmentOwner, title: string, url: string
 
 export async function uploadAttachment(owner: AttachmentOwner, userId: string, file: File, title: string): Promise<void> {
   const ext = file.name.split('.').pop()?.toLowerCase();
-  if (ext !== 'gpx' && ext !== 'pdf') throw new Error('Only .gpx and .pdf files can be uploaded.');
+  if (ext !== 'gpx' && ext !== 'pdf') throw new Error(tr().common.errors.fileTypes);
   const safeName = file.name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
   const folder = 'placeId' in owner ? `place-${owner.placeId}` : `area-${owner.areaId}`;
   const path = `${userId}/${folder}/${crypto.randomUUID()}-${safeName}`;
@@ -201,7 +202,7 @@ export async function uploadAttachment(owner: AttachmentOwner, userId: string, f
 
 export async function deleteAttachment(a: Attachment): Promise<void> {
   const rows = unwrap(await supabase.from('attachments').delete().eq('id', a.id).select('id'));
-  if (!rows.length) throw new Error('Only the person who added this (or an admin) can remove it.');
+  if (!rows.length) throw new Error(tr().common.errors.cantRemoveAttachment);
   if (a.storage_path) await supabase.storage.from(BUCKET).remove([a.storage_path]);
 }
 
@@ -284,7 +285,7 @@ export async function saveVisit(input: VisitInput): Promise<number> {
 
 export async function deleteVisit(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('visits').delete().eq('id', id).select('id'));
-  if (!rows.length) throw new Error("You can't delete this visit.");
+  if (!rows.length) throw new Error(tr().common.errors.cantDeleteVisit);
 }
 
 export async function isUsernameTaken(username: string): Promise<boolean> {
@@ -330,7 +331,7 @@ export async function fetchImports(): Promise<ImportRecord[]> {
 /** Undoes an import: deletes the visits it added (the spots stay). */
 export async function deleteImport(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('imports').delete().eq('id', id).select('id'));
-  if (!rows.length) throw new Error("You can't undo this import.");
+  if (!rows.length) throw new Error(tr().common.errors.cantUndoImport);
 }
 
 /** Asks the import-assist Edge Function (Gemini) to map a file's columns. */
@@ -338,8 +339,8 @@ export async function askImportAssist<T>(body: object): Promise<T> {
   const { data, error } = await supabase.functions.invoke('import-assist', { body });
   if (error) {
     const status = (error as { context?: Response }).context?.status;
-    if (status === 429) throw new Error('The AI helper is busy (free quota reached). Try again in a minute, or map the columns yourself.');
-    throw new Error(`The AI helper didn't answer: ${error.message}`);
+    if (status === 429) throw new Error(tr().common.errors.aiBusy);
+    throw new Error(tr().common.errors.aiFailed(error.message));
   }
   return data as T;
 }
@@ -364,12 +365,12 @@ export async function setUserRole(userId: string, role: Profile['role']): Promis
 /** Renames yourself, or anyone when you are an admin. */
 export async function renameUser(userId: string, username: string): Promise<void> {
   const name = username.trim();
-  if (!USERNAME_RE.test(name)) throw new Error(USERNAME_HINT);
+  if (!USERNAME_RE.test(name)) throw new Error(usernameHint());
   const escaped = name.replace(/[\\%_]/g, c => `\\${c}`);
   const taken = unwrap(await supabase.from('profiles').select('id').ilike('username', escaped).neq('id', userId).limit(1));
-  if (taken.length) throw new Error(`"${name}" is already taken.`);
+  if (taken.length) throw new Error(tr().common.errors.usernameTaken(name));
   const rows = unwrap(await supabase.from('profiles').update({ username: name }).eq('id', userId).select('id'));
-  if (!rows.length) throw new Error("You can't rename this user.");
+  if (!rows.length) throw new Error(tr().common.errors.cantRename);
 }
 
 const removeFiles = async (bucket: string, paths: string[]) => {
@@ -422,10 +423,10 @@ export async function saveWish(w: WishInput): Promise<void> {
   };
   if (w.id) {
     const rows = unwrap(await supabase.from('wishlist').update(fields).eq('id', w.id).select('id'));
-    if (!rows.length) throw new Error('You can only edit your own wishlist.');
+    if (!rows.length) throw new Error(tr().common.errors.cantEditWish);
   } else {
     const { error } = await supabase.from('wishlist').insert({ ...fields, place_id: w.place_id });
-    if (error?.code === '23505') throw new Error('This place is already on your wishlist.');
+    if (error?.code === '23505') throw new Error(tr().common.errors.alreadyWished);
     if (error) throw new Error(error.message);
   }
 }

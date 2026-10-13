@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react';
 import type { Session } from '@supabase/supabase-js';
+import type { Lang } from '../i18n';
 import type { Profile } from '../lib/types';
 
 export type AuthValue = {
@@ -10,6 +11,8 @@ export type AuthValue = {
   recovering: boolean;
   /** Reloads the profile, e.g. after a rename. */
   refreshProfile: () => void;
+  /** Switches the interface language, and remembers it on the account when signed in. */
+  setLanguage: (lang: Lang) => void;
   signIn: (email: string, password: string) => Promise<void>;
   /** Resolves to true when the user must confirm their email before signing in. */
   signUp: (email: string, password: string, username: string) => Promise<boolean>;
