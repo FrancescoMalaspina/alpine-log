@@ -877,6 +877,7 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 .import-spot-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .import-spot-name { font-weight: 600; }
 .import-spot-head .hint { font-size: 13px; }
+.import-unsplit { align-self: flex-start; font-size: 13px; }
 .import-spot-choice { display: flex; flex-direction: column; gap: 4px; }
 .import-spot-choice select { padding: 6px 8px; background: var(--plate); border: 1px solid var(--rule); border-radius: var(--radius); font-size: 14px; }
 .import-pin-status { font-size: 13px; color: var(--slate); }

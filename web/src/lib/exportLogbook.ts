@@ -22,12 +22,13 @@ function toCsv(visits: LogbookVisit[]): string {
   const rows = visits.flatMap(v => {
     const base = [
       v.date, v.place?.name, v.place?.area?.name, v.place?.sector?.name, activityOf(v),
-      v.place?.lat, v.place?.lng, v.visibility, v.partners.join('; '), v.duration_hours,
-      v.conditions, v.summary, v.approach, v.descent,
+      v.place?.lat, v.place?.lng, v.place?.country, v.place?.province, v.place?.grade, v.place?.grade_obligatory,
+      v.place?.pitches, v.place?.length_m, v.place?.protection, v.visibility, v.partners.join('; '),
+      v.other_partners.join('; '), v.rating, v.duration_hours, v.conditions, v.summary, v.approach, v.descent,
     ];
     const routes = v.ascents.length ? v.ascents : [null];
     // "wall": another spot of the sector the route was on (another wall of the crag).
-    return routes.map(a => [...base, a?.name, a?.grade, a?.wall?.name, a?.comment]);
+    return routes.map(a => [...base, a?.name, a?.grade, a?.wall?.name, a?.style, a?.pitches, a?.aid, a?.comment]);
   });
   // The byte-order mark makes Excel read the file as UTF-8 (accents, ° signs).
   return '﻿' + [tr().account.export.csvHeader, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
@@ -36,13 +37,15 @@ function toCsv(visits: LogbookVisit[]): string {
 // ---------------------------------------------------------------- JSON
 function toJson(visits: LogbookVisit[], username: string): string {
   return JSON.stringify({
-    format: 'alpine-log/v2',
+    format: 'alpine-log/v3',
     exported_at: new Date().toISOString(),
     user: username,
     visits: visits.map(v => ({
       date: v.date,
       visibility: v.visibility,
       with: v.partners,
+      other_ropes: v.other_partners,
+      rating: v.rating,
       duration_hours: v.duration_hours,
       conditions: v.conditions,
       summary: v.summary,
@@ -52,6 +55,9 @@ function toJson(visits: LogbookVisit[], username: string): string {
         name: v.place.name,
         area: v.place.area?.name ?? null,
         sector: v.place.sector?.name ?? null,
+        country: v.place.country, province: v.place.province, start_locality: v.place.start_locality,
+        protection: v.place.protection, pitches: v.place.pitches, length_m: v.place.length_m,
+        alpine_grade: v.place.alpine_grade, grade_obligatory: v.place.grade_obligatory, aid: v.place.aid,
         activity: v.place.activity,
         grade: v.place.grade,
         max_altitude: v.place.max_altitude,
@@ -60,7 +66,10 @@ function toJson(visits: LogbookVisit[], username: string): string {
         start: v.place.start_lat != null ? { lat: v.place.start_lat, lng: v.place.start_lng } : null,
       },
       // "sector" (kept for v2 backups): another spot of the visit's sector the route was on.
-      routes: v.ascents.map(a => ({ name: a.name, grade: a.grade, sector: a.wall?.name ?? null, comment: a.comment })),
+      routes: v.ascents.map(a => ({
+        name: a.name, grade: a.grade, sector: a.wall?.name ?? null, comment: a.comment,
+        style: a.style, pitches: a.pitches, aid: a.aid,
+      })),
     })),
   }, null, 2);
 }

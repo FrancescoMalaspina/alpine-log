@@ -4,7 +4,10 @@ import type { RawTable } from './parse';
 import { gridToTable, jsonToTable } from './parse';
 import { applyMapping } from './rows';
 import { buildPayload, geocodeQueries, type ResolvedSpot } from './resolve';
-import { parseActivity, parseAscentList, parseDate, parseNumber, parsePartners } from './transforms';
+import {
+  parseActivity, parseAscentList, parseCountry, parseDate, parseDifficulty, parseNumber, parsePartners, parseProtection,
+  parseRating, parseStyle,
+} from './transforms';
 
 const table = (name: string, headers: string[], rows: (string | number | null)[][]): RawTable =>
   ({ name, headers, rows: rows.map(r => r.map(v => ({ v }))) });
@@ -30,18 +33,42 @@ describe('transforms', () => {
     expect(parsePartners('?')).toEqual([]);
   });
 
-  it('reads route lists with a status carried back', () => {
+  it('reads route lists with a status carried back, known statuses as the style', () => {
     expect(parseAscentList('5c (ok), 6a, 6a, 6a+ (no)')).toEqual([
-      { name: '', grade: '5c', comment: 'ok' },
-      { name: '', grade: '6a', comment: 'no' },
-      { name: '', grade: '6a', comment: 'no' },
-      { name: '', grade: '6a+', comment: 'no' },
+      { name: '', grade: '5c', comment: '', style: 'redpoint' },
+      { name: '', grade: '6a', comment: '', style: 'attempt' },
+      { name: '', grade: '6a', comment: '', style: 'attempt' },
+      { name: '', grade: '6a+', comment: '', style: 'attempt' },
     ]);
-    expect(parseAscentList('5c ok, 6a+ (no)').map(a => a.comment)).toEqual(['ok', 'no']);
-    expect(parseAscentList('Via Bianca 6a; Spigolo 5c (top)')).toEqual([
-      { name: 'Via Bianca', grade: '6a', comment: 'top' },
-      { name: 'Spigolo', grade: '5c', comment: 'top' },
+    expect(parseAscentList('5c ok, 6a+ (no)').map(a => a.style)).toEqual(['redpoint', 'attempt']);
+    expect(parseAscentList('Via Bianca 6a; Spigolo 5c (os)')).toEqual([
+      { name: 'Via Bianca', grade: '6a', comment: '', style: 'onsight' },
+      { name: 'Spigolo', grade: '5c', comment: '', style: 'onsight' },
     ]);
+    expect(parseAscentList('Spigolo 5c (bagnata)')).toEqual([{ name: 'Spigolo', grade: '5c', comment: 'bagnata', style: null }]);
+    expect(parseStyle('flash')).toBe('flash');
+    expect(parseStyle('tr')).toBe('toprope');
+  });
+
+  it('splits a difficulty into hardest grade, mandatory grade and aid', () => {
+    expect(parseDifficulty('6a+>5c')).toEqual({ grade: '6a+', obligatory: '5c', aid: '' });
+    expect(parseDifficulty('6c>6a')).toEqual({ grade: '6c', obligatory: '6a', aid: '' });
+    expect(parseDifficulty('VI/V, A0')).toEqual({ grade: 'VI', obligatory: 'V', aid: 'A0' });
+    expect(parseDifficulty('6a un passo/5b, A0')).toEqual({ grade: '6a', obligatory: '5b', aid: 'A0' });
+    expect(parseDifficulty(' V+ (5b)')).toEqual({ grade: 'V+ (5b)', obligatory: '', aid: '' });
+    expect(parseDifficulty('5c')).toEqual({ grade: '5c', obligatory: '', aid: '' });
+    expect(parseDifficulty('6a/b')).toEqual({ grade: '6a/b', obligatory: '', aid: '' });
+  });
+
+  it('reads protection, ratings and countries', () => {
+    expect(parseProtection('Sportiva')).toBe('bolted');
+    expect(parseProtection('Trad')).toBe('trad');
+    expect(parseProtection('mista')).toBe('mixed');
+    expect(parseRating(4)).toBe(4);
+    expect(parseRating('nd')).toBeNull();
+    expect(parseRating('★★★')).toBe(3);
+    expect(parseCountry('FR')).toBe('FR');
+    expect(parseCountry('Svizzera')).toBe('CH');
   });
 
   it('reads numbers and activities', () => {
@@ -90,19 +117,21 @@ describe('automap', () => {
     const m = autoMap(falesie);
     expect(m.activity).toBe('crag');
     expect(m.columns.map(c => `${c.field}${c.group ? `#${c.group}` : ''}`)).toEqual([
-      'ignore', 'spot.name', 'sector', 'place.locality', 'place.region', 'spot.rock', 'visit.date', 'ignore', 'visit.ascents',
+      'ignore', 'spot.name', 'sector.name', 'place.locality', 'place.region', 'spot.rock', 'visit.date', 'ignore', 'visit.ascents',
       'visit.partners', 'visit.date#1', 'visit.ascents#1', 'visit.partners#1', 'link',
     ]);
   });
 
-  it('turns repeat columns into extra visits', () => {
+  it('turns repeat columns into extra visits, the crag as the sector and its wall as the spot', () => {
     const { spots } = applyMapping(falesie, autoMap(falesie));
-    const predore = spots.find(s => s.name === 'Predore')!;
+    const predore = spots.find(s => s.sector === 'Predore')!;
+    expect(predore.name).toBe('Spigolo del Vento');
+    expect(predore.country).toBe('IT');
     expect(predore.visits.map(v => v.date)).toEqual(['2026-05-09', '2026-10-03']);
     expect(predore.visits[1].ascents).toHaveLength(5);
-    expect(predore.visits[0].ascents[0]).toEqual({ name: '', grade: '5c', comment: 'ok', sector: 'Spigolo del Vento' });
+    expect(predore.visits[0].ascents[0]).toEqual({ name: '', grade: '5c', comment: '', sector: '', style: 'redpoint' });
     expect(predore.links[0].url).toContain('falesia.it');
-    expect(spots.find(s => s.name === "Calusco d'Adda")!.visits).toHaveLength(1);
+    expect(spots.find(s => s.sector === "Calusco d'Adda")!.visits).toHaveLength(1);
   });
 
   it('maps the Vie Lunghe sheet, keeping unmapped columns as notes', () => {
@@ -121,20 +150,47 @@ describe('automap', () => {
     expect(field('Difficoltà')).toBe('spot.grade');
     expect(field('Località Partenza')).toBe('place.locality');
     expect(field('Stato')).toBe('place.country');
-    expect(field('Tiri')).toBe('note');
-    expect(field('Tipo')).toBe('note');
+    expect(field('Settore')).toBe('sector.name');
+    expect(field('Zona montuosa')).toBe('area.description');
+    expect(field('Tiri')).toBe('spot.pitches');
+    expect(field('Sviluppo arrampicata (m)')).toBe('spot.length_m');
+    expect(field('Tipo')).toBe('spot.protection');
+    expect(field('Grado alpinistico')).toBe('spot.alpine_grade');
+    expect(field('Altre Cordate')).toBe('visit.other_partners');
+    expect(field('Giudizio')).toBe('visit.rating');
 
     const { spots } = applyMapping(t, m);
-    const v = spots[0].visits[0];
-    expect(v.summary).toContain('Settore: Engilberge');   // multipitch spots have no sectors
-    expect(v.summary).toContain('Giudizio: 4');
+    const caramba = spots[0];
+    expect({
+      sector: caramba.sector, areaDescription: caramba.areaDescription, country: caramba.country,
+      pitches: caramba.pitches, length: caramba.length_m, protection: caramba.protection, alpine: caramba.alpine_grade,
+      grade: caramba.grade, obligatory: caramba.grade_obligatory,
+    }).toEqual({
+      sector: 'Engilberge', areaDescription: 'Vallouise-Pelvoux', country: 'FR', pitches: 5, length: 150,
+      protection: 'bolted', alpine: 'TD-', grade: '6a+', obligatory: '5c',
+    });
+    const v = caramba.visits[0];
+    expect(v.rating).toBe(4);
+    expect(v.otherPartners).toEqual(['Paolo', 'Fede']);
+    expect(v.summary).not.toContain('Giudizio');
+    expect(spots[1].country).toBe('IT');
     expect(spots[1].visits[0].date).toBeNull();
+    expect(spots[1].visits[0].rating).toBeNull();
 
     const payload = buildPayload('x.xlsx', spots.map(s => ({ ...s, lat: 45, lng: 7, matches: [], choice: 'new', pinSource: 'geocoded', pinLabel: '' }) as ResolvedSpot), 'private');
     expect(payload.visits[0].ascents).toEqual([
-      { name: 'Caramba!', grade: '6a+>5c', comment: '', route_id: null, place_id: null, sector: '', style: null, pitches: null, aid: '' },
+      { name: 'Caramba!', grade: '6a+', comment: '', route_id: null, place_id: null, sector: '', style: null, pitches: null, aid: '' },
     ]);
-    expect(geocodeQueries(spots[1], 'Italia')).toEqual(['Dro, TN, Italia', 'Dro, Italia', 'Valle del Sarca, Italia', 'Cane Trippa, Italia']);
+    expect(payload.spots[0]).toMatchObject({ area_description: 'Vallouise-Pelvoux', place: { sector_name: 'Engilberge', pitches: 5 } });
+    expect(geocodeQueries(spots[1], 'Italia')).toEqual(
+      ['Dro, TN, Italia', 'Dro, Italia', 'Placche Zebrate, Italia', 'Valle del Sarca, Italia', 'Cane Trippa, Italia']);
+  });
+
+  it('splits "Mountain - route" alpine names into sector and spot', () => {
+    const t = table('Neve&Misto', ['Nome salita', 'Zona', 'Difficoltà', 'Data ripetizione'],
+      [['Breithorn - via normale', 'Massiccio Monte Rosa', 'PD+', '2026-06-14']]);
+    const { spots } = applyMapping(t, autoMap(t));
+    expect(spots[0]).toMatchObject({ sector: 'Breithorn', name: 'via normale', splitFrom: 'Breithorn - via normale', grade: 'PD+' });
   });
 
   it('maps a one-route-per-row CSV (our own export)', () => {
@@ -150,5 +206,6 @@ describe('automap', () => {
     expect(spots[0].visits).toHaveLength(1);
     expect(spots[0].visits[0].ascents.map(a => a.name)).toEqual(['Su alto', 'Giù basso']);
     expect(spots[0].visits[0].partners).toEqual(['Fra', 'Vale']);
+    expect(spots[0].sector).toBe('Scala');
   });
 });

@@ -23,14 +23,21 @@ export type ParsedFile =
 export type AlpineLogBackup = {
   format: string;
   visits: {
-    date: string | null; visibility?: string; with?: string[]; duration_hours?: number | null;
+    date: string | null; visibility?: string; with?: string[]; other_ropes?: string[]; rating?: number | null;
+    duration_hours?: number | null;
     conditions?: string | null; summary?: string | null; approach?: string | null; descent?: string | null;
     spot: null | {
-      name: string; area: string | null; activity: string; grade?: string | null;
+      name: string; area: string | null; sector?: string | null; activity: string; grade?: string | null;
+      country?: string | null; province?: string | null; start_locality?: string | null; protection?: string | null;
+      pitches?: number | null; length_m?: number | null; alpine_grade?: string | null; grade_obligatory?: string | null;
+      aid?: string | null;
       max_altitude?: number | null; elevation_gain?: number | null; distance_km?: number | null;
       rock?: string | null; pin: { lat: number; lng: number };
     };
-    routes?: { name: string | null; grade: string | null; sector: string | null; comment: string | null }[];
+    routes?: {
+      name: string | null; grade: string | null; sector: string | null; comment: string | null;
+      style?: string | null; pitches?: number | null; aid?: string | null;
+    }[];
   }[];
 };
 

@@ -7,11 +7,12 @@ import { tr } from '../../i18n';
 
 export type FieldId =
   | 'ignore' | 'note'
-  | 'spot.name' | 'area.name' | 'spot.activity' | 'sector'
+  | 'spot.name' | 'area.name' | 'area.description' | 'sector.name' | 'spot.activity' | 'sector'
   | 'place.locality' | 'place.region' | 'place.country' | 'lat' | 'lng' | 'coords'
   | 'spot.grade' | 'spot.rock' | 'spot.elevation_gain' | 'spot.max_altitude' | 'spot.distance_km' | 'spot.description'
+  | 'spot.pitches' | 'spot.length_m' | 'spot.protection' | 'spot.alpine_grade'
   | 'link'
-  | 'visit.date' | 'visit.partners' | 'visit.ascents' | 'visit.summary' | 'visit.conditions'
+  | 'visit.date' | 'visit.partners' | 'visit.other_partners' | 'visit.rating' | 'visit.ascents' | 'visit.summary' | 'visit.conditions'
   | 'visit.approach' | 'visit.descent' | 'visit.duration_hours'
   | 'ascent.name' | 'ascent.grade' | 'ascent.comment';
 
@@ -34,10 +35,14 @@ export const FIELDS: FieldDef[] = [
   ] },
   { id: 'area.name', label: 'Area', level: 'spot', synonyms: [
     ...s(1, 'area', 'zona', 'zone', 'gebiet', 'secteur geographique', 'massiccio', 'gruppo', 'valle', 'massif', 'region climbing area'),
-    ...s(0.5, 'zona montuosa', 'catena'),
+  ] },
+  { id: 'area.description', label: 'Mountain range (area description)', level: 'spot', synonyms: s(1,
+    'zona montuosa', 'gruppo montuoso', 'catena', 'catena montuosa', 'mountain range', 'range', 'massif range', 'gebirge') },
+  { id: 'sector.name', label: 'Sector (wall, mountain, crag)', level: 'spot', synonyms: [
+    ...s(1, 'settore', 'sector', 'secteur', 'sektor', 'parete', 'montagna', 'mountain', 'face'),
   ] },
   { id: 'spot.activity', label: 'Activity', level: 'spot', synonyms: s(1, 'activity', 'attivita', 'tipo attivita', 'disciplina', 'discipline', 'sport', 'type', 'tipo') },
-  { id: 'sector', label: 'Sector', level: 'visit', synonyms: s(1, 'settore', 'sector', 'secteur', 'sektor', 'parete', 'wall') },
+  { id: 'sector', label: 'Wall of a route (another spot of the sector)', level: 'visit', synonyms: s(0.9, 'wall', 'route wall', 'parete via') },
   { id: 'place.locality', label: 'Town / start point (for the map pin)', level: 'spot', synonyms: [
     ...s(1, 'localita', 'localita partenza', 'partenza', 'location', 'town', 'village', 'paese', 'comune', 'city', 'ort', 'lieu', 'start', 'trailhead', 'parcheggio'),
   ] },
@@ -48,7 +53,18 @@ export const FIELDS: FieldDef[] = [
   { id: 'coords', label: 'Coordinates (lat, lng)', level: 'spot', synonyms: s(1, 'coordinate', 'coordinates', 'coords', 'gps', 'posizione', 'position', 'pin') },
   { id: 'spot.grade', label: 'Spot grade', level: 'spot', synonyms: [
     ...s(1, 'difficolta', 'grado', 'grade', 'difficulty', 'cotation', 'schwierigkeit', 'diff'),
-    ...s(0.7, 'grado alpinistico', 'grado complessivo', 'overall grade'),
+  ] },
+  { id: 'spot.alpine_grade', label: 'Alpine grade (overall, F … ED)', level: 'spot', synonyms: s(1,
+    'grado alpinistico', 'grado complessivo', 'difficolta complessiva', 'overall grade', 'alpine grade', 'cotation globale', 'engagement') },
+  { id: 'spot.pitches', label: 'Pitches', level: 'spot', synonyms: [
+    ...s(1, 'tiri', 'numero tiri', 'n tiri', 'pitches', 'number of pitches', 'lunghezze', 'longueurs', 'seillangen'),
+  ] },
+  { id: 'spot.length_m', label: 'Climbing length (m)', level: 'spot', synonyms: s(1,
+    'sviluppo', 'sviluppo arrampicata', 'sviluppo arrampicata m', 'sviluppo m', 'length', 'route length', 'climbing length',
+    'lunghezza', 'lunghezza via', 'longueur', 'kletterlange') },
+  { id: 'spot.protection', label: 'Protection (bolted / trad)', level: 'spot', synonyms: [
+    ...s(1, 'protezioni', 'protection', 'chiodatura', 'tipo chiodatura', 'attrezzatura', 'bolting', 'equipement', 'absicherung'),
+    ...s(0.9, 'tipo'),
   ] },
   { id: 'spot.rock', label: 'Rock', level: 'spot', synonyms: s(1, 'roccia', 'tipo di roccia', 'rock', 'rock type', 'roche', 'fels', 'gestein', 'litologia') },
   { id: 'spot.elevation_gain', label: 'Elevation gain (m)', level: 'spot', synonyms: s(1, 'dislivello', 'dislivello positivo', 'elevation gain', 'gain', 'd', 'denivele', 'hohenmeter', 'ascent m', 'vertical') },
@@ -60,9 +76,13 @@ export const FIELDS: FieldDef[] = [
     ...s(1, 'data', 'date', 'data ripetizione', 'data salita', 'giorno', 'day', 'datum', 'when', 'quando'),
   ] },
   { id: 'visit.partners', label: 'With (partners)', level: 'visit', synonyms: s(1, 'compagni', 'compagno', 'compagni di cordata', 'partner', 'partners', 'with', 'con', 'cordata', 'avec', 'seilpartner', 'mit', 'climbing partners') },
+  { id: 'visit.other_partners', label: 'Other ropes in the group', level: 'visit', synonyms: s(1,
+    'altre cordate', 'altra cordata', 'other ropes', 'other rope', 'other teams', 'other parties', 'autres cordees') },
+  { id: 'visit.rating', label: 'Rating (1–5)', level: 'visit', synonyms: s(1,
+    'giudizio', 'voto', 'valutazione', 'stelle', 'rating', 'stars', 'score', 'note sur 5', 'bewertung') },
   { id: 'visit.ascents', label: 'Routes climbed (list: "6a (ok), 6b (no)")', level: 'visit', synonyms: [
     ...s(1, 'tiri fatti', 'vie fatte', 'routes climbed', 'ascents', 'voies', 'routes', 'tiri saliti'),
-    ...s(0.5, 'tiri'),
+    ...s(0.4, 'tiri'),
   ] },
   { id: 'visit.summary', label: 'Visit notes', level: 'visit', synonyms: s(1, 'note', 'notes', 'commento', 'commenti', 'comment', 'comments', 'summary', 'remarks', 'osservazioni', 'diario', 'report') },
   { id: 'visit.conditions', label: 'Conditions', level: 'visit', synonyms: s(1, 'condizioni', 'conditions', 'meteo', 'weather', 'bedingungen') },
@@ -73,7 +93,7 @@ export const FIELDS: FieldDef[] = [
     ...s(0.9, 'route', 'route name', 'nome tiro', 'tiro', 'via', 'climb name', 'problem'),
   ] },
   { id: 'ascent.grade', label: 'Route grade (one route per row)', level: 'visit', synonyms: s(0.8, 'route grade', 'grado tiro', 'grade') },
-  { id: 'ascent.comment', label: 'Route comment / style', level: 'visit', synonyms: s(1, 'route comment', 'style', 'stile', 'ascent type', 'tick type', 'esito') },
+  { id: 'ascent.comment', label: 'Route comment / style (ok, no, os, flash…)', level: 'visit', synonyms: s(1, 'route comment', 'style', 'stile', 'ascent type', 'tick type', 'esito') },
   { id: 'note', label: 'Keep as a note on the visit', level: 'none', synonyms: [] },
   { id: 'ignore', label: 'Skip this column', level: 'none', synonyms: s(1, '#', 'id', 'n', 'nr', 'no', 'num') },
 ];

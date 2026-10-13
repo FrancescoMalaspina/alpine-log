@@ -912,6 +912,7 @@ export type Database = {
           name: string
           place_id: number
           query: string
+          sector_name: string
           similarity: number
         }[]
       }

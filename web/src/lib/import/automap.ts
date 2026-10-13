@@ -7,7 +7,8 @@ import type { Activity } from '../types';
 import { FIELD_BY_ID, FIELDS, isSingle, normalizeHeader, type FieldId } from './fields';
 import type { Cell, RawTable } from './parse';
 import {
-  guessDateOrder, isBlank, isUrl, looksLikeGrade, parseActivity, parseDate, parseNumber, type DateOrder,
+  guessDateOrder, isBlank, isUrl, looksLikeGrade, parseActivity, parseDate, parseNumber, parseProtection, parseRating,
+  type DateOrder,
 } from './transforms';
 
 export type ColumnMapping = {
@@ -72,13 +73,19 @@ function valueScore(field: FieldId, header: number, values: Cell[]): number {
     }
     case 'visit.ascents':
       return header * (numeric > 0.5 ? 0.1 : 0.3 + 0.7 * frac(values, c => looksLikeGrade(v(c))));
-    case 'spot.grade': case 'ascent.grade':
+    case 'spot.grade': case 'ascent.grade': case 'spot.alpine_grade':
       return header * (numeric > 0.5 ? 0.2 : 0.4 + 0.6 * frac(values, c => looksLikeGrade(v(c))));
     case 'spot.activity':
       return header * (frac(values, c => parseActivity(v(c)) != null) >= 0.6 ? 1 : 0.1);
+    case 'spot.protection':
+      return header * (frac(values, c => parseProtection(v(c)) != null) >= 0.6 ? 1 : 0.1);
+    case 'visit.rating':
+      return header * (frac(values, c => parseRating(v(c)) != null) >= 0.6 ? 1 : 0.2);
     case 'spot.elevation_gain': case 'spot.max_altitude': case 'spot.distance_km': case 'visit.duration_hours':
+    case 'spot.pitches': case 'spot.length_m':
       return header * (numeric >= 0.6 ? 1 : 0.3);
-    case 'visit.partners': case 'spot.name': case 'area.name': case 'place.locality':
+    case 'visit.partners': case 'visit.other_partners': case 'spot.name': case 'area.name': case 'place.locality':
+    case 'sector.name': case 'area.description':
       return header * (numeric > 0.5 ? 0.2 : 1);
     default:
       return header;

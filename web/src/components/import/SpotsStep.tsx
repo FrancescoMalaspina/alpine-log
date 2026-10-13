@@ -90,9 +90,15 @@ export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onC
                 onClick={() => setSelected(s.key)}>
               <div className="import-spot-head">
                 <ActivityBadge activity={s.activity} />
-                <span className="import-spot-name">{s.name}</span>
+                <span className="import-spot-name">{s.sector ? `${s.sector} › ` : ''}{s.name}</span>
                 <span className="hint">{[s.area, t.import.counts.visits(s.visits.length)].filter(Boolean).join(' · ')}</span>
               </div>
+              {s.splitFrom && (
+                <button type="button" className="btn-link import-unsplit"
+                        onClick={e => { e.stopPropagation(); onChange(s.key, { name: s.splitFrom, sector: '', splitFrom: '' }); }}>
+                  {sp.keepWhole(s.splitFrom)}
+                </button>
+              )}
               <div className="import-spot-choice">
                 <select aria-label={sp.whereGoes(s.name)} value={String(s.choice)}
                         onChange={e => {
@@ -101,7 +107,8 @@ export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onC
                         }}>
                   {s.matches.map(m => (
                     <option key={m.place_id} value={m.place_id}>
-                      {sp.existing(m.name, m.area_name, activityLabel(m.activity as Activity), Math.round(m.similarity * 100), m.distance_km ?? null)}
+                      {sp.existing(m.sector_name ? `${m.sector_name} › ${m.name}` : m.name, m.area_name,
+                        activityLabel(m.activity as Activity), Math.round(m.similarity * 100), m.distance_km ?? null)}
                     </option>
                   ))}
                   <option value="new">{sp.createNew(activityLabel(s.activity).toLowerCase())}</option>

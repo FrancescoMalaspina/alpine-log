@@ -157,8 +157,10 @@ const en = {
 
   export: {
     csvHeader: [
-      'date', 'spot', 'area', 'sector', 'activity', 'latitude', 'longitude', 'visibility', 'with', 'duration_hours',
-      'conditions', 'summary', 'approach', 'descent', 'route', 'grade', 'wall', 'route_comment',
+      'date', 'spot', 'area', 'sector', 'activity', 'latitude', 'longitude', 'country', 'province', 'spot_grade',
+      'mandatory_grade', 'pitches', 'length_m', 'protection', 'visibility', 'with', 'other_ropes', 'rating',
+      'duration_hours', 'conditions', 'summary', 'approach', 'descent',
+      'route', 'grade', 'wall', 'style', 'route_pitches', 'route_aid', 'route_comment',
     ],
     gpxTitle: (name: string) => `${name}'s logbook`,
     undated: 'undated',

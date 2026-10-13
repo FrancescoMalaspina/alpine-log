@@ -170,7 +170,7 @@ final, reviewed result.
 
 1. **Parse** (`parse.ts`): every sheet of a workbook (SheetJS, loaded on demand),
    a CSV, or the largest list of records in a JSON file becomes a plain table.
-   Our own JSON backup (`alpine-log/v2`) skips the mapping step.
+   Our own JSON backup (`alpine-log/v2`, `v3`) skips the mapping step.
 2. **Map** (`automap.ts`, `fields.ts`): each column is matched to a field by its
    header (synonyms in Italian, English, French, German, Spanish) and by its
    values (dates, grades, URLs, numbers). Columns like `Date (2)` become a second
@@ -178,8 +178,17 @@ final, reviewed result.
    Lunghe`…) or an activity column. The user reviews every column, and the
    confirmed mapping is remembered in the browser for files with the same headers.
 3. **Read values** (`transforms.ts`, `rows.ts`): `06/06/02026`, `N/A`,
-   `Fra. Japo, Vale`, `5c, 6a (ok), 6a+ (no)` and so on. Columns with no field of
-   their own are kept in the visit notes as `Column: value`.
+   `Fra. Japo, Vale`, `5c, 6a (ok), 6a+ (no)` (each route's outcome: sent, not
+   sent, onsight…), `6a+>5c` or `VI/V, A0` (hardest grade, mandatory grade, aid),
+   `Sportiva`/`Trad`, a 1–5 rating, and so on. Columns with no field of their own
+   are kept in the visit notes as `Column: value`.
+   - **Sectors**: a *Settore* column is the spot's sector (the wall of a
+     multipitch route). On a crag sheet whose name column is the crag
+     (*Nome falesia*), the crag becomes the sector and *Settore* the spot.
+     Alpine names like `Breithorn - via normale` are split into the mountain
+     (sector) and the route (spot); the review step can undo that per spot.
+   - Country and province come from the file (`TN` alone means Italy), or else
+     from each new spot's pin.
 4. **Place spots** (`resolve.ts`): `match_places()` (pg_trgm) suggests existing
    spots with similar names. New spots get a pin from Photon, using the town,
    area or name, and searching near the spots already known. The user checks the

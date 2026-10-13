@@ -23,6 +23,10 @@ const IT: Record<string, string> = {
   vicenza: 'VI', viterbo: 'VT',
 };
 
+const CODES = new Set(Object.values(IT));
+/** "TN" is an Italian province code. */
+export const isItalianProvinceCode = (v: string) => CODES.has(v.trim().toUpperCase());
+
 const PREFIX = /^(provincia autonoma di|provincia di|città metropolitana di|libero consorzio comunale di|province of)\s+/i;
 
 /** "Lecco" → "LC" in Italy; elsewhere (or unknown) the name as given. */

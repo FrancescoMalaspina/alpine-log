@@ -3,7 +3,7 @@
  * dates, partner lists, route lists, numbers, activities. Pure functions.
  */
 import { parseCoordinates } from '../coords';
-import type { Activity } from '../types';
+import type { Activity, AscentStyle, Protection } from '../types';
 
 export type DateOrder = 'dmy' | 'mdy';
 
@@ -79,7 +79,21 @@ const GRADE = String.raw`(?:[3-9][abc]?\+?(?:\/[abc]?\+?)?|(?:IX|VIII|VII|VI|V|I
 const GRADE_RE = new RegExp(String.raw`(?:^|[\s(])(${GRADE})(?=$|[\s),>/])`, 'i');
 const STATUS_RE = /\(\s*([^)]*)\)\s*$|\s+(ok|no|ko|top|flash|os|onsight|rp|redpoint|af|tr|fail|sent|project|progetto)\s*$/i;
 
-export type ParsedAscent = { name: string; grade: string; comment: string };
+export type ParsedAscent = { name: string; grade: string; comment: string; style: AscentStyle | null };
+
+const STYLE_WORDS: [AscentStyle, RegExp][] = [
+  ['onsight', /^(os|o\.s\.|onsight|on ?sight|a vista|a vue)$/i],
+  ['flash', /^(fl|flash)$/i],
+  ['redpoint', /^(ok|sent|rp|redpoint|red ?point|chiusa|chiuso|lavorata|top|libera|done|fatto|fatta|si|sì|yes|v|✓|✔)$/i],
+  ['toprope', /^(tr|top ?rope|toprope|moulinette|in moulinette|corda dall'alto)$/i],
+  ['attempt', /^(no|ko|fail|failed|attempt|tentativo|tentata|project|progetto|non chiusa|x|✗|✘)$/i],
+];
+
+/** "ok" → redpoint, "no" → attempt, "os" → onsight…; null for anything else (kept as a comment). */
+export function parseStyle(v: string): AscentStyle | null {
+  const t = v.trim();
+  return STYLE_WORDS.find(([, re]) => re.test(t))?.[0] ?? null;
+}
 
 /**
  * A list of routes typed in one cell: "5c, 6a (ok), 6a+ (no)" or
@@ -89,7 +103,7 @@ export type ParsedAscent = { name: string; grade: string; comment: string };
 export function parseAscentList(v: unknown): ParsedAscent[] {
   if (isBlank(v)) return [];
   const tokens = String(v).split(/[,;\n]+/).map(t => t.trim()).filter(Boolean);
-  const out: (ParsedAscent & { explicit: boolean })[] = tokens.map(token => {
+  const out: { name: string; grade: string; comment: string; explicit: boolean }[] = tokens.map(token => {
     let rest = token;
     let comment = '';
     const st = rest.match(STATUS_RE);
@@ -112,7 +126,11 @@ export function parseAscentList(v: unknown): ParsedAscent[] {
     if (out[i].explicit) carry = out[i].comment;
     else out[i].comment = carry;
   }
-  return out.filter(a => a.name || a.grade).map(({ name, grade, comment }) => ({ name, grade, comment }));
+  // A status that is a known outcome becomes the route's style; anything else stays its comment.
+  return out.filter(a => a.name || a.grade).map(({ name, grade, comment }) => {
+    const style = comment ? parseStyle(comment) : null;
+    return { name, grade, comment: style ? '' : comment, style };
+  });
 }
 
 /** "1.311", "750 m", "4,5 km" → number. */
@@ -171,3 +189,63 @@ export function parseLink(text: unknown, hyperlink?: string): { title: string; u
 
 /** Looks like a grade (French, UIAA, alpine, ice)? */
 export const looksLikeGrade = (v: unknown) => !isBlank(v) && GRADE_RE.test(` ${String(v).trim()}`);
+
+const AID_RE = /(?:^|[\s,;(])(A[0-5][+-]?)(?=$|[\s,;)])/i;
+
+/**
+ * A route's "Difficoltà" split into its parts: the hardest grade, the
+ * mandatory grade and the aid. "6a+>5c", "VI/V, A0", "6a un passo/5b, A0".
+ * A single grade ("V+ (5b)", "5c") is kept whole as the grade.
+ */
+export function parseDifficulty(v: unknown): { grade: string; obligatory: string; aid: string } {
+  let t = cleanGrade(v);
+  if (!t) return { grade: '', obligatory: '', aid: '' };
+  let aid = '';
+  const a = t.match(AID_RE);
+  if (a) {
+    aid = a[1].toUpperCase();
+    t = (t.slice(0, a.index) + t.slice(a.index! + a[0].length)).replace(/[\s,;]+$/, '').trim();
+  }
+  // "X>Y" or "X/Y" where both sides hold a grade: hardest, then mandatory.
+  const parts = t.split(/\s*[>/]\s*/);
+  if (parts.length === 2) {
+    const hardest = parts[0].match(GRADE_RE);
+    const mandatory = parts[1].match(GRADE_RE);
+    if (hardest && mandatory) return { grade: hardest[1], obligatory: mandatory[1], aid };
+  }
+  return { grade: t, obligatory: '', aid };
+}
+
+/** "Sportiva" → bolted, "Trad" → trad, "Mista" → mixed. */
+export function parseProtection(v: unknown): Protection | null {
+  if (isBlank(v)) return null;
+  const t = String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  if (/\b(mist|mixed|semi|parz)/.test(t)) return 'mixed';
+  if (/\b(trad|clean|friend|nut|da proteggere|protezioni veloci|alpinistic)/.test(t)) return 'trad';
+  if (/\b(sport|spit|bolt|chiodat|plaisir|attrezzat|fix)/.test(t)) return 'bolted';
+  return null;
+}
+
+/** A 1–5 rating: 4, "4/5", "★★★★"; anything else (or "nd") is none. */
+export function parseRating(v: unknown): number | null {
+  if (isBlank(v)) return null;
+  const stars = String(v).match(/★/g);
+  if (stars) return Math.min(5, stars.length);
+  const n = parseNumber(String(v).split('/')[0]);
+  return n != null && n >= 1 && n <= 5 ? Math.round(n) : null;
+}
+
+const COUNTRIES: Record<string, string> = {
+  italia: 'IT', italy: 'IT', italie: 'IT', italien: 'IT', francia: 'FR', france: 'FR', frankreich: 'FR',
+  svizzera: 'CH', switzerland: 'CH', suisse: 'CH', schweiz: 'CH', austria: 'AT', osterreich: 'AT', autriche: 'AT',
+  germania: 'DE', germany: 'DE', deutschland: 'DE', spagna: 'ES', spain: 'ES', espana: 'ES', slovenia: 'SI',
+  croazia: 'HR', croatia: 'HR', grecia: 'GR', greece: 'GR', portogallo: 'PT', portugal: 'PT',
+};
+
+/** "FR", "Francia", "France" → "FR"; unknown names give "". */
+export function parseCountry(v: unknown): string {
+  if (isBlank(v)) return '';
+  const t = String(v).trim();
+  if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
+  return COUNTRIES[t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()] ?? '';
+}

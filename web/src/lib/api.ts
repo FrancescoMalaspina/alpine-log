@@ -347,6 +347,7 @@ export type PlaceMatch = {
   name: string;
   activity: string;
   area_name: string | null;
+  sector_name: string | null;
   lat: number;
   lng: number;
   similarity: number;

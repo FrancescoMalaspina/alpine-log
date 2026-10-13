@@ -4,7 +4,7 @@
  * Then builds the import_logbook payload.
  */
 import { matchPlaces, type PlaceMatch } from '../api';
-import { searchLocations } from '../geocode';
+import { reverseGeocode, searchLocations } from '../geocode';
 import type { PlaceInput, VisitInput, Visibility } from '../types';
 import { tr } from '../../i18n';
 import { ACTIVITIES } from '../labels';
@@ -44,7 +44,9 @@ export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]>
       }))
       .sort((a, b) => Number(b.activity === s.activity) - Number(a.activity === s.activity) || b.similarity - a.similarity);
     const best = mine[0];
-    const sure = best && best.activity === s.activity && best.similarity >= 0.75
+    // A match in another sector (another mountain's "via normale") is only a suggestion.
+    const sameSector = !s.sector || !best?.sector_name || best.sector_name.toLowerCase() === s.sector.toLowerCase();
+    const sure = best && best.activity === s.activity && best.similarity >= 0.75 && sameSector
       && (best.distance_km == null || best.distance_km < 10);
     return {
       ...s,
@@ -57,12 +59,17 @@ export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]>
 }
 
 /** What to search for, most precise first. A blank country means the default one, if any. */
+const COUNTRY_NAMES: Record<string, string> = {
+  IT: 'Italia', FR: 'France', CH: 'Schweiz', AT: 'Österreich', DE: 'Deutschland', ES: 'España', SI: 'Slovenija',
+};
+
 export function geocodeQueries(s: DraftSpot, defaultCountry: string): string[] {
-  const country = s.country || defaultCountry;
+  const country = COUNTRY_NAMES[s.country] ?? (s.country || defaultCountry);
   const join = (...p: string[]) => p.map(x => x.trim()).filter(Boolean).join(', ');
   const qs = [
     s.locality && join(s.locality, s.region, country),
     s.locality && join(s.locality, country),
+    s.sector && join(s.sector, country),
     s.area && join(s.area, country),
     join(s.name, country),
   ];
@@ -122,6 +129,19 @@ export async function geocodeSpots(
     }
     onProgress(++done, todo.length);
   }
+  // Country and province of new spots the file didn't give, from their pin.
+  const pinned = spots.map(s => out.get(s.key) ?? s);
+  for (const s of pinned) {
+    if (s.choice !== 'new' || s.lat == null || s.lng == null || (s.country && s.region)) continue;
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    try {
+      const place = await reverseGeocode({ lat: s.lat, lng: s.lng }, signal);
+      out.set(s.key, { ...s, country: s.country || (place.country ?? ''), region: s.region || (place.province ?? '') });
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') throw e;
+    }
+    await sleep(250);
+  }
   return spots.map(s => out.get(s.key) ?? s);
 }
 
@@ -130,7 +150,8 @@ export async function geocodeSpots(
 export type ImportPayload = {
   file_name: string;
   summary: Record<string, unknown>;
-  spots: ({ key: string; place_id: number } | { key: string; place: PlaceInput; links: { title: string; url: string }[] })[];
+  spots: ({ key: string; place_id: number }
+    | { key: string; place: PlaceInput; links: { title: string; url: string }[]; area_description: string })[];
   visits: (Omit<VisitInput, 'place_id'> & { spot: string })[];
 };
 
@@ -146,14 +167,16 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
       : {
         key: s.key,
         links: s.links,
+        area_description: s.areaDescription,
         place: {
           area_name: s.area, name: s.name, activity: s.activity, lat: s.lat!, lng: s.lng!,
           parking_lat: null, parking_lng: null, start_lat: null, start_lng: null,
           rock: s.rock, exposition: [], description: s.description, grade: s.grade,
           max_altitude: s.max_altitude, elevation_gain: s.elevation_gain, distance_km: s.distance_km,
-          sector_name: '',
-          country: '', province: '', start_locality: '', protection: null, pitches: null, length_m: null,
-          alpine_grade: '', grade_obligatory: '', aid: '',
+          sector_name: s.sector,
+          country: s.country, province: s.region, start_locality: s.locality, protection: s.protection,
+          pitches: s.pitches, length_m: s.length_m, alpine_grade: s.alpine_grade, grade_obligatory: s.grade_obligatory,
+          aid: s.aid,
         },
       })),
     visits: used.flatMap(s => s.visits.map(v => {
@@ -163,7 +186,7 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
       if (f.isRoute && f.routes) {
         ascents = ascents.length
           ? ascents.map(a => (a.name ? a : { ...a, name: s.name, grade: a.grade || s.grade }))
-          : [{ name: s.name, grade: s.grade, comment: '', sector: '' }];
+          : [{ name: s.name, grade: s.grade, comment: '', sector: '', style: null }];
       }
       return {
         spot: s.key,
@@ -174,15 +197,15 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
         conditions: v.conditions,
         duration_hours: v.duration_hours,
         visibility: v.visibility ?? visibility,
-        rating: null,
+        rating: v.rating,
         partners: v.partners,
-        other_partners: [],
+        other_partners: v.otherPartners,
         add_routes: false,
         // A route's sector names another spot of the visit's sector, found by name on the
         // server; one that doesn't exist is kept in the route's comment.
         ascents: f.routes ? ascents.map(a => ({
           name: a.name, grade: a.grade, comment: a.comment, route_id: null, place_id: null, sector: a.sector,
-          style: null, pitches: null, aid: '',
+          style: a.style, pitches: null, aid: '',
         })) : [],
       };
     })),
