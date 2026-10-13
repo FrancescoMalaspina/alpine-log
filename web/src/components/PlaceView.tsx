@@ -1,18 +1,19 @@
 import { useEffect, useState } from 'react';
-import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes } from '../lib/api';
+import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { Track } from '../lib/gpx';
 import { useI18n } from '../i18n';
 import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
-import type { Place, Route, VisitDetail, Wish } from '../lib/types';
+import type { Place, Route, Tip, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
 import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
 import { VisibilityPill } from './Sidebar';
+import { Tips } from './Tips';
 
-export type PlaceTab = 'info' | 'visits';
+export type PlaceTab = 'info' | 'visits' | 'tips';
 
 type Props = {
   place: Place;
@@ -41,6 +42,13 @@ type Props = {
 export function PlaceView(props: Props) {
   const { place: p, tab } = props;
   const { t } = useI18n();
+  // The spot's tips and its sector's: a count on the tab and the newest one on Info.
+  const [tips, setTips] = useState<Tip[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchTips({ placeId: p.id, sectorId: p.sector_id }).then(r => { if (!cancelled) setTips(r); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [p.id, p.sector_id, props.reloadKey]);
   return (
     <Drawer
       title={p.name}
@@ -82,13 +90,22 @@ export function PlaceView(props: Props) {
                 className={`list-mode-tab${tab === 'visits' ? ' active' : ''}`} onClick={() => props.onTab('visits')}>
           {t.spot.placeView.visits}<span className="tab-count">{p.visit_count}</span>
         </button>
+        <button type="button" role="tab" aria-selected={tab === 'tips'}
+                className={`list-mode-tab${tab === 'tips' ? ' active' : ''}`} onClick={() => props.onTab('tips')}>
+          {t.spot.tips.tab}{tips && <span className="tab-count">{tips.length}</span>}
+        </button>
       </div>
-      {tab === 'info' ? <PlaceInfo {...props} /> : <PlaceVisits {...props} />}
+      {tab === 'info' && <PlaceInfo {...props} latestTip={tips?.[0]} />}
+      {tab === 'visits' && <PlaceVisits {...props} />}
+      {tab === 'tips' && (
+        <Tips placeId={p.id} sector={p.sector} userId={props.userId} isAdmin={props.isAdmin}
+              reloadKey={props.reloadKey} onLoaded={setTips} />
+      )}
     </Drawer>
   );
 }
 
-function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish, onChanged }: Props) {
+function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish, onChanged, onTab, latestTip }: Props & { latestTip?: Tip }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [wishers, setWishers] = useState<string[]>([]);
@@ -124,6 +141,12 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, wish
       </dl>
       {p.description && <p className="place-description">{p.description}</p>}
       {wishers.length > 0 && <p className="hint-block">{s.wishlistOf(wishers.join(', '))}</p>}
+      {latestTip && (
+        <button type="button" className="latest-tip" onClick={() => onTab('tips')}>
+          <span className="latest-tip-label">{t.spot.tips.latest} · {formatDate(latestTip.created_at.slice(0, 10))}</span>
+          <span className="latest-tip-body">{latestTip.body.split('\n')[0]}</span>
+        </button>
+      )}
 
       <h3 className="section-title">{s.gettingThere}</h3>
       <div className="waypoints">

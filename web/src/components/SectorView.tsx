@@ -6,6 +6,7 @@ import type { Area, Place, Sector } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
+import { Tips } from './Tips';
 
 type Props = {
   sector: Sector;
@@ -139,6 +140,9 @@ export function SectorView(props: Props) {
         ? <AddToSector sector={sector} allPlaces={props.allPlaces} canEditPlace={canEditPlace}
                        onDone={changed => { setAdding(false); if (changed) props.onChanged(); }} />
         : <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>{t.spot.areaView.addSpots}</button>)}
+
+      <h3 className="section-title">{t.spot.tips.tab}</h3>
+      <Tips sector={{ id: sector.id, name: sector.name }} userId={userId} isAdmin={isAdmin} reloadKey={0} />
     </Drawer>
   );
 }

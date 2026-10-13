@@ -127,6 +127,24 @@ export type VisitDetail = {
 
 export type Partner = { id: number; name: string };
 
+export const TIP_TOPICS = ['conditions', 'gear', 'parking', 'approach', 'descent', 'other'] as const;
+export type TipTopic = typeof TIP_TOPICS[number];
+
+/** A dated tip under a spot, or under a whole sector (then shown on each of its spots). */
+export type Tip = {
+  id: number;
+  place_id: number | null;
+  sector_id: number | null;
+  user_id: string;
+  username: string | null;
+  body: string;
+  topic: TipTopic | null;
+  observed_on: string | null;
+  created_at: string;
+  updated_at: string;
+};
+export type TipInput = { body: string; topic: TipTopic | null; observed_on: string | null };
+
 export type Profile = { id: string; username: string; role: 'user' | 'admin'; language: 'en' | 'it' | null };
 
 export const SEASONS = ['winter', 'spring', 'summer', 'autumn'] as const;

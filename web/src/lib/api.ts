@@ -6,7 +6,7 @@ import type { Json } from './database.types';
 import { supabase } from './supabase';
 import type {
   Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
-  Wish, WishInput,
+  Tip, TipInput, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
 import { USERNAME_RE, usernameHint } from './labels';
@@ -485,4 +485,39 @@ export async function completeWish(wishId: number, visitId: number): Promise<voi
 
 export async function reopenWish(id: number): Promise<void> {
   unwrap(await supabase.rpc('reopen_wish', { p_wish_id: id }));
+}
+
+// ---------------------------------------------------------------- tips
+
+/** Tips of a spot and of its sector (or only a sector's), newest first. */
+export async function fetchTips(owner: { placeId?: number; sectorId?: number | null }): Promise<Tip[]> {
+  const ors = [
+    owner.placeId != null ? `place_id.eq.${owner.placeId}` : null,
+    owner.sectorId != null ? `sector_id.eq.${owner.sectorId}` : null,
+  ].filter(Boolean);
+  if (!ors.length) return [];
+  const rows = unwrap(await supabase.from('spot_comments')
+    .select('id, place_id, sector_id, user_id, body, topic, observed_on, created_at, updated_at, profile:profiles (username)')
+    .or(ors.join(','))
+    .order('created_at', { ascending: false }));
+  return rows.map(({ profile, ...t }) => ({ ...t, topic: t.topic as Tip['topic'], username: profile?.username ?? null }));
+}
+
+export async function addTip(owner: { placeId: number } | { sectorId: number }, tip: TipInput): Promise<void> {
+  unwrap(await supabase.from('spot_comments').insert({
+    ...('placeId' in owner ? { place_id: owner.placeId } : { sector_id: owner.sectorId }),
+    body: tip.body.trim(), topic: tip.topic, observed_on: tip.observed_on || null,
+  }));
+}
+
+export async function updateTip(id: number, tip: TipInput): Promise<void> {
+  const rows = unwrap(await supabase.from('spot_comments')
+    .update({ body: tip.body.trim(), topic: tip.topic, observed_on: tip.observed_on || null })
+    .eq('id', id).select('id'));
+  if (!rows.length) throw new Error(tr().common.errors.cantEditTip);
+}
+
+export async function deleteTip(id: number): Promise<void> {
+  const rows = unwrap(await supabase.from('spot_comments').delete().eq('id', id).select('id'));
+  if (!rows.length) throw new Error(tr().common.errors.cantDeleteTip);
 }

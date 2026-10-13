@@ -59,6 +59,8 @@ const en = {
     sectorExists: (name: string) => `There is already a sector called "${name}" in this area.`,
     cantChangeSector: 'Only the creator of this sector or an admin can change it.',
     cantDeleteSector: 'Only the creator of this sector or an admin can delete it.',
+    cantEditTip: 'You can only edit your own tips.',
+    cantDeleteTip: 'Only whoever wrote this tip, or an admin, can remove it.',
     linkScheme: 'Links must start with http:// or https://',
     fileTypes: 'Only .gpx and .pdf files can be uploaded.',
     cantRemoveAttachment: 'Only the person who added this (or an admin) can remove it.',

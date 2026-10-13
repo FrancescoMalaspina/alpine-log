@@ -61,6 +61,8 @@ const it: Widen<typeof en> = {
     sectorExists: (name: string) => `In quest'area esiste già un settore chiamato "${name}".`,
     cantChangeSector: 'Solo chi ha creato questo settore o un admin può modificarlo.',
     cantDeleteSector: 'Solo chi ha creato questo settore o un admin può eliminarlo.',
+    cantEditTip: 'Puoi modificare solo i tuoi consigli.',
+    cantDeleteTip: 'Può rimuoverlo solo chi ha scritto il consiglio, o un admin.',
     linkScheme: 'I link devono iniziare con http:// o https://',
     fileTypes: 'Si possono caricare solo file .gpx e .pdf.',
     cantRemoveAttachment: "Può rimuoverlo solo chi l'ha aggiunto (o un admin).",

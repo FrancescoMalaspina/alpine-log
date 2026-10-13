@@ -568,6 +568,64 @@ export type Database = {
           },
         ]
       }
+      spot_comments: {
+        Row: {
+          body: string
+          created_at: string
+          id: number
+          observed_on: string | null
+          place_id: number | null
+          sector_id: number | null
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: never
+          observed_on?: string | null
+          place_id?: number | null
+          sector_id?: number | null
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: never
+          observed_on?: string | null
+          place_id?: number | null
+          sector_id?: number | null
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spot_comments_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spot_comments_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "spot_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visit_partners: {
         Row: {
           partner_id: number
