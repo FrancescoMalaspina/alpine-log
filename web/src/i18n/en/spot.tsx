@@ -81,7 +81,8 @@ const en = {
     saveSpotAndVisit: 'Save spot and visit',
     saveSpot: 'Save spot',
     logVisitToo: 'Log a visit here too',
-    editNote: "Photos, guide links, PDFs and GPX tracks are added from the spot's Details panel.",
+    editNote: "More guide links, photos, PDFs and GPX tracks are added from the spot's Details panel.",
+    savedButLinkFailed: (msg: string) => `Saved, but the guide link couldn't be added: ${msg}`,
   },
   visitModal: {
     confirmDiscard: 'Discard this visit? What you typed will be lost.',
@@ -145,6 +146,7 @@ const en = {
     facesHint: '(optional, pick all that apply)',
     description: 'Description',
     descriptionPlaceholder: 'Approach, style, when to go…',
+    guideUrl: 'Link to a guide (relazione)',
     pickOnMap: 'Pick on map',
     useMyLocation: 'Use my current location',
     useMyLocationFor: (label: string) => `Use my location for ${label}`,
@@ -242,6 +244,7 @@ const en = {
     startUnreadable: "Couldn't read the start coordinates.",
     badDistance: 'The distance should be in km, between 0 and 1000.',
     badCountry: 'Country is a two-letter code, like IT, FR or CH.',
+    badGuideUrl: "That guide link doesn't look like a web address.",
   },
   visitForm: {
     empty: 'Fill in at least a date, who you were with, or a route.',

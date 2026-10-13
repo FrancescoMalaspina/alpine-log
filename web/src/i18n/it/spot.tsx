@@ -80,7 +80,8 @@ const it: Widen<typeof en> = {
     saveSpotAndVisit: 'Salva spot e visita',
     saveSpot: 'Salva spot',
     logVisitToo: 'Registra anche una visita qui',
-    editNote: 'Foto, link alle relazioni, PDF e le tracce GPX si aggiungono dal pannello Dettagli dello spot.',
+    editNote: 'Altri link alle relazioni, foto, PDF e tracce GPX si aggiungono dal pannello Dettagli dello spot.',
+    savedButLinkFailed: (msg: string) => `Salvato, ma non è stato possibile aggiungere il link alla relazione: ${msg}`,
   },
   visitModal: {
     confirmDiscard: 'Scartare questa visita? Quello che hai scritto andrà perso.',
@@ -144,6 +145,7 @@ const it: Widen<typeof en> = {
     facesHint: '(facoltativa, scegli tutte quelle che servono)',
     description: 'Descrizione',
     descriptionPlaceholder: 'Avvicinamento, stile, quando andare…',
+    guideUrl: 'Link alla relazione',
     pickOnMap: 'Scegli sulla mappa',
     useMyLocation: 'Usa la mia posizione attuale',
     useMyLocationFor: (label: string) => `Usa la mia posizione per ${label}`,
@@ -241,6 +243,7 @@ const it: Widen<typeof en> = {
     startUnreadable: "Impossibile leggere le coordinate dell'attacco.",
     badDistance: 'La distanza va in km, tra 0 e 1000.',
     badCountry: 'Il paese è un codice di due lettere, come IT, FR o CH.',
+    badGuideUrl: 'Il link alla relazione non sembra un indirizzo web.',
   },
   visitForm: {
     empty: 'Compila almeno una data, i tuoi compagni o una via.',

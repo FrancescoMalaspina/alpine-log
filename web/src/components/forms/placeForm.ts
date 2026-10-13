@@ -29,6 +29,8 @@ export type PlaceValues = {
   alpineGrade: string;
   gradeObligatory: string;
   aid: string;
+  /** A link to a guide (relazione), added to the spot's links when it's saved. */
+  guideUrl: string;
   /** A track loaded to fill in the fields; saved on the spot when `save` is ticked. */
   track: TrackDraft | null;
 };
@@ -74,8 +76,21 @@ export function placeValuesFrom(place?: Place): PlaceValues {
     alpineGrade: place?.alpine_grade ?? '',
     gradeObligatory: place?.grade_obligatory ?? '',
     aid: place?.aid ?? '',
+    guideUrl: '',
     track: null,
   };
+}
+
+/** The guide link as it will be saved: `https://` added when only the address was typed; null if empty or unusable. */
+export function guideUrlOf(v: Pick<PlaceValues, 'guideUrl'>): string | null {
+  const raw = v.guideUrl.trim();
+  if (!raw) return null;
+  const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  try {
+    return new URL(url).hostname.includes('.') ? url : null;
+  } catch {
+    return null;
+  }
 }
 
 const intOrNull = (s: string) => (s.trim() === '' ? null : Math.round(Number(s)));
@@ -95,6 +110,7 @@ export function buildPlaceInput(v: PlaceValues, id?: number): PlaceInput | strin
   if (distance != null && !(distance > 0 && distance < 1000)) return s.badDistance;
   const country = v.country.trim().toUpperCase();
   if (country && !/^[A-Z]{2}$/.test(country)) return s.badCountry;
+  if (v.guideUrl.trim() && !guideUrlOf(v)) return s.badGuideUrl;
 
   return {
     id,

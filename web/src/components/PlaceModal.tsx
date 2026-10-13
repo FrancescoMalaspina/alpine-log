@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { deletePlace, savePlace } from '../lib/api';
+import { addLink, deletePlace, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Sector } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { coordLabel, buildPlaceInput, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
+import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
 import { saveTrackAt, saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
 import { topoOf, visitFromTrack, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
@@ -50,6 +50,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
   const userId = useAuth().session?.user.id;
   // Set once the track is uploaded, so a retry doesn't upload it twice.
   const [trackSaved, setTrackSaved] = useState(false);
+  const [linkSaved, setLinkSaved] = useState(false);
   // Set when the spot is saved but its track failed to upload: the form then only offers "Done".
   const [done, setDone] = useState<number | null>(null);
 
@@ -87,6 +88,18 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
       setSavedId(id);
       if (logVisit) {
         await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit);
+      }
+      const guideUrl = guideUrlOf(values);
+      if (guideUrl && !linkSaved) {
+        try {
+          await addLink({ placeId: id }, '', guideUrl);
+          setLinkSaved(true);
+        } catch (e) {
+          setError(s.savedButLinkFailed(errorMessage(e)));
+          setDone(id);
+          setBusy(false);
+          return;
+        }
       }
       if (values.track?.save && !trackSaved && userId) {
         try {

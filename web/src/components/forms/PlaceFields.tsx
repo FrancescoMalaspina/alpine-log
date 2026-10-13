@@ -227,6 +227,11 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
         <textarea id="placeDescription" value={v.description} placeholder={s.descriptionPlaceholder}
                   onChange={e => onChange({ description: e.target.value })} />
       </div>
+      <div className="field full">
+        <label htmlFor="placeGuideUrl">{s.guideUrl} <span className="hint">{s.optional}</span></label>
+        <input id="placeGuideUrl" type="text" inputMode="url" autoCapitalize="off" spellCheck={false} value={v.guideUrl}
+               placeholder="https://www.thecrag.com/…" onChange={e => onChange({ guideUrl: e.target.value })} />
+      </div>
 
     </div>
   );

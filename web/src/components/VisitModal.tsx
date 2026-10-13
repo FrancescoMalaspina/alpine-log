@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useI18n } from '../i18n';
 import { uploadPhoto } from '../lib/photos';
-import { completeWish, fetchRoutes, savePlace } from '../lib/api';
+import { addLink, completeWish, fetchRoutes, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { coordLabel, buildPlaceInput, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues, type TrackDraft } from './forms/placeForm';
+import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues, type TrackDraft } from './forms/placeForm';
 import { saveTrackAt, saveVisitAt } from './forms/save';
 import { TrackLoader } from './forms/TrackLoader';
 import { VisitFields } from './forms/VisitFields';
@@ -152,6 +152,14 @@ export function VisitModal({
         : { id: id!, name: place!.name, grade: place!.grade, activity: place!.activity };
       const visitId = await saveVisitAt(spot, values, visit?.id);
       const failed: string[] = [];
+      const guideUrl = placeInput && guideUrlOf(newPlace);
+      if (guideUrl) {
+        try {
+          await addLink({ placeId: id! }, '', guideUrl);
+        } catch (e) {
+          failed.push(t.spot.placeModal.savedButLinkFailed(errorMessage(e)));
+        }
+      }
       const spotTrack = placeInput ? newPlace.track : track;
       if (spotTrack?.save) {
         try {
