@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useConfirm } from '../hooks/useConfirm';
 import { deleteUser, fetchUsers, renameUser, setUserRole, type UserRow } from '../lib/api';
 import { useI18n, type Dict } from '../i18n';
@@ -46,7 +46,7 @@ function compare(a: UserRow, b: UserRow, key: SortKey) {
  * how much they logged. Promote, demote, rename or delete from here; role
  * changes apply on that person's next page load.
  */
-export function UsersPage({ myId, onClose }: { myId: string; onClose: () => void }) {
+export function UsersPage({ myId, onClose, children }: { myId: string; onClose: () => void; children?: ReactNode }) {
   const { t } = useI18n();
   const [users, setUsers] = useState<UserRow[] | null>(null);
   // "Last active" is relative to when the list was loaded.
@@ -272,6 +272,7 @@ export function UsersPage({ myId, onClose }: { myId: string; onClose: () => void
             </table>
           </div>
         )}
+        {children}
       </div>
 
       {confirmDialog}

@@ -931,6 +931,23 @@ export type Database = {
         Args: { p_check_only?: boolean; p_user_id: string }
         Returns: undefined
       }
+      duplicate_areas: {
+        Args: never
+        Returns: {
+          area_id: number
+          other_id: number
+          similarity: number
+        }[]
+      }
+      duplicate_places: {
+        Args: never
+        Returns: {
+          distance_km: number
+          other_id: number
+          place_id: number
+          similarity: number
+        }[]
+      }
       fold_name: { Args: { t: string }; Returns: string }
       grade_rank: { Args: { grade: string }; Returns: number }
       import_logbook: { Args: { p: Json }; Returns: Json }
@@ -949,6 +966,14 @@ export type Database = {
           username: string
           visits: number
         }[]
+      }
+      merge_areas: {
+        Args: { p_duplicate: number; p_keep: number }
+        Returns: Json
+      }
+      merge_places: {
+        Args: { p_duplicate: number; p_keep: number }
+        Returns: Json
       }
       partner_on_readable_visit: {
         Args: { p_partner_id: number }

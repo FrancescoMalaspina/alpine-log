@@ -1031,3 +1031,19 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
 .track-toggle { flex: none; width: 18px; height: 18px; margin: 0; cursor: pointer; }
+
+/* Merging duplicates (MergeModal, DuplicatesSection) */
+.merge-body { display: grid; gap: 14px; padding: 14px 22px 4px; }
+.merge-choices { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.merge-choices legend { margin-bottom: 6px; font-size: 13.5px; font-weight: 600; }
+.merge-choice { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: var(--radius); cursor: pointer; }
+.merge-choice:hover, .merge-choice:has(input:checked) { background: var(--tint); }
+.merge-summary { margin: 0; }
+.duplicates-section { display: grid; gap: 10px; margin-top: 24px; }
+.duplicates-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.duplicates-group h4 { margin: 8px 0 6px; }
+.duplicates { list-style: none; margin: 0; padding: 0; background: var(--plate); border-radius: var(--radius); box-shadow: 0 0 0 1px var(--rule); }
+.duplicates li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+.duplicates li:last-child { border-bottom: 0; }
+.duplicates li.likely { box-shadow: inset 3px 0 0 var(--blaze); }
+.duplicate-pair { display: grid; gap: 2px; min-width: 0; }

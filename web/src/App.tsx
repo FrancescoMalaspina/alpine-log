@@ -5,7 +5,9 @@ import { AccountPanel } from './components/AccountPanel';
 import { AreaView } from './components/AreaView';
 import { AuthModal, NewPasswordModal } from './components/AuthModal';
 import { Header } from './components/Header';
+import { DuplicatesSection } from './components/DuplicatesSection';
 import { MapView, type MapCommand } from './components/MapView';
+import { MergeModal, type MergeTarget } from './components/MergeModal';
 import { MobileNav, type MobileTab } from './components/MobileNav';
 import { MyLog } from './components/MyLog';
 import { NewAreaModal } from './components/NewAreaModal';
@@ -222,6 +224,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPop);
   }, []);
   const [placeModal, setPlaceModal] = useState<{ place?: Place; at?: LatLng } | null>(null);
+  const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
   const [visitModal, setVisitModal] = useState<{ placeId?: number; visit?: VisitDetail; withPeople?: string[] } | null>(null);
   const [wishModal, setWishModal] = useState<{ place: Place; wish?: Wish } | null>(null);
 
@@ -482,7 +485,9 @@ export default function App() {
         )}
 
         {panel?.kind === 'users' && userId && isAdmin && (
-          <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })} />
+          <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })}>
+            <DuplicatesSection places={catalog} areas={areas} onMerge={setMergeTarget} />
+          </UsersPage>
         )}
 
         {panel?.kind === 'area' && panelArea && (
@@ -503,6 +508,7 @@ export default function App() {
             onOpenSector={openSector}
             onChanged={reload}
             onDeleted={() => { setPanel(null); reload(); }}
+            onMerge={isAdmin ? () => setMergeTarget({ kind: 'area', duplicate: panelArea.id }) : undefined}
           />
         )}
 
@@ -566,6 +572,7 @@ export default function App() {
           onClose={closeForms}
           onSaved={showSaved}
           onDeleted={() => { closeForms(); setPanel(null); setFocusedId(null); reload(); }}
+          onMerge={isAdmin && placeModal.place ? () => setMergeTarget({ kind: 'place', duplicate: placeModal.place!.id }) : undefined}
           onOpenExisting={id => {
             const existing = catalog.find(p => p.id === id);
             closeForms();
@@ -594,6 +601,29 @@ export default function App() {
           onSaved={(placeId, wishResolved) => {
             showSaved(placeId, true);
             if (wishResolved) setNotice(t.app.app.visitSavedWishDone);
+          }}
+        />
+      )}
+
+      {mergeTarget && isAdmin && (
+        <MergeModal
+          key={`merge-${mergeTarget.kind}-${mergeTarget.duplicate}`}
+          {...mergeTarget}
+          places={catalog}
+          areas={areas}
+          onClose={() => setMergeTarget(null)}
+          onMerged={(kind, keep) => {
+            setMergeTarget(null);
+            // From the spot form, the kept spot opens; from the admins' list, the list stays.
+            if (placeModal) {
+              closeForms();
+              const kept = catalog.find(p => p.id === keep);
+              if (kept) openPlace(kept);
+            } else if (kind === 'area' && panel?.kind === 'area') {
+              openArea(keep);
+            }
+            reload();
+            setNotice(t.spot.merge.merged);
           }}
         />
       )}

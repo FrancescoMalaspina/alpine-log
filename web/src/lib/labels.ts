@@ -94,6 +94,9 @@ export const ACTIVITIES: Record<Activity, ActivityInfo> = {
 
 /** The activity's name in the current language. */
 export const activityLabel = (a: Activity) => tr().common.activities[a];
+
+/** "Sasso › Placca Bella", or just the name. */
+export const spotTitle = (name: string, sector: string | null | undefined) => (sector ? `${sector} › ${name}` : name);
 export const gradeSuggestions = (a: Activity) => ACTIVITIES[a].grades;
 
 /** English-only plural; interface text uses the dictionary's plural functions instead. */

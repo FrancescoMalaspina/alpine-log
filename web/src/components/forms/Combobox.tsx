@@ -9,6 +9,8 @@ type Props = {
   onChange: (value: string) => void;
   options: ComboOption[];
   placeholder?: string;
+  /** Called with the option picked from the list (typing alone doesn't pick one). */
+  onPick?: (option: ComboOption) => void;
 };
 
 const MAX_SHOWN = 8;
@@ -18,7 +20,7 @@ const MAX_SHOWN = 8;
  * accents and case. Free text stays allowed. Unlike <datalist>, the list
  * shows the same on phones.
  */
-export function Combobox({ id, value, onChange, options, placeholder }: Props) {
+export function Combobox({ id, value, onChange, options, placeholder, onPick }: Props) {
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -34,6 +36,7 @@ export function Combobox({ id, value, onChange, options, placeholder }: Props) {
 
   function pick(o: ComboOption) {
     onChange(o.label);
+    onPick?.(o);
     setOpen(false);
     setActive(-1);
   }

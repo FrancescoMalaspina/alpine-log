@@ -22,9 +22,11 @@ type Props = {
   onOpenSector: (sectorId: number) => void;
   onChanged: () => void;
   onDeleted: () => void;
+  /** Admins: merge this area into another. */
+  onMerge?: () => void;
 };
 
-export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmin, onClose, onShowOnMap, onOpenPlace, onOpenSector, onChanged, onDeleted }: Props) {
+export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmin, onClose, onShowOnMap, onOpenPlace, onOpenSector, onChanged, onDeleted, onMerge }: Props) {
   const { t } = useI18n();
   const s = t.spot.areaView;
   const canEdit = !!userId && (isAdmin || area.created_by === userId);
@@ -77,6 +79,7 @@ export function AreaView({ area, places, allPlaces, canEditPlace, userId, isAdmi
       onClose={onClose}
       footer={<>
         {canEdit && !editing && <button className="btn btn-danger" type="button" onClick={remove}>{s.deleteArea}</button>}
+        {onMerge && !editing && <button className="btn btn-ghost" type="button" onClick={onMerge}>{t.spot.merge.mergeEllipsis}</button>}
         {canEdit && !editing && <button className="btn btn-ghost" type="button" onClick={() => setEditing(true)}>{t.common.edit}</button>}
         <button className="btn btn-ghost" type="button" disabled={!places.length} onClick={onShowOnMap}>{t.spot.placeView.showOnMap}</button>
       </>}

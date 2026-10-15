@@ -212,8 +212,10 @@ final, reviewed result.
      (sector) and the route (spot); the review step can undo that per spot.
    - Country and province come from the file (`TN` alone means Italy), or else
      from each new spot's pin.
-4. **Place spots** (`resolve.ts`): `match_places()` (pg_trgm) suggests existing
-   spots with similar names. New spots get a pin from Photon, using the town,
+4. **Place spots** (`resolve.ts`): existing spots with similar names are
+   suggested, and preselected when almost certainly the same (see
+   [Duplicates](#duplicates)). Areas of the file that look like existing ones
+   are asked about. New spots get a pin from Photon, using the town,
    area or name, and searching near the spots already known. The user checks the
    pins on a map and can drag them.
 5. **Save**: `import_logbook()` writes everything in one transaction through
@@ -252,6 +254,23 @@ secret already set in Supabase stays as it is.
 
 `GEMINI_MODEL` defaults to `gemini-2.5-flash`. All the Gemini code is in one
 function, `proposeMapping()`, so another provider can replace it there.
+
+## Duplicates
+
+Names are compared the same way everywhere: accents, case and punctuation
+don't count (`fold_name()` in SQL, `foldName()` in `web/src/lib/names.ts`).
+
+- Saving a spot reuses an area or sector whose folded name is the same.
+- `similar_places()` and `similar_areas()` (pg_trgm, plus distance for spots)
+  find what may already exist. `web/src/lib/duplicates.ts` is the one place
+  that calls them and decides when a match is almost certainly the same; the
+  spot form, the import and the admins' list all go through it.
+- The spot form suggests areas as you type, shows "did you mean…" for a new
+  area, and lists similar spots under the name. It never blocks saving.
+- Admins merge a spot or area into another (*Merge…* in the spot form and the
+  area panel, or *Possible duplicates* on the users page): `merge_places()`
+  and `merge_areas()` move everyone's visits, routes, photos, files, tips and
+  wishlists, then delete the duplicate.
 
 ## Languages
 

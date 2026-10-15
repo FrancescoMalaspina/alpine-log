@@ -30,12 +30,14 @@ type Props = {
   onClose: () => void;
   onSaved: (placeId: number, loggedVisit: boolean) => void;
   onDeleted: () => void;
+  /** Admins, editing: merge this spot into another. */
+  onMerge?: () => void;
   /** Opens an existing spot the user picked instead of adding this one. */
   onOpenExisting: (placeId: number) => void;
 };
 
 /** Add or edit a place; a new place can be saved together with a visit there. */
-export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted, onOpenExisting }: Props) {
+export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted, onMerge, onOpenExisting }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeModal;
   const [values, setValues] = useState<PlaceValues>(() => ({
@@ -125,7 +127,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
   async function remove() {
     if (!place) return;
     const msg = place.visit_count
-      ? s.confirmDeleteWithVisits(place.name, place.visit_count)
+      ? s.confirmDeleteWithVisits(place.name, place.visit_count) + (onMerge ? ` ${s.orMerge}` : '')
       : s.confirmDelete(place.name);
     if (!confirm(msg)) return;
     setBusy(true);
@@ -148,6 +150,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
       hidden={hidden}
       footer={<>
         {place && canDelete && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>{t.common.delete}</button>}
+        {place && onMerge && <button className="btn btn-ghost" type="button" disabled={busy} onClick={onMerge}>{t.spot.merge.mergeEllipsis}</button>}
         <button className="btn btn-ghost" type="button" onClick={close}>{t.common.cancel}</button>
         {done != null ? (
           <button className="btn btn-primary" type="button" onClick={() => onSaved(done, logVisit)}>{t.common.done}</button>

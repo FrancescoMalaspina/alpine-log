@@ -3,9 +3,9 @@
  * admin's duplicates list all ask here, so they agree on what "similar" and
  * "almost certainly the same" mean.
  */
-import { similarAreas, similarPlaces } from './api';
+import { fetchDuplicatePairs, similarAreas, similarPlaces } from './api';
 import { sameName } from './names';
-import type { Activity } from './types';
+import type { Activity, Area, Place } from './types';
 
 /** A spot being typed or imported. */
 export type SpotQuery = {
@@ -87,3 +87,38 @@ export async function findSimilarAreas(names: string[]): Promise<Map<string, Sim
 
 /** An area that is almost certainly the one named. */
 export const isLikelySameArea = (a: SimilarArea) => a.similarity >= SAME_AREA_NAME;
+
+// ---------------------------------------------------------------- admins' list
+
+export type DuplicatePair<T> = { a: T; b: T; similarity: number; distance_km: number | null; likely: boolean };
+
+/**
+ * Spots and areas that look alike, as pairs of the given (loaded) ones:
+ * almost certainly the same first, then the most similar.
+ */
+export async function findDuplicatePairs(places: Place[], areas: Area[]) {
+  const rows = await fetchDuplicatePairs();
+  const placeById = new Map(places.map(p => [p.id, p]));
+  const areaById = new Map(areas.map(a => [a.id, a]));
+  const byLikely = <T,>(pairs: DuplicatePair<T>[]) =>
+    pairs.sort((x, y) => Number(y.likely) - Number(x.likely) || y.similarity - x.similarity);
+
+  const placePairs = rows.places.flatMap(r => {
+    const a = placeById.get(r.place_id);
+    const b = placeById.get(r.other_id);
+    if (!a || !b) return [];
+    const match: SimilarSpot = {
+      place_id: b.id, name: b.name, activity: b.activity, area_name: b.area?.name ?? null, sector_name: b.sector?.name ?? null,
+      lat: b.lat, lng: b.lng, similarity: r.similarity, distance_km: r.distance_km,
+    };
+    return [{ a, b, similarity: r.similarity, distance_km: r.distance_km,
+              likely: isLikelySame({ activity: a.activity, sector: a.sector?.name }, match) }];
+  });
+  const areaPairs = rows.areas.flatMap(r => {
+    const a = areaById.get(r.area_id);
+    const b = areaById.get(r.other_id);
+    return a && b ? [{ a, b, similarity: r.similarity, distance_km: null,
+                       likely: isLikelySameArea({ area_id: b.id, name: b.name, similarity: r.similarity, place_count: b.place_count }) }] : [];
+  });
+  return { places: byLikely(placePairs), areas: byLikely(areaPairs) };
+}

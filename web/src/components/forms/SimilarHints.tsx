@@ -1,7 +1,7 @@
 import { useI18n } from '../../i18n';
 import type { LatLng } from '../../lib/coords';
 import { findSimilarAreas, findSimilarSpots, isLikelySame } from '../../lib/duplicates';
-import { activityLabel } from '../../lib/labels';
+import { activityLabel, spotTitle } from '../../lib/labels';
 import type { Activity } from '../../lib/types';
 import { useLookup } from '../../hooks/useLookup';
 
@@ -56,7 +56,7 @@ export function SimilarSpots({ name, activity, sector, pin, action }: SpotProps)
         {spots.map(m => (
           <li key={m.place_id}>
             <span>
-              <strong>{m.sector_name ? `${m.sector_name} › ` : ''}{m.name}</strong>
+              <strong>{spotTitle(m.name, m.sector_name)}</strong>
               <span className="hint">
                 {[m.area_name, activityLabel(m.activity), m.distance_km != null && s.km(m.distance_km)].filter(Boolean).join(' · ')}
               </span>

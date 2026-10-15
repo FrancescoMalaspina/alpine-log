@@ -2,7 +2,7 @@ import L from 'leaflet';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { pinSvg } from '../../lib/activityIcons';
-import { activityLabel } from '../../lib/labels';
+import { activityLabel, spotTitle } from '../../lib/labels';
 import { useI18n } from '../../i18n';
 import { isReady, type AreaChoice, type ResolvedSpot } from '../../lib/import/resolve';
 import type { Activity } from '../../lib/types';
@@ -112,7 +112,7 @@ export function SpotsStep({ spots, areas, onArea, onKeepWhole, progress, country
                 onClick={() => setSelected(s.key)}>
               <div className="import-spot-head">
                 <ActivityBadge activity={s.activity} />
-                <span className="import-spot-name">{s.sector ? `${s.sector} › ` : ''}{s.name}</span>
+                <span className="import-spot-name">{spotTitle(s.name, s.sector)}</span>
                 <span className="hint">{[s.area, t.import.counts.visits(s.visits.length)].filter(Boolean).join(' · ')}</span>
               </div>
               {s.splitFrom && (
@@ -129,7 +129,7 @@ export function SpotsStep({ spots, areas, onArea, onKeepWhole, progress, country
                         }}>
                   {s.matches.map(m => (
                     <option key={m.place_id} value={m.place_id}>
-                      {sp.existing(m.sector_name ? `${m.sector_name} › ${m.name}` : m.name, m.area_name,
+                      {sp.existing(spotTitle(m.name, m.sector_name), m.area_name,
                         activityLabel(m.activity), Math.round(m.similarity * 100), m.distance_km ?? null)}
                     </option>
                   ))}

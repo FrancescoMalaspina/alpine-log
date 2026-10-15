@@ -116,6 +116,11 @@ export async function deletePlace(id: number): Promise<void> {
   }
 }
 
+/** Admins: moves everything of spot `duplicate` onto spot `keep`, then deletes it. */
+export async function mergePlaces(keep: number, duplicate: number): Promise<void> {
+  unwrap(await supabase.rpc('merge_places', { p_keep: keep, p_duplicate: duplicate }));
+}
+
 // ---------------------------------------------------------------- areas
 
 export async function fetchAreas(): Promise<Area[]> {
@@ -159,6 +164,11 @@ export async function updateArea(id: number, patch: { name: string; description:
 export async function deleteArea(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('areas').delete().eq('id', id).select('id'));
   if (!rows.length) throw new Error(tr().common.errors.cantDeleteArea);
+}
+
+/** Admins: moves the sectors and spots of area `duplicate` into area `keep`, then deletes it. */
+export async function mergeAreas(keep: number, duplicate: number): Promise<void> {
+  unwrap(await supabase.rpc('merge_areas', { p_keep: keep, p_duplicate: duplicate }));
 }
 
 // ---------------------------------------------------------------- sectors
@@ -445,6 +455,12 @@ export async function similarPlaces(queries: Json[]): Promise<SimilarPlaceRow[]>
 
 export async function similarAreas(names: string[]): Promise<SimilarAreaRow[]> {
   return names.length ? unwrap(await supabase.rpc('similar_areas', { names })) : [];
+}
+
+/** Admins: pairs of spots, and of areas, that look alike. */
+export async function fetchDuplicatePairs() {
+  const [places, areas] = await Promise.all([supabase.rpc('duplicate_places'), supabase.rpc('duplicate_areas')]);
+  return { places: unwrap(places), areas: unwrap(areas) };
 }
 
 // ---------------------------------------------------------------- imports
