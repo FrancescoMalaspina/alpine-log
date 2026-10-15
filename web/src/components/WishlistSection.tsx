@@ -46,63 +46,67 @@ export function WishlistSection({ wishes, placeById, ...actions }: Props) {
 
   return (
     <section className="account-section">
-      <h3 className="section-title">{t.account.wishlist.title}</h3>
-      <ErrorText error={error} />
-      {!open.length && (
-        <p className="hint-block">
-          {t.account.wishlist.empty()}
-        </p>
-      )}
-      {open.length > 0 && (
-        <ul className="wish-list">
-          {open.map(w => {
-            const place = placeById.get(w.place_id)!;
-            return (
-              <li key={w.id} className="wish-row">
-                <div className="wish-head">
-                  <button type="button" className="wish-name link-btn" onClick={() => actions.onOpenPlace(place)}>{place.name}</button>
-                  <span className={`wish-priority p${w.priority}`}>{priorityLabel(w.priority)}</span>
-                  <VisibilityPill visibility={w.visibility} />
-                </div>
-                <div className="wish-facts hint">
-                  {[place.area?.name, w.seasons.map(seasonLabel).join(', '), w.with_people.length ? t.account.wishlist.with(w.with_people.join(', ')) : '']
-                    .filter(Boolean).join(' · ')}
-                </div>
-                {w.notes && <p className="wish-notes">{w.notes}</p>}
-                <div className="wish-actions">
-                  <button type="button" className="btn btn-quiet" onClick={() => actions.onEditWish(place, w)}>{t.common.edit}</button>
-                  <button type="button" className="btn btn-ghost" onClick={() => actions.onLogVisit(place)}>{t.account.wishlist.logVisit}</button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {done.length > 0 && (
-        <details className="downloads-panel">
-          <summary className="section-title">{t.account.wishlist.done(done.length)}</summary>
-          <ul className="wish-list">
-            {done.map(w => {
-              const place = placeById.get(w.place_id)!;
-              return (
-                <li key={w.id} className="wish-row done">
-                  <div className="wish-head">
-                    <span className="wish-name">{place.name}</span>
-                    {w.done_visit_id && w.done_visit
-                      ? <button type="button" className="link-btn hint" onClick={() => actions.onOpenVisit(place, w.done_visit_id!)}>
-                          {t.account.wishlist.visited(w.done_visit.date ? formatDate(w.done_visit.date) : '')}
-                        </button>
-                      : <span className="hint">{t.account.wishlist.doneOn(formatDate(w.done_at!.slice(0, 10)))}</span>}
-                  </div>
-                  <div className="wish-actions">
-                    <button type="button" className="btn btn-quiet" onClick={() => reopen(w)}>{t.account.wishlist.reopen}</button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
+      <details className="collapsible" open>
+        <summary className="section-title">{t.account.wishlist.title}</summary>
+        <div className="collapsible-body">
+          <ErrorText error={error} />
+          {!open.length && (
+            <p className="hint-block">
+              {t.account.wishlist.empty()}
+            </p>
+          )}
+          {open.length > 0 && (
+            <ul className="wish-list">
+              {open.map(w => {
+                const place = placeById.get(w.place_id)!;
+                return (
+                  <li key={w.id} className="wish-row">
+                    <div className="wish-head">
+                      <button type="button" className="wish-name link-btn" onClick={() => actions.onOpenPlace(place)}>{place.name}</button>
+                      <span className={`wish-priority p${w.priority}`}>{priorityLabel(w.priority)}</span>
+                      <VisibilityPill visibility={w.visibility} />
+                    </div>
+                    <div className="wish-facts hint">
+                      {[place.area?.name, w.seasons.map(seasonLabel).join(', '), w.with_people.length ? t.account.wishlist.with(w.with_people.join(', ')) : '']
+                        .filter(Boolean).join(' · ')}
+                    </div>
+                    {w.notes && <p className="wish-notes">{w.notes}</p>}
+                    <div className="wish-actions">
+                      <button type="button" className="btn btn-quiet" onClick={() => actions.onEditWish(place, w)}>{t.common.edit}</button>
+                      <button type="button" className="btn btn-ghost" onClick={() => actions.onLogVisit(place)}>{t.account.wishlist.logVisit}</button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {done.length > 0 && (
+            <details className="collapsible">
+              <summary className="section-title">{t.account.wishlist.done(done.length)}</summary>
+              <ul className="wish-list">
+                {done.map(w => {
+                  const place = placeById.get(w.place_id)!;
+                  return (
+                    <li key={w.id} className="wish-row done">
+                      <div className="wish-head">
+                        <span className="wish-name">{place.name}</span>
+                        {w.done_visit_id && w.done_visit
+                          ? <button type="button" className="link-btn hint" onClick={() => actions.onOpenVisit(place, w.done_visit_id!)}>
+                              {t.account.wishlist.visited(w.done_visit.date ? formatDate(w.done_visit.date) : '')}
+                            </button>
+                          : <span className="hint">{t.account.wishlist.doneOn(formatDate(w.done_at!.slice(0, 10)))}</span>}
+                      </div>
+                      <div className="wish-actions">
+                        <button type="button" className="btn btn-quiet" onClick={() => reopen(w)}>{t.account.wishlist.reopen}</button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          )}
+        </div>
+      </details>
     </section>
   );
 }

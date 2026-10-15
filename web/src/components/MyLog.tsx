@@ -116,7 +116,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
       <WishlistSection wishes={wishes} placeById={placeById} {...wishActions} />
 
       {stats && visits!.length > 0 && <>
-        <details className="downloads-panel">
+        <details className="collapsible">
           <summary className="section-title">{t.account.myLog.statistics}</summary>
           {climbing.length > 0 && <>
             <h4 className="stats-heading">{t.account.myLog.climbing}</h4>
@@ -139,28 +139,30 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
                       rowHead={y => <span className="num">{y.year === NO_DATE ? t.account.myLog.noDate : y.year}</span>} />
         </details>
 
-        <h3 className="section-title">{t.account.myLog.allVisits}</h3>
-        {stats.byActivity.length > 1 && (
-          <div className="chip-row" role="group" aria-label={t.account.myLog.onlyOne}>
-            <label className="type-option small">
-              <input type="radio" name="logActivity" checked={!only} onChange={() => setOnly(null)} />{t.account.myLog.all}
-            </label>
-            {stats.byActivity.map(a => (
-              <label key={a.type} className="type-option small">
-                <input type="radio" name="logActivity" checked={only === a.type} onChange={() => setOnly(a.type)} />
-                {activityLabel(a.type)}
+        <details className="collapsible" open>
+          <summary className="section-title">{t.account.myLog.allVisits}</summary>
+          {stats.byActivity.length > 1 && (
+            <div className="chip-row" role="group" aria-label={t.account.myLog.onlyOne}>
+              <label className="type-option small">
+                <input type="radio" name="logActivity" checked={!only} onChange={() => setOnly(null)} />{t.account.myLog.all}
               </label>
-            ))}
-          </div>
-        )}
-        {byYear.map(([year, list]) => (
-          <section key={year} className="row-group log-year">
-            <h4 className="group-head"><span>{year === NO_DATE ? t.account.myLog.noDate : year}</span><span className="group-count">{list.length}</span></h4>
-            <ul className="rows">
-              {list.map(v => <VisitRow key={v.id} visit={v} mine onClick={() => onOpenLoggedVisit(v)} />)}
-            </ul>
-          </section>
-        ))}
+              {stats.byActivity.map(a => (
+                <label key={a.type} className="type-option small">
+                  <input type="radio" name="logActivity" checked={only === a.type} onChange={() => setOnly(a.type)} />
+                  {activityLabel(a.type)}
+                </label>
+              ))}
+            </div>
+          )}
+          {byYear.map(([year, list]) => (
+            <details key={year} className="row-group log-year" open>
+              <summary className="group-head"><span>{year === NO_DATE ? t.account.myLog.noDate : year}</span><span className="group-count">{list.length}</span></summary>
+              <ul className="rows">
+                {list.map(v => <VisitRow key={v.id} visit={v} mine onClick={() => onOpenLoggedVisit(v)} />)}
+              </ul>
+            </details>
+          ))}
+        </details>
       </>}
       {/* Portalled: inside the drawer they would sit below the map's controls. */}
       {dialog && createPortal(

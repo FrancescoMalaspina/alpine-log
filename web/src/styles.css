@@ -508,15 +508,21 @@ aside {
 .route-add input:first-child { flex: 1 1 160px; }
 .route-add input.num { width: 80px; }
 
-/* Collapsible download section */
-.downloads-panel > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; justify-content: space-between; }
-.downloads-panel > summary::-webkit-details-marker { display: none; }
-.downloads-panel > summary::after { content: 'Show'; font-family: var(--font); font-size: 13.5px; font-weight: 600; color: var(--slate); }
-.downloads-panel[open] > summary::after { content: 'Hide'; }
+/* A section that opens and closes (<details className="collapsible">) */
+.collapsible > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; justify-content: space-between; }
+.collapsible > summary::-webkit-details-marker { display: none; }
+.collapsible > summary::after { content: 'Show'; font-family: var(--font); font-size: 13.5px; font-weight: 600; color: var(--slate); }
+.collapsible[open] > summary::after { content: 'Hide'; }
 /* The page language comes from src/i18n (it sets <html lang>). */
-html[lang="it"] .downloads-panel > summary::after { content: 'Mostra'; }
-html[lang="it"] .downloads-panel[open] > summary::after { content: 'Nascondi'; }
-.downloads-panel[open] > summary { margin-bottom: 10px; }
+html[lang="it"] .collapsible > summary::after { content: 'Mostra'; }
+html[lang="it"] .collapsible[open] > summary::after { content: 'Nascondi'; }
+.collapsible[open] > summary { margin-bottom: 10px; }
+.collapsible-body { display: flex; flex-direction: column; gap: 10px; }
+/* A year of the logbook folds under its heading. */
+.log-year > summary { cursor: pointer; list-style: none; }
+.log-year > summary::-webkit-details-marker { display: none; }
+.log-year > summary > span:first-child::before { content: '▾'; display: inline-block; width: 1em; color: var(--slate); }
+.log-year:not([open]) > summary > span:first-child::before { content: '▸'; }
 
 /* Segmented controls */
 .segmented { display: inline-flex; align-self: flex-start; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; background: var(--plate); }
