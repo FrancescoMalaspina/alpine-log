@@ -113,9 +113,12 @@ const en = {
   },
   spots: {
     areasTitle: 'Areas',
-    areasHint: 'These areas of the file look like areas already on the map. New spots go where you choose.',
-    useArea: (name: string, spots: number) => `Use "${name}" (${n(spots, 'spot', 'spots')})`,
+    areasHint: 'Areas already on the map that new spots may belong to: named alike, holding the same mountain or crag, or nearby. New spots go where you choose.',
+    useArea: (name: string, spots: number, sector: string | null, km: number | null) =>
+      `Use "${name}" (${n(spots, 'spot', 'spots')})${sector ? ` · ${sector} is there` : ''}${km != null ? ` · ${km.toFixed(0)} km away` : ''}`,
     createArea: (name: string) => `Create a new area "${name}"`,
+    noArea: 'No area',
+    noAreaInFile: (what: string) => `${what} (no area in the file)`,
     keepWhole: (name: string) => `Keep "${name}" as one name`,
     alreadyOnMap: (k: number) => `${n(k, 'spot', 'spots')} already on the map, `,
     newSpots: (k: number) => n(k, 'new spot', 'new spots'),

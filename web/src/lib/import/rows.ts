@@ -10,7 +10,7 @@ import { isItalianProvinceCode, provinceCode } from '../provinces';
 import type { Activity, AscentStyle, Protection, Visibility } from '../types';
 import type { AlpineLogBackup, Cell, RawTable } from './parse';
 import type { SheetMapping } from './automap';
-import { foldName } from '../names';
+import { foldName, sameName } from '../names';
 import type { FieldId } from './fields';
 import {
   cleanGrade, isBlank, parseActivity, parseAscentList, parseCoordinates, parseCountry, parseDate, parseDifficulty,
@@ -76,6 +76,27 @@ const text = (c: Cell | undefined) => (c == null || isBlank(c.v) ? '' : String(c
 /** Rows of a file are the same spot when activity, area, sector and name are the same once folded. */
 export const spotKey = (s: Pick<DraftSpot, 'activity' | 'area' | 'sector' | 'name'>) =>
   `${s.activity}|${foldName(s.area)}|${foldName(s.sector)}|${foldName(s.name)}`;
+
+/** Words a route's name starts with: "Via normale al Weissmies" names the mountain after them. */
+const ROUTE_WORDS = /^(via|vie|cresta|spigolo|parete|canale|canalone|couloir|diedro|pilastro|traversata|normale|voie|ar[eê]te|route|ridge|face|grat|weg)\b/i;
+
+/**
+ * The mountain and the route of a name that holds both, the way people
+ * write them: "Breithorn - via normale", "Castore: via normale",
+ * "Breithorn (via normale)", "Via normale al Weissmies". Null when the name
+ * is one thing ("Canale della Nona", "Zucco di Pesciola (m.2092)").
+ */
+export function splitRouteName(name: string): { sector: string; name: string } | null {
+  const parts = (sector?: string, route?: string) =>
+    sector?.trim() && route?.trim() ? { sector: sector.trim(), name: route.trim() } : null;
+  const dash = name.match(/^(.+?)\s+[-–—]\s+(.+)$/) ?? name.match(/^(.+?):\s+(.+)$/);
+  if (dash) return parts(dash[1], dash[2]);
+  const brackets = name.match(/^(.+?)\s*\((.+)\)$/);
+  if (brackets && ROUTE_WORDS.test(brackets[2].trim())) return parts(brackets[1], brackets[2]);
+  const to = name.match(/^(.+?)\s+(?:(?:al|alla|allo|ai|agli|alle)\s+|all['’]\s*)(.+)$/i);
+  if (to && ROUTE_WORDS.test(to[1])) return parts(to[2], to[1]);
+  return null;
+}
 
 function emptySpot(name: string, activity: Activity): DraftSpot {
   return {
@@ -152,18 +173,24 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
 
     let sector = text(first(row, 'sector.name'));
     let splitFrom = '';
+    // A mountain's column and a route's column, at a spot that is a route: the route is the spot.
+    const route = f.isRoute && f.routes && !colsOf('sector.name').length && groups.length === 1
+      ? text(first(row, 'ascent.name')) : '';
+    const split = splitRouteName(name);
     if (f.routeList && nameIsCrag && sector) {
       // A sector of "Tutti"/"all" is the whole crag: the crag itself is the spot.
       if (/^(tutti|tutto|all|tous|alle)$/i.test(sector)) sector = '';
       else [sector, name] = [name, sector];
-    } else if (activity === 'alpine' && !sector && / [-–] /.test(name)) {
+    } else if (sector && split && sameName(split.sector, sector)) {
+      // The sector again in the name: "Breithorn" and "Breithorn - via normale".
+      name = split.name;
+    } else if (route && !sameName(route, name)) {
+      splitFrom = `${name} - ${route}`;
+      [sector, name] = [name, route];
+    } else if (f.isRoute && !sector && split) {
       // "Breithorn - via normale": the mountain is the sector, the route the spot.
-      const [peak, ...route] = name.split(/ [-–] /);
-      if (peak.trim() && route.join(' - ').trim()) {
-        splitFrom = name;
-        sector = peak.trim();
-        name = route.join(' - ').trim();
-      }
+      splitFrom = name;
+      ({ sector, name } = split);
     }
 
     const spot = emptySpot(name, activity);

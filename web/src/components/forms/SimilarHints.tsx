@@ -1,6 +1,6 @@
 import { useI18n } from '../../i18n';
 import type { LatLng } from '../../lib/coords';
-import { findSimilarAreas, findSimilarSpots, isLikelySame } from '../../lib/duplicates';
+import { findSimilarAreas, findSimilarSpots, likelyMatch } from '../../lib/duplicates';
 import { activityLabel, spotTitle } from '../../lib/labels';
 import type { Activity } from '../../lib/types';
 import { useLookup } from '../../hooks/useLookup';
@@ -48,7 +48,7 @@ export function SimilarSpots({ name, activity, sector, pin, action }: SpotProps)
   const found = useLookup(key, () => findSimilarSpots([query]));
   const spots = found?.get('typed')?.slice(0, SHOWN) ?? [];
   if (!spots.length) return null;
-  const likely = isLikelySame(query, spots[0]);
+  const likely = !!likelyMatch(query, spots);
   return (
     <div className={`similar similar-spots${likely ? ' likely' : ''}`} role="status">
       <span>{likely ? s.looksLikeExisting : s.alreadyOnMap}</span>

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { autoMap, repeatGroups } from './automap';
 import type { RawTable } from './parse';
 import { gridToTable, jsonToTable, parseFile } from './parse';
-import { applyMapping } from './rows';
+import { applyMapping, splitRouteName } from './rows';
 import { buildPayload, geocodeQueries, type ResolvedSpot } from './resolve';
 import {
   parseActivity, parseAscentList, parseCountry, parseDate, parseDifficulty, parseNumber, parsePartners, parseProtection,
@@ -199,6 +199,46 @@ describe('automap', () => {
       [['Breithorn - via normale', 'Massiccio Monte Rosa', 'PD+', '2026-06-14']]);
     const { spots } = applyMapping(t, autoMap(t));
     expect(spots[0]).toMatchObject({ sector: 'Breithorn', name: 'via normale', splitFrom: 'Breithorn - via normale', grade: 'PD+' });
+  });
+
+  it.each([
+    ['Breithorn - via normale', 'Breithorn', 'via normale'],
+    ['Castore: via normale', 'Castore', 'via normale'],
+    ['Breithorn (via normale)', 'Breithorn', 'via normale'],
+    ['Via normale al Weissmies', 'Weissmies', 'Via normale'],
+    ["Cresta Nord all'Aiguille", 'Aiguille', 'Cresta Nord'],
+    ['Pizzo Tambò - da Montespluga', 'Pizzo Tambò', 'da Montespluga'],
+  ])('reads "%s" as %s › %s', (whole, sector, name) => {
+    expect(splitRouteName(whole)).toEqual({ sector, name });
+  });
+
+  it.each(['Canale della Nona', 'Zucco di Pesciola (m.2092)', 'Via dei Bergamaschi', 'Spigolo Dorn'])(
+    'keeps "%s" as one name', whole => expect(splitRouteName(whole)).toBeNull());
+
+  it('splits names at every spot that is a route, not at crags', () => {
+    const t = table('log', ['spot', 'activity', 'date'], [
+      ['Campanile Basso - via normale', 'Multipitch', '2026-08-01'],
+      ['Pizzo Tambò - da Montespluga', 'Ski touring', '2026-03-01'],
+      ['Esigo - Ponte Romano', 'Crag', '2026-06-28'],
+    ]);
+    const { spots } = applyMapping(t, autoMap(t));
+    expect(spots.map(s => [s.sector, s.name])).toEqual([
+      ['Campanile Basso', 'via normale'], ['Pizzo Tambò', 'da Montespluga'], ['', 'Esigo - Ponte Romano'],
+    ]);
+  });
+
+  it("drops the sector from a name that repeats it", () => {
+    const t = table('log', ['spot', 'settore', 'activity'], [['Breithorn - via normale', 'Breithorn', 'Alpine']]);
+    const { spots } = applyMapping(t, autoMap(t));
+    expect(spots[0]).toMatchObject({ sector: 'Breithorn', name: 'via normale' });
+  });
+
+  it('reads a peak column and a route column as sector and spot', () => {
+    const t = table('Alpinismo', ['Cima', 'Via', 'activity', 'date'], [['Weissmies', 'Via normale', 'Alpine', '2026-06-21']]);
+    const m = autoMap(t);
+    expect(m.columns.map(c => c.field).slice(0, 2)).toEqual(['spot.name', 'ascent.name']);
+    const { spots } = applyMapping(t, m);
+    expect(spots[0]).toMatchObject({ sector: 'Weissmies', name: 'Via normale', splitFrom: 'Weissmies - Via normale' });
   });
 
   it('maps a one-route-per-row CSV (our own export)', () => {

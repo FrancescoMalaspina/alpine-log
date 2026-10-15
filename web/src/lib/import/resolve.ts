@@ -3,9 +3,11 @@
  * name, or a new one whose pin comes from the file or from the geocoder.
  * Then builds the import_logbook payload.
  */
-import { findSimilarAreas, findSimilarSpots, isLikelySame, isLikelySameArea, type SimilarArea, type SimilarSpot } from '../duplicates';
+import {
+  findAreasForSpots, findSimilarAreas, findSimilarSpots, isLikelySameArea, likelyMatch, type SimilarSpot,
+} from '../duplicates';
 import { reverseGeocode, searchLocations } from '../geocode';
-import { sameName } from '../names';
+import { foldName, sameName } from '../names';
 import type { PlaceInput, VisitInput, Visibility } from '../types';
 import { tr } from '../../i18n';
 import { ACTIVITIES } from '../labels';
@@ -24,9 +26,7 @@ export type ResolvedSpot = DraftSpot & {
 
 /** Existing spots that look like each imported one; one that is almost certainly the same is preselected. */
 export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]> {
-  const similar = await findSimilarSpots(spots.map(s => ({
-    key: s.key, name: s.name, activity: s.activity, sector: s.sector, lat: s.lat, lng: s.lng,
-  })));
+  const similar = await findSimilarSpots(spots.map(spotQuery));
   return spots.map(s => ({
     ...s,
     ...linkTo(s, similar.get(s.key) ?? []),
@@ -37,40 +37,95 @@ export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]>
 
 /** Looks for a spot again after its name changed ("keep whole"). */
 export async function rematch(s: ResolvedSpot): Promise<ResolvedSpot> {
-  const similar = await findSimilarSpots([{ key: s.key, name: s.name, activity: s.activity, sector: s.sector, lat: s.lat, lng: s.lng }]);
+  const similar = await findSimilarSpots([spotQuery(s)]);
   return { ...s, ...linkTo(s, similar.get(s.key) ?? []) };
 }
 
+const spotQuery = (s: DraftSpot) =>
+  ({ key: s.key, name: s.name, activity: s.activity, sector: s.sector, area: s.area, lat: s.lat, lng: s.lng });
+
 function linkTo(s: DraftSpot, matches: SimilarSpot[]): Pick<ResolvedSpot, 'matches' | 'choice'> {
-  const best = matches[0];
-  return { matches, choice: best && isLikelySame(s, best) ? best.place_id : 'new' };
+  return { matches, choice: likelyMatch(s, matches)?.place_id ?? 'new' };
 }
 
 // ---------------------------------------------------------------- areas
 
-/** An area named in the file that looks like one already on the map. */
-export type AreaChoice = {
-  /** As written in the file. */
+/** An existing area new spots may go to, and why it is offered. */
+export type AreaOption = {
+  area_id: number;
   name: string;
-  matches: SimilarArea[];
-  /** The area new spots go to: an existing area's name, or `name` for a new area. */
+  place_count: number;
+  /** Of the names, when the area is named like the file's. */
+  similarity: number | null;
+  /** One of the spots' sectors, already in this area. */
+  sector_name: string | null;
+  /** From the nearest pin to the area's nearest spot, when within 25 km. */
+  distance_km: number | null;
+};
+
+/** Where a group of new spots goes: the spots of one area of the file, or one spot of the file with no area. */
+export type AreaChoice = {
+  group: string;
+  /** The area as written in the file; '' when the file names none. */
+  name: string;
+  /** What the spots are, when the file names no area: their sector, or the spot. */
+  label: string;
+  /** Most likely first. */
+  matches: AreaOption[];
+  /** An existing area's name, or `name` for a new area (no area when blank). */
   use: string;
 };
 
+/** Spots of the same area of the file go together; a spot without one goes on its own, with its sector. */
+export const areaGroup = (s: DraftSpot) =>
+  s.area.trim() ? `area:${foldName(s.area)}` : `spot:${foldName(s.sector) || foldName(s.name)}`;
+
 /**
- * Areas of the file that look like existing ones under another name
- * ("Valsassina" / "Val Sassina"). One that only differs in accents or case
- * is the same area anyway (the server compares folded names), so it isn't asked.
+ * Existing areas each group of spots may belong to: named alike ("Valsassina"
+ * / "Val Sassina"), where one of its sectors already is (Weissmies in "Valle
+ * di Saas", not the file's "Gruppo Andolla"), or with spots near its pins.
+ * Nearby areas come first. One is chosen when its name is almost the same,
+ * or when it is nearby and named alike or holds one of the sectors
+ * ("Massiccio Monte Rosa" / "Monte Rosa"); otherwise the file's own area.
+ * An area spelled the same is the same area anyway (the server compares
+ * folded names), so it isn't asked.
  */
-export async function matchAreas(spots: DraftSpot[]): Promise<AreaChoice[]> {
-  const similar = await findSimilarAreas(spots.map(s => s.area));
-  return [...similar]
-    .filter(([name, matches]) => matches.length && !matches.some(m => sameName(m.name, name)))
-    .map(([name, matches]) => ({ name, matches, use: isLikelySameArea(matches[0]) ? matches[0].name : name }));
+export async function matchAreas(spots: ResolvedSpot[]): Promise<AreaChoice[]> {
+  const groups = new Map<string, ResolvedSpot[]>();
+  for (const s of spots) groups.set(areaGroup(s), [...(groups.get(areaGroup(s)) ?? []), s]);
+  const [byName, bySpots] = await Promise.all([
+    // Without an area in the file, the sector may be one ("Placche di Oriana").
+    findSimilarAreas(spots.map(s => s.area.trim() || s.sector)),
+    findAreasForSpots([...groups].map(([key, ss]) => ({
+      key,
+      sectors: [...new Set(ss.map(s => s.sector).filter(Boolean))],
+      points: ss.flatMap(s => (s.lat != null && s.lng != null ? [{ lat: s.lat, lng: s.lng }] : [])),
+    }))),
+  ]);
+  return [...groups].flatMap(([group, ss]) => {
+    const name = ss[0].area.trim();
+    const named = byName.get(name || ss[0].sector) ?? [];
+    if (name && named.some(m => sameName(m.name, name))) return [];
+    const matches: AreaOption[] = named.map(m => ({ ...m, sector_name: null, distance_km: null }));
+    for (const a of bySpots.get(group) ?? []) {
+      const known = matches.find(m => m.area_id === a.area_id);
+      if (known) Object.assign(known, { sector_name: a.sector_name, distance_km: a.distance_km });
+      else matches.push({ ...a, similarity: null });
+    }
+    if (!matches.length) return [];
+    const near = (m: AreaOption) => m.distance_km != null;
+    const evidence = (m: AreaOption) => 4 * Number(near(m)) + 2 * Number(m.sector_name != null) + Number(m.similarity != null);
+    matches.sort((a, b) => evidence(b) - evidence(a)
+      || (a.distance_km ?? Infinity) - (b.distance_km ?? Infinity) || (b.similarity ?? 0) - (a.similarity ?? 0));
+    const likely = (m: AreaOption) => (m.similarity != null && isLikelySameArea({ ...m, similarity: m.similarity }))
+      || (near(m) && (m.similarity != null || m.sector_name != null));
+    const use = matches.find(likely)?.name ?? name;
+    return [{ group, name, label: name || ss[0].sector || ss[0].name, matches, use }];
+  });
 }
 
 /** The area name a spot is saved under. */
-const areaOf = (s: DraftSpot, areas: AreaChoice[]) => areas.find(a => a.name === s.area.trim())?.use ?? s.area;
+const areaOf = (s: DraftSpot, areas: AreaChoice[]) => areas.find(a => a.group === areaGroup(s))?.use ?? s.area;
 
 /** What to search for, most precise first. A blank country means the default one, if any. */
 const COUNTRY_NAMES: Record<string, string> = {

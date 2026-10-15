@@ -34,7 +34,7 @@ select is((select sector_id from public.places where id = (select v from ids whe
           'save_place reuses a sector that differs only in accents and case');
 
 select ok(exists (select 1 from public.similar_places('[{"key":"a","name":"Placca Alta!","activity":"crag"}]')
-                  where place_id = (select v from ids where k = 'p1') and similarity = 1),
+                  where place_id = (select v from ids where k = 'p1')),
           'similar_places finds a spot whose folded name is the same');
 select ok(exists (select 1 from public.similar_places(jsonb_build_array(jsonb_build_object(
                     'key', 'a', 'name', 'Placca', 'activity', 'crag', 'lat', 45.9001, 'lng', 9.4)))

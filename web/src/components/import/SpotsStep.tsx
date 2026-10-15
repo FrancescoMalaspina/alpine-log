@@ -4,7 +4,7 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import { pinSvg } from '../../lib/activityIcons';
 import { activityLabel, spotTitle } from '../../lib/labels';
 import { useI18n } from '../../i18n';
-import { isReady, type AreaChoice, type ResolvedSpot } from '../../lib/import/resolve';
+import { areaGroup, isReady, type AreaChoice, type ResolvedSpot } from '../../lib/import/resolve';
 import type { Activity } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 
@@ -12,7 +12,7 @@ type Props = {
   spots: ResolvedSpot[];
   /** Areas of the file that look like existing ones. */
   areas: AreaChoice[];
-  onArea: (name: string, use: string) => void;
+  onArea: (group: string, use: string) => void;
   onKeepWhole: (s: ResolvedSpot) => void;
   progress: string | null;
   country: string;
@@ -41,7 +41,7 @@ export function SpotsStep({ spots, areas, onArea, onKeepWhole, progress, country
   const missing = spots.filter(s => !isReady(s));
   const pinned = created.filter(s => s.lat != null);
   // Only new spots are saved under the file's area names.
-  const askedAreas = areas.filter(a => created.some(s => s.area === a.name));
+  const askedAreas = areas.filter(a => created.some(s => areaGroup(s) === a.group));
 
   function select(key: string) {
     setSelected(key);
@@ -69,11 +69,13 @@ export function SpotsStep({ spots, areas, onArea, onKeepWhole, progress, country
           <legend>{sp.areasTitle}</legend>
           <p className="hint">{sp.areasHint}</p>
           {askedAreas.map(a => (
-            <label key={a.name} className="import-area">
-              <span>{a.name}</span>
-              <select value={a.use} onChange={e => onArea(a.name, e.target.value)}>
-                {a.matches.map(m => <option key={m.area_id} value={m.name}>{sp.useArea(m.name, m.place_count)}</option>)}
-                <option value={a.name}>{sp.createArea(a.name)}</option>
+            <label key={a.group} className="import-area">
+              <span>{a.name || sp.noAreaInFile(a.label)}</span>
+              <select value={a.use} onChange={e => onArea(a.group, e.target.value)}>
+                {a.matches.map(m => (
+                  <option key={m.area_id} value={m.name}>{sp.useArea(m.name, m.place_count, m.sector_name, m.distance_km)}</option>
+                ))}
+                <option value={a.name}>{a.name ? sp.createArea(a.name) : sp.noArea}</option>
               </select>
             </label>
           ))}

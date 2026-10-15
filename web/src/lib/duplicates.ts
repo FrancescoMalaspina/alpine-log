@@ -3,8 +3,7 @@
  * admin's duplicates list all ask here, so they agree on what "similar" and
  * "almost certainly the same" mean.
  */
-import { fetchDuplicatePairs, similarAreas, similarPlaces } from './api';
-import { sameName } from './names';
+import { areasForSpots, fetchDuplicatePairs, similarAreas, similarPlaces } from './api';
 import type { Activity, Area, Place } from './types';
 
 /** A spot being typed or imported. */
@@ -12,7 +11,10 @@ export type SpotQuery = {
   key: string;
   name: string;
   activity: Activity;
+  /** The mountain, wall or crag: "Weissmies" for "Weissmies › via normale". */
   sector?: string;
+  /** Only ranks: people group the same mountains under different areas. */
+  area?: string;
   lat?: number | null;
   lng?: number | null;
   /** The spot itself, when an existing one is compared with the others. */
@@ -28,8 +30,14 @@ export type SimilarSpot = {
   sector_name: string | null;
   lat: number;
   lng: number;
-  /** 0–1, of the folded names. */
+  /**
+   * 0–1: of the spot names when this spot's place (its sector, or its area)
+   * is one the query names; otherwise of sector and spot together
+   * ("weissmies via normale" / "castore via normale").
+   */
   similarity: number;
+  /** Null when either spot has no sector. */
+  same_sector: boolean | null;
   /** From the query's point, when it has one. */
   distance_km: number | null;
 };
@@ -47,33 +55,36 @@ const SAME_AREA_NAME = 0.6;
 const SAME_SPOT_KM = 10;
 const BATCH = 200;
 
-/** Existing spots like each query, by key: same activity first, then most similar. */
+/** Existing spots like each query, by key: same activity first, then as the server ranks them. */
 export async function findSimilarSpots(queries: SpotQuery[]): Promise<Map<string, SimilarSpot[]>> {
   const rows = [];
   for (let i = 0; i < queries.length; i += BATCH) {
     rows.push(...await similarPlaces(queries.slice(i, i + BATCH).map(q => ({
-      key: q.key, name: q.name, activity: q.activity, lat: q.lat ?? null, lng: q.lng ?? null, exclude_id: q.excludeId ?? null,
+      key: q.key, name: q.name, sector: q.sector ?? null, area: q.area ?? null, activity: q.activity,
+      lat: q.lat ?? null, lng: q.lng ?? null, exclude_id: q.excludeId ?? null,
     }))));
   }
   const byKey = new Map<string, SimilarSpot[]>(queries.map(q => [q.key, []]));
   for (const { key, ...m } of rows) byKey.get(key)?.push(m as SimilarSpot);
   for (const q of queries) {
-    byKey.get(q.key)!.sort((a, b) =>
-      Number(b.activity === q.activity) - Number(a.activity === q.activity) || b.similarity - a.similarity);
+    byKey.get(q.key)!.sort((a, b) => Number(b.activity === q.activity) - Number(a.activity === q.activity));
   }
   return byKey;
 }
 
 /**
- * A match that is almost certainly the query itself: same activity, a very
- * similar name, the same sector (another mountain's "via normale" is not the
- * same route) and not far away.
+ * A match that is almost certainly the query itself: same activity, very
+ * similar (see `similarity`), not far away, and not in another sector:
+ * Breithorn's "via normale" is not Breithorn Occidentale's.
  */
-export function isLikelySame(q: Pick<SpotQuery, 'activity' | 'sector'>, m: SimilarSpot): boolean {
-  const sameSector = !q.sector || !m.sector_name || sameName(q.sector, m.sector_name);
-  return m.activity === q.activity && m.similarity >= SAME_NAME && sameSector
+export function isLikelySame(q: Pick<SpotQuery, 'activity'>, m: SimilarSpot): boolean {
+  return m.activity === q.activity && m.similarity >= SAME_NAME && m.same_sector !== false
     && (m.distance_km == null || m.distance_km < SAME_SPOT_KM);
 }
+
+/** The first match that is almost certainly the query itself. */
+export const likelyMatch = (q: Pick<SpotQuery, 'activity'>, matches: SimilarSpot[]) =>
+  matches.find(m => isLikelySame(q, m));
 
 /** Existing areas like each name, by name, most similar first (1 when only accents or case differ). */
 export async function findSimilarAreas(names: string[]): Promise<Map<string, SimilarArea[]>> {
@@ -87,6 +98,29 @@ export async function findSimilarAreas(names: string[]): Promise<Map<string, Sim
 
 /** An area that is almost certainly the one named. */
 export const isLikelySameArea = (a: SimilarArea) => a.similarity >= SAME_AREA_NAME;
+
+/** A group of new spots: where their sectors are, and where their pins fall. */
+export type AreaQuery = { key: string; sectors: string[]; points: { lat: number; lng: number }[] };
+
+/** An area found from a group's spots rather than its name. */
+export type AreaNearby = {
+  area_id: number;
+  name: string;
+  place_count: number;
+  /** One of the group's sectors, already in this area. */
+  sector_name: string | null;
+  /** From the nearest pin to the area's nearest spot; null when found by sector only. */
+  distance_km: number | null;
+};
+
+/** Areas new spots may belong to that a similar name can't find, by key: their sector's first, then the nearest. */
+export async function findAreasForSpots(queries: AreaQuery[]): Promise<Map<string, AreaNearby[]>> {
+  const byKey = new Map<string, AreaNearby[]>(queries.map(q => [q.key, []]));
+  for (let i = 0; i < queries.length; i += BATCH) {
+    for (const { key, ...a } of await areasForSpots(queries.slice(i, i + BATCH))) byKey.get(key)?.push(a as AreaNearby);
+  }
+  return byKey;
+}
 
 // ---------------------------------------------------------------- admins' list
 
@@ -109,10 +143,10 @@ export async function findDuplicatePairs(places: Place[], areas: Area[]) {
     if (!a || !b) return [];
     const match: SimilarSpot = {
       place_id: b.id, name: b.name, activity: b.activity, area_name: b.area?.name ?? null, sector_name: b.sector?.name ?? null,
-      lat: b.lat, lng: b.lng, similarity: r.similarity, distance_km: r.distance_km,
+      lat: b.lat, lng: b.lng, similarity: r.similarity, same_sector: r.same_sector,
+      distance_km: r.distance_km,
     };
-    return [{ a, b, similarity: r.similarity, distance_km: r.distance_km,
-              likely: isLikelySame({ activity: a.activity, sector: a.sector?.name }, match) }];
+    return [{ a, b, similarity: r.similarity, distance_km: r.distance_km, likely: isLikelySame(a, match) }];
   });
   const areaPairs = rows.areas.flatMap(r => {
     const a = areaById.get(r.area_id);

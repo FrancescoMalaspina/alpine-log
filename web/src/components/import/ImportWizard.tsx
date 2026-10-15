@@ -81,6 +81,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
     const reset = list.map(s => (s.pinSource === 'geocoded' ? { ...s, lat: null, lng: null, pinSource: null, pinLabel: '' } : s));
     const done = await geocodeSpots(reset, country, (n, total) => setProgress(w.findingPins(n, total)), ctrl.signal);
     setSpots(done);
+    return done;
   }
 
   async function resolve(list = drafts?.spots ?? []) {
@@ -91,10 +92,11 @@ export function ImportWizard({ onClose, onImported }: Props) {
     abort.current = ctrl;
     try {
       setProgress(w.lookingForSpots);
-      const [matched, areaChoices] = await Promise.all([matchExisting(list), matchAreas(list)]);
+      const matched = await matchExisting(list);
       setSpots(matched);
-      setAreas(areaChoices);
-      await findPins(matched, ctrl);
+      setAreas([]);
+      // Areas are also looked for near the pins.
+      setAreas(await matchAreas(await findPins(matched, ctrl)));
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError(errorMessage(e));
     } finally {
@@ -261,7 +263,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
         <SpotsStep
           spots={spots}
           areas={areas}
-          onArea={(name, use) => setAreas(as => as.map(a => (a.name === name ? { ...a, use } : a)))}
+          onArea={(group, use) => setAreas(as => as.map(a => (a.group === group ? { ...a, use } : a)))}
           onKeepWhole={keepWhole}
           progress={progress}
           country={country}

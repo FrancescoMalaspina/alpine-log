@@ -966,6 +966,17 @@ export type Database = {
       }
     }
     Functions: {
+      areas_for_spots: {
+        Args: { p: Json }
+        Returns: {
+          area_id: number
+          distance_km: number
+          key: string
+          name: string
+          place_count: number
+          sector_name: string
+        }[]
+      }
       can_delete_place: { Args: { p_place_id: number }; Returns: boolean }
       can_edit_area: { Args: { p_area_id: number }; Returns: boolean }
       can_edit_place: { Args: { p_place_id: number }; Returns: boolean }
@@ -974,6 +985,7 @@ export type Database = {
         Args: { p_visit_id: number; p_wish_id: number }
         Returns: undefined
       }
+      core_name: { Args: { t: string }; Returns: string }
       delete_user: {
         Args: { p_check_only?: boolean; p_user_id: string }
         Returns: undefined
@@ -992,6 +1004,7 @@ export type Database = {
           distance_km: number
           other_id: number
           place_id: number
+          same_sector: boolean
           similarity: number
         }[]
       }
@@ -1066,9 +1079,14 @@ export type Database = {
           lng: number
           name: string
           place_id: number
+          same_sector: boolean
           sector_name: string
           similarity: number
         }[]
+      }
+      spot_full_name: {
+        Args: { name: string; sector: string }
+        Returns: string
       }
     }
     Enums: {

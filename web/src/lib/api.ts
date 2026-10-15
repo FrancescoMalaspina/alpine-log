@@ -469,6 +469,10 @@ export async function similarAreas(names: string[]): Promise<SimilarAreaRow[]> {
   return names.length ? unwrap(await supabase.rpc('similar_areas', { names })) : [];
 }
 
+export async function areasForSpots(queries: Json[]): Promise<Rpc['areas_for_spots']['Returns']> {
+  return queries.length ? unwrap(await supabase.rpc('areas_for_spots', { p: queries })) : [];
+}
+
 /** Admins: pairs of spots, and of areas, that look alike. */
 export async function fetchDuplicatePairs() {
   const [places, areas] = await Promise.all([supabase.rpc('duplicate_places'), supabase.rpc('duplicate_areas')]);

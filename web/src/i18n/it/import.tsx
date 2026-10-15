@@ -115,9 +115,12 @@ const it: Widen<typeof en> = {
   },
   spots: {
     areasTitle: 'Aree',
-    areasHint: 'Queste aree del file sembrano aree già sulla mappa. Gli spot nuovi vanno dove scegli.',
-    useArea: (name: string, spots: number) => `Usa "${name}" (${n(spots, 'spot', 'spot')})`,
+    areasHint: 'Aree già sulla mappa a cui gli spot nuovi potrebbero appartenere: con un nome simile, con la stessa montagna o falesia, o vicine. Gli spot nuovi vanno dove scegli.',
+    useArea: (name: string, spots: number, sector: string | null, km: number | null) =>
+      `Usa "${name}" (${n(spots, 'spot', 'spot')})${sector ? ` · c'è già ${sector}` : ''}${km != null ? ` · a ${km.toFixed(0)} km` : ''}`,
     createArea: (name: string) => `Crea una nuova area "${name}"`,
+    noArea: 'Nessuna area',
+    noAreaInFile: (what: string) => `${what} (nessuna area nel file)`,
     keepWhole: (name: string) => `Tieni "${name}" come nome unico`,
     alreadyOnMap: (k: number) => `${n(k, 'spot', 'spot')} già sulla mappa, `,
     newSpots: (k: number) => n(k, 'spot nuovo', 'spot nuovi'),
