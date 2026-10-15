@@ -4,12 +4,16 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import { pinSvg } from '../../lib/activityIcons';
 import { activityLabel } from '../../lib/labels';
 import { useI18n } from '../../i18n';
-import { isReady, type ResolvedSpot } from '../../lib/import/resolve';
+import { isReady, type AreaChoice, type ResolvedSpot } from '../../lib/import/resolve';
 import type { Activity } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 
 type Props = {
   spots: ResolvedSpot[];
+  /** Areas of the file that look like existing ones. */
+  areas: AreaChoice[];
+  onArea: (name: string, use: string) => void;
+  onKeepWhole: (s: ResolvedSpot) => void;
   progress: string | null;
   country: string;
   onCountry: (c: string) => void;
@@ -25,7 +29,7 @@ const icon = (a: Activity, selected: boolean) => L.divIcon({
 const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /** Step 3: link each spot to an existing one, or place it on the map. */
-export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onChange }: Props) {
+export function SpotsStep({ spots, areas, onArea, onKeepWhole, progress, country, onCountry, onFindPins, onChange }: Props) {
   const { t } = useI18n();
   const sp = t.import.spots;
   const [selected, setSelected] = useState<string | null>(null);
@@ -36,6 +40,8 @@ export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onC
   const linked = spots.filter(s => typeof s.choice === 'number');
   const missing = spots.filter(s => !isReady(s));
   const pinned = created.filter(s => s.lat != null);
+  // Only new spots are saved under the file's area names.
+  const askedAreas = areas.filter(a => created.some(s => s.area === a.name));
 
   function select(key: string) {
     setSelected(key);
@@ -57,6 +63,22 @@ export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onC
         <button type="button" className="btn btn-ghost" disabled={!!progress} onClick={onFindPins}>{sp.findAgain}</button>
         {progress && <span className="hint" role="status">{progress}</span>}
       </div>
+
+      {askedAreas.length > 0 && (
+        <fieldset className="import-areas">
+          <legend>{sp.areasTitle}</legend>
+          <p className="hint">{sp.areasHint}</p>
+          {askedAreas.map(a => (
+            <label key={a.name} className="import-area">
+              <span>{a.name}</span>
+              <select value={a.use} onChange={e => onArea(a.name, e.target.value)}>
+                {a.matches.map(m => <option key={m.area_id} value={m.name}>{sp.useArea(m.name, m.place_count)}</option>)}
+                <option value={a.name}>{sp.createArea(a.name)}</option>
+              </select>
+            </label>
+          ))}
+        </fieldset>
+      )}
 
       <div className="import-spots">
         <div className="import-map-wrap">
@@ -95,7 +117,7 @@ export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onC
               </div>
               {s.splitFrom && (
                 <button type="button" className="btn-link import-unsplit"
-                        onClick={e => { e.stopPropagation(); onChange(s.key, { name: s.splitFrom, sector: '', splitFrom: '' }); }}>
+                        onClick={e => { e.stopPropagation(); onKeepWhole(s); }}>
                   {sp.keepWhole(s.splitFrom)}
                 </button>
               )}
@@ -108,7 +130,7 @@ export function SpotsStep({ spots, progress, country, onCountry, onFindPins, onC
                   {s.matches.map(m => (
                     <option key={m.place_id} value={m.place_id}>
                       {sp.existing(m.sector_name ? `${m.sector_name} › ${m.name}` : m.name, m.area_name,
-                        activityLabel(m.activity as Activity), Math.round(m.similarity * 100), m.distance_km ?? null)}
+                        activityLabel(m.activity), Math.round(m.similarity * 100), m.distance_km ?? null)}
                     </option>
                   ))}
                   <option value="new">{sp.createNew(activityLabel(s.activity).toLowerCase())}</option>

@@ -4,7 +4,8 @@
  * The user reviews and corrects the result; nothing here is final.
  */
 import type { Activity } from '../types';
-import { FIELD_BY_ID, FIELDS, isSingle, normalizeHeader, type FieldId } from './fields';
+import { foldName } from '../names';
+import { FIELD_BY_ID, FIELDS, isSingle, type FieldId } from './fields';
 import type { Cell, RawTable } from './parse';
 import {
   guessDateOrder, isBlank, isUrl, looksLikeGrade, parseActivity, parseDate, parseNumber, parseProtection, parseRating,
@@ -31,17 +32,17 @@ const SUFFIX = /\s*(?:\((\d+)\)|#(\d+)|[\s_-](\d))$/;
 
 /** "Data ripetizione (2)" → ["Data ripetizione", 1]; headers without a twin stay as they are. */
 export function repeatGroups(headers: string[]): { base: string; group: number }[] {
-  const plain = new Set(headers.map(normalizeHeader));
+  const plain = new Set(headers.map(foldName));
   return headers.map(h => {
     const m = h.match(SUFFIX);
     const base = m ? h.slice(0, m.index).trim() : h;
     const n = m ? Number(m[1] ?? m[2] ?? m[3]) : 0;
-    return m && n >= 2 && plain.has(normalizeHeader(base)) ? { base, group: n - 1 } : { base: h, group: 0 };
+    return m && n >= 2 && plain.has(foldName(base)) ? { base, group: n - 1 } : { base: h, group: 0 };
   });
 }
 
 function headerScore(header: string, field: FieldId): number {
-  const h = normalizeHeader(header);
+  const h = foldName(header);
   if (!h) return 0;
   let best = 0;
   for (const [syn, w] of FIELD_BY_ID[field].synonyms) {
@@ -140,7 +141,7 @@ export function autoMap(table: RawTable): SheetMapping {
   table.headers.forEach((_, col) => {
     const g = groups[col];
     if (!g.group) return;
-    const twin = table.headers.findIndex((h, i) => !groups[i].group && normalizeHeader(h) === normalizeHeader(g.base));
+    const twin = table.headers.findIndex((h, i) => !groups[i].group && foldName(h) === foldName(g.base));
     const f = twin >= 0 ? columns[twin].field : 'note';
     columns[col] = FIELD_BY_ID[f].level === 'visit'
       ? { field: f, group: g.group, confidence: columns[twin].confidence }
@@ -175,7 +176,7 @@ export function autoMap(table: RawTable): SheetMapping {
 const PRESETS_KEY = 'import-presets:v1';
 
 /** Same headers (in any order, any case) → same source → same mapping. */
-export const fingerprint = (headers: string[]) => [...headers].map(normalizeHeader).sort().join('|');
+export const fingerprint = (headers: string[]) => [...headers].map(foldName).sort().join('|');
 
 type Preset = { activity: Activity | null; dateOrder: DateOrder; columns: Record<string, Omit<ColumnMapping, 'confidence'>> };
 
@@ -193,7 +194,7 @@ export function savePreset(table: RawTable, m: SheetMapping) {
     all[fingerprint(table.headers)] = {
       activity: m.activity,
       dateOrder: m.dateOrder,
-      columns: Object.fromEntries(table.headers.map((h, i) => [normalizeHeader(h), { field: m.columns[i].field, group: m.columns[i].group }])),
+      columns: Object.fromEntries(table.headers.map((h, i) => [foldName(h), { field: m.columns[i].field, group: m.columns[i].group }])),
     };
     localStorage.setItem(PRESETS_KEY, JSON.stringify(all));
   } catch {
@@ -210,7 +211,7 @@ export function loadPreset(table: RawTable): SheetMapping | null {
     activity: p.activity,
     dateOrder: p.dateOrder,
     columns: table.headers.map(h => {
-      const c = p.columns[normalizeHeader(h)];
+      const c = p.columns[foldName(h)];
       return c ? { ...c, confidence: 1 } : { field: 'note', group: 0, confidence: 0 };
     }),
   };

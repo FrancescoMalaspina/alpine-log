@@ -10,7 +10,8 @@ import { isItalianProvinceCode, provinceCode } from '../provinces';
 import type { Activity, AscentStyle, Protection, Visibility } from '../types';
 import type { AlpineLogBackup, Cell, RawTable } from './parse';
 import type { SheetMapping } from './automap';
-import { normalizeHeader, type FieldId } from './fields';
+import { foldName } from '../names';
+import type { FieldId } from './fields';
 import {
   cleanGrade, isBlank, parseActivity, parseAscentList, parseCoordinates, parseCountry, parseDate, parseDifficulty,
   parseInteger, parseLink, parseNumber, parsePartners, parseProtection, parseRating, parseStyle,
@@ -70,9 +71,9 @@ export type DraftSpot = {
 export type SkippedRow = { source: string; reason: string };
 
 const text = (c: Cell | undefined) => (c == null || isBlank(c.v) ? '' : String(c.v).trim().replace(/\s+/g, ' '));
-const keyPart = (s: string) => normalizeHeader(s);
+/** Rows of a file are the same spot when activity, area, sector and name are the same once folded. */
 export const spotKey = (s: Pick<DraftSpot, 'activity' | 'area' | 'sector' | 'name'>) =>
-  `${s.activity}|${keyPart(s.area)}|${keyPart(s.sector)}|${keyPart(s.name)}`;
+  `${s.activity}|${foldName(s.area)}|${foldName(s.sector)}|${foldName(s.name)}`;
 
 function emptySpot(name: string, activity: Activity): DraftSpot {
   return {
@@ -132,7 +133,7 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
   };
 
   // Luca's "Falesie" layout: "Nome falesia" is the crag (the sector), "Settore" the wall (the spot).
-  const nameHeader = normalizeHeader(table.headers[colsOf('spot.name')[0]] ?? '');
+  const nameHeader = foldName(table.headers[colsOf('spot.name')[0]] ?? '');
   const nameIsCrag = /\b(falesia|crag|falaise|klettergarten)\b/.test(nameHeader);
 
   table.rows.forEach((row, r) => {

@@ -180,7 +180,7 @@ describe('automap', () => {
     expect(spots[1].visits[0].date).toBeNull();
     expect(spots[1].visits[0].rating).toBeNull();
 
-    const payload = buildPayload('x.xlsx', spots.map(s => ({ ...s, lat: 45, lng: 7, matches: [], choice: 'new', pinSource: 'geocoded', pinLabel: '' }) as ResolvedSpot), 'private');
+    const payload = buildPayload('x.xlsx', spots.map(s => ({ ...s, lat: 45, lng: 7, matches: [], choice: 'new', pinSource: 'geocoded', pinLabel: '' }) as ResolvedSpot), [], 'private');
     expect(payload.visits[0].ascents).toEqual([
       { name: 'Caramba!', grade: '6a+', comment: '', route_id: null, place_id: null, sector: '', style: null, pitches: null, aid: '' },
     ]);
@@ -210,5 +210,15 @@ describe('automap', () => {
     expect(spots[0].visits[0].ascents.map(a => a.name)).toEqual(['Su alto', 'Giù basso']);
     expect(spots[0].visits[0].partners).toEqual(['Fra', 'Vale']);
     expect(spots[0].sector).toBe('Scala');
+  });
+
+  it('takes rows whose spot differs only in accents, case or punctuation for the same spot', () => {
+    const t = table('log', ['date', 'spot', 'area', 'activity'], [
+      ['2026-05-23', 'Muro del Butch', 'Valsassina', 'Crag'],
+      ['2026-06-01', 'muro del bùtch!', 'VALSÀSSINA', 'Crag'],
+    ]);
+    const { spots } = applyMapping(t, autoMap(t));
+    expect(spots).toHaveLength(1);
+    expect(spots[0].visits).toHaveLength(2);
   });
 });

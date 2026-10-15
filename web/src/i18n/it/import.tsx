@@ -112,6 +112,10 @@ const it: Widen<typeof en> = {
     ignore: 'Ignora questa colonna',
   },
   spots: {
+    areasTitle: 'Aree',
+    areasHint: 'Queste aree del file sembrano aree già sulla mappa. Gli spot nuovi vanno dove scegli.',
+    useArea: (name: string, spots: number) => `Usa "${name}" (${n(spots, 'spot', 'spot')})`,
+    createArea: (name: string) => `Crea una nuova area "${name}"`,
     keepWhole: (name: string) => `Tieni "${name}" come nome unico`,
     alreadyOnMap: (k: number) => `${n(k, 'spot', 'spot')} già sulla mappa, `,
     newSpots: (k: number) => n(k, 'spot nuovo', 'spot nuovi'),

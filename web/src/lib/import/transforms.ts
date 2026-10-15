@@ -3,6 +3,7 @@
  * dates, partner lists, route lists, numbers, activities. Pure functions.
  */
 import { parseCoordinates } from '../coords';
+import { stripAccents } from '../names';
 import type { Activity, AscentStyle, Protection } from '../types';
 
 export type DateOrder = 'dmy' | 'mdy';
@@ -171,7 +172,7 @@ const ACTIVITY_WORDS: [Activity, RegExp][] = [
 /** An activity from a word in any of the usual languages, or the app's own codes and labels. */
 export function parseActivity(v: unknown): Activity | null {
   if (isBlank(v)) return null;
-  const t = String(v).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const t = stripAccents(String(v)).toLowerCase();
   const exact = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'].find(a => a === t.trim());
   if (exact) return exact as Activity;
   return ACTIVITY_WORDS.find(([, re]) => re.test(t))?.[0] ?? null;
@@ -220,7 +221,7 @@ export function parseDifficulty(v: unknown): { grade: string; obligatory: string
 /** "Sportiva" → bolted, "Trad" → trad, "Mista" → mixed. */
 export function parseProtection(v: unknown): Protection | null {
   if (isBlank(v)) return null;
-  const t = String(v).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const t = stripAccents(String(v)).toLowerCase().trim();
   if (/\b(mist|mixed|semi|parz)/.test(t)) return 'mixed';
   if (/\b(trad|clean|friend|nut|da proteggere|protezioni veloci|alpinistic)/.test(t)) return 'trad';
   if (/\b(sport|spit|bolt|chiodat|plaisir|attrezzat|fix)/.test(t)) return 'bolted';
@@ -248,5 +249,5 @@ export function parseCountry(v: unknown): string {
   if (isBlank(v)) return '';
   const t = String(v).trim();
   if (/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase();
-  return COUNTRIES[t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()] ?? '';
+  return COUNTRIES[stripAccents(t).toLowerCase()] ?? '';
 }

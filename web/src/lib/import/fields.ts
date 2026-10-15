@@ -105,7 +105,3 @@ export const FIELD_BY_ID = Object.fromEntries(FIELDS.map(f => [f.id, f])) as Rec
 
 /** Fields a sheet can map at most one column to (per repeat group). */
 export const isSingle = (f: FieldId) => f !== 'note' && f !== 'ignore' && f !== 'link';
-
-/** "Località Partenza " → "localita partenza". */
-export const normalizeHeader = (h: string) =>
-  h.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9#]+/g, ' ').trim();

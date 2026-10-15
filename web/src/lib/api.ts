@@ -2,7 +2,7 @@
  * Every database call the app makes. Permissions are enforced by row level
  * security in Postgres; these functions only shape requests and results.
  */
-import type { Json } from './database.types';
+import type { Database, Json } from './database.types';
 import { supabase } from './supabase';
 import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
@@ -21,6 +21,8 @@ function unwrap<T>({ data, error }: { data: T; error: { message: string } | null
   if (error) throw new Error(error.message);
   return data as NonNullable<T>;
 }
+
+type Rpc = Database['public']['Functions'];
 
 /** Strips characters that have meaning inside PostgREST filter strings. */
 const cleanSearch = (s: string) => s.replace(/[%*,()"\\]/g, ' ').trim();
@@ -432,26 +434,20 @@ export async function isUsernameTaken(username: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-// ---------------------------------------------------------------- imports
+// ---------------------------------------------------------------- similar names (lib/duplicates.ts)
 
-/** An existing spot whose name looks like an imported one. */
-export type PlaceMatch = {
-  query: string;
-  place_id: number;
-  name: string;
-  activity: string;
-  area_name: string | null;
-  sector_name: string | null;
-  lat: number;
-  lng: number;
-  similarity: number;
-  distance_km?: number | null;
-};
+export type SimilarPlaceRow = Rpc['similar_places']['Returns'][number];
+export type SimilarAreaRow = Rpc['similar_areas']['Returns'][number];
 
-export async function matchPlaces(names: string[]): Promise<PlaceMatch[]> {
-  if (!names.length) return [];
-  return unwrap(await supabase.rpc('match_places', { names }));
+export async function similarPlaces(queries: Json[]): Promise<SimilarPlaceRow[]> {
+  return queries.length ? unwrap(await supabase.rpc('similar_places', { p: queries })) : [];
 }
+
+export async function similarAreas(names: string[]): Promise<SimilarAreaRow[]> {
+  return names.length ? unwrap(await supabase.rpc('similar_areas', { names })) : [];
+}
+
+// ---------------------------------------------------------------- imports
 
 export type ImportResult = { import_id: number | null; visits: number; skipped: number; new_spots: number };
 

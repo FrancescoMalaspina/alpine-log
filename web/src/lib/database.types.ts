@@ -931,6 +931,7 @@ export type Database = {
         Args: { p_check_only?: boolean; p_user_id: string }
         Returns: undefined
       }
+      fold_name: { Args: { t: string }; Returns: string }
       grade_rank: { Args: { grade: string }; Returns: number }
       import_logbook: { Args: { p: Json }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
@@ -947,20 +948,6 @@ export type Database = {
           spots_added: number
           username: string
           visits: number
-        }[]
-      }
-      match_places: {
-        Args: { min_similarity?: number; names: string[] }
-        Returns: {
-          activity: string
-          area_name: string
-          lat: number
-          lng: number
-          name: string
-          place_id: number
-          query: string
-          sector_name: string
-          similarity: number
         }[]
       }
       partner_on_readable_visit: {
@@ -984,6 +971,31 @@ export type Database = {
       set_user_role: {
         Args: { p_role: string; p_user_id: string }
         Returns: undefined
+      }
+      similar_areas: {
+        Args: { names: string[] }
+        Returns: {
+          area_id: number
+          name: string
+          place_count: number
+          query: string
+          similarity: number
+        }[]
+      }
+      similar_places: {
+        Args: { p: Json }
+        Returns: {
+          activity: string
+          area_name: string
+          distance_km: number
+          key: string
+          lat: number
+          lng: number
+          name: string
+          place_id: number
+          sector_name: string
+          similarity: number
+        }[]
       }
     }
     Enums: {

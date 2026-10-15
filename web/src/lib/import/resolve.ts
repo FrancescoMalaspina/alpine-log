@@ -3,8 +3,9 @@
  * name, or a new one whose pin comes from the file or from the geocoder.
  * Then builds the import_logbook payload.
  */
-import { matchPlaces, type PlaceMatch } from '../api';
+import { findSimilarAreas, findSimilarSpots, isLikelySame, isLikelySameArea, type SimilarArea, type SimilarSpot } from '../duplicates';
 import { reverseGeocode, searchLocations } from '../geocode';
+import { sameName } from '../names';
 import type { PlaceInput, VisitInput, Visibility } from '../types';
 import { tr } from '../../i18n';
 import { ACTIVITIES } from '../labels';
@@ -13,7 +14,7 @@ import type { DraftSpot } from './rows';
 export type PinSource = 'file' | 'geocoded' | 'map' | null;
 
 export type ResolvedSpot = DraftSpot & {
-  matches: PlaceMatch[];
+  matches: SimilarSpot[];
   /** An existing spot id, "new", or "skip". */
   choice: number | 'new' | 'skip';
   pinSource: PinSource;
@@ -21,42 +22,55 @@ export type ResolvedSpot = DraftSpot & {
   pinLabel: string;
 };
 
-const R = 6371;
-export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const rad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * rad;
-  const dLng = (b.lng - a.lng) * rad;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
+/** Existing spots that look like each imported one; one that is almost certainly the same is preselected. */
+export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]> {
+  const similar = await findSimilarSpots(spots.map(s => ({
+    key: s.key, name: s.name, activity: s.activity, sector: s.sector, lat: s.lat, lng: s.lng,
+  })));
+  return spots.map(s => ({
+    ...s,
+    ...linkTo(s, similar.get(s.key) ?? []),
+    pinSource: s.lat != null ? 'file' : null,
+    pinLabel: s.lat != null ? tr().import.spots.fromFile : '',
+  }));
 }
 
-/** Existing spots that look like each imported one; a close, same-activity match is preselected. */
-export async function matchExisting(spots: DraftSpot[]): Promise<ResolvedSpot[]> {
-  const names = [...new Set(spots.map(s => s.name))];
-  const matches: PlaceMatch[] = [];
-  for (let i = 0; i < names.length; i += 200) matches.push(...await matchPlaces(names.slice(i, i + 200)));
-  return spots.map(s => {
-    const mine = matches
-      .filter(m => m.query === s.name)
-      .map(m => ({
-        ...m,
-        distance_km: s.lat != null && s.lng != null ? distanceKm({ lat: s.lat, lng: s.lng }, m) : null,
-      }))
-      .sort((a, b) => Number(b.activity === s.activity) - Number(a.activity === s.activity) || b.similarity - a.similarity);
-    const best = mine[0];
-    // A match in another sector (another mountain's "via normale") is only a suggestion.
-    const sameSector = !s.sector || !best?.sector_name || best.sector_name.toLowerCase() === s.sector.toLowerCase();
-    const sure = best && best.activity === s.activity && best.similarity >= 0.75 && sameSector
-      && (best.distance_km == null || best.distance_km < 10);
-    return {
-      ...s,
-      matches: mine,
-      choice: sure ? best.place_id : 'new',
-      pinSource: s.lat != null ? 'file' : null,
-      pinLabel: s.lat != null ? tr().import.spots.fromFile : '',
-    };
-  });
+/** Looks for a spot again after its name changed ("keep whole"). */
+export async function rematch(s: ResolvedSpot): Promise<ResolvedSpot> {
+  const similar = await findSimilarSpots([{ key: s.key, name: s.name, activity: s.activity, sector: s.sector, lat: s.lat, lng: s.lng }]);
+  return { ...s, ...linkTo(s, similar.get(s.key) ?? []) };
 }
+
+function linkTo(s: DraftSpot, matches: SimilarSpot[]): Pick<ResolvedSpot, 'matches' | 'choice'> {
+  const best = matches[0];
+  return { matches, choice: best && isLikelySame(s, best) ? best.place_id : 'new' };
+}
+
+// ---------------------------------------------------------------- areas
+
+/** An area named in the file that looks like one already on the map. */
+export type AreaChoice = {
+  /** As written in the file. */
+  name: string;
+  matches: SimilarArea[];
+  /** The area new spots go to: an existing area's name, or `name` for a new area. */
+  use: string;
+};
+
+/**
+ * Areas of the file that look like existing ones under another name
+ * ("Valsassina" / "Val Sassina"). One that only differs in accents or case
+ * is the same area anyway (the server compares folded names), so it isn't asked.
+ */
+export async function matchAreas(spots: DraftSpot[]): Promise<AreaChoice[]> {
+  const similar = await findSimilarAreas(spots.map(s => s.area));
+  return [...similar]
+    .filter(([name, matches]) => matches.length && !matches.some(m => sameName(m.name, name)))
+    .map(([name, matches]) => ({ name, matches, use: isLikelySameArea(matches[0]) ? matches[0].name : name }));
+}
+
+/** The area name a spot is saved under. */
+const areaOf = (s: DraftSpot, areas: AreaChoice[]) => areas.find(a => a.name === s.area.trim())?.use ?? s.area;
 
 /** What to search for, most precise first. A blank country means the default one, if any. */
 const COUNTRY_NAMES: Record<string, string> = {
@@ -157,7 +171,7 @@ export type ImportPayload = {
 
 export const isReady = (s: ResolvedSpot) => s.choice === 'skip' || typeof s.choice === 'number' || s.lat != null;
 
-export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility: Visibility): ImportPayload {
+export function buildPayload(fileName: string, spots: ResolvedSpot[], areas: AreaChoice[], visibility: Visibility): ImportPayload {
   const used = spots.filter(s => s.choice !== 'skip');
   return {
     file_name: fileName,
@@ -169,7 +183,7 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], visibility
         links: s.links,
         area_description: s.areaDescription,
         place: {
-          area_name: s.area, name: s.name, activity: s.activity, lat: s.lat!, lng: s.lng!,
+          area_name: areaOf(s, areas), name: s.name, activity: s.activity, lat: s.lat!, lng: s.lng!,
           parking_lat: null, parking_lng: null, start_lat: null, start_lng: null,
           rock: s.rock, exposition: [], description: s.description, grade: s.grade,
           max_altitude: s.max_altitude, elevation_gain: s.elevation_gain, distance_km: s.distance_km,

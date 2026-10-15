@@ -110,6 +110,10 @@ const en = {
     ignore: 'Skip this column',
   },
   spots: {
+    areasTitle: 'Areas',
+    areasHint: 'These areas of the file look like areas already on the map. New spots go where you choose.',
+    useArea: (name: string, spots: number) => `Use "${name}" (${n(spots, 'spot', 'spots')})`,
+    createArea: (name: string) => `Create a new area "${name}"`,
     keepWhole: (name: string) => `Keep "${name}" as one name`,
     alreadyOnMap: (k: number) => `${n(k, 'spot', 'spots')} already on the map, `,
     newSpots: (k: number) => n(k, 'new spot', 'new spots'),

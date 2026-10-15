@@ -1,4 +1,4 @@
--- Logbook import: import_logbook, match_places, undo. Run with: supabase test db
+-- Logbook import: import_logbook, similar_places, undo. Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(12);
@@ -20,10 +20,10 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :vale, 'role', 'authenticated')::text, true);
 
-select ok(exists (select 1 from public.match_places(array['muro del butch']) where place_id = (select v from ids where k = 'butch')),
-          'match_places finds a spot by name, ignoring case');
-select ok(exists (select 1 from public.match_places(array['Muro Butch']) where place_id = (select v from ids where k = 'butch')),
-          'match_places finds a spot by a similar name');
+select ok(exists (select 1 from public.similar_places('[{"key":"a","name":"muro del bùtch"}]') where place_id = (select v from ids where k = 'butch')),
+          'similar_places finds a spot by name, ignoring case and accents');
+select ok(exists (select 1 from public.similar_places('[{"key":"a","name":"Muro Butch"}]') where place_id = (select v from ids where k = 'butch')),
+          'similar_places finds a spot by a similar name');
 
 insert into ids select 'imp1', (public.import_logbook(jsonb_build_object(
   'file_name', 'log.xlsx',

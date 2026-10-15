@@ -4,7 +4,9 @@ import { errorMessage } from '../../lib/labels';
 import { autoMap, loadPreset, savePreset, type SheetMapping } from '../../lib/import/automap';
 import { FIELDS, type FieldId } from '../../lib/import/fields';
 import { parseFile, type ParsedFile, type RawTable } from '../../lib/import/parse';
-import { buildPayload, geocodeSpots, isReady, matchExisting, type ResolvedSpot } from '../../lib/import/resolve';
+import {
+  buildPayload, geocodeSpots, isReady, matchAreas, matchExisting, rematch, type AreaChoice, type ResolvedSpot,
+} from '../../lib/import/resolve';
 import { applyMapping, fromBackup, mergeSpots } from '../../lib/import/rows';
 import type { Activity, Visibility } from '../../lib/types';
 import { useI18n } from '../../i18n';
@@ -33,6 +35,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
   const [file, setFile] = useState<ParsedFile | null>(null);
   const [mappings, setMappings] = useState<SheetMapping[]>([]);
   const [spots, setSpots] = useState<ResolvedSpot[]>([]);
+  const [areas, setAreas] = useState<AreaChoice[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [country, setCountry] = useState('');
@@ -88,8 +91,9 @@ export function ImportWizard({ onClose, onImported }: Props) {
     abort.current = ctrl;
     try {
       setProgress(w.lookingForSpots);
-      const matched = await matchExisting(list);
+      const [matched, areaChoices] = await Promise.all([matchExisting(list), matchAreas(list)]);
       setSpots(matched);
+      setAreas(areaChoices);
       await findPins(matched, ctrl);
     } catch (e) {
       if ((e as Error).name !== 'AbortError') setError(errorMessage(e));
@@ -108,6 +112,21 @@ export function ImportWizard({ onClose, onImported }: Props) {
       if ((e as Error).name !== 'AbortError') setError(errorMessage(e));
     } finally {
       if (abort.current === ctrl) setProgress(null);
+    }
+  }
+
+  const patchSpot = (key: string, patch: Partial<ResolvedSpot>) =>
+    setSpots(ss => ss.map(s => (s.key === key ? { ...s, ...patch } : s)));
+
+  /** Undoes the "Mountain - route" split, and looks for the whole name among existing spots. */
+  async function keepWhole(s: ResolvedSpot) {
+    const whole = { ...s, name: s.splitFrom, sector: '', splitFrom: '' };
+    patchSpot(s.key, whole);
+    try {
+      const { matches, choice } = await rematch(whole);
+      patchSpot(s.key, { matches, choice });
+    } catch (e) {
+      setError(errorMessage(e));
     }
   }
 
@@ -158,8 +177,8 @@ export function ImportWizard({ onClose, onImported }: Props) {
   }
 
   const payload = useMemo(
-    () => (step === 'confirm' && file ? buildPayload(file.fileName, spots, visibility) : null),
-    [step, file, spots, visibility]);
+    () => (step === 'confirm' && file ? buildPayload(file.fileName, spots, areas, visibility) : null),
+    [step, file, spots, areas, visibility]);
 
   async function save() {
     setError(null);
@@ -241,11 +260,14 @@ export function ImportWizard({ onClose, onImported }: Props) {
       {step === 'spots' && (
         <SpotsStep
           spots={spots}
+          areas={areas}
+          onArea={(name, use) => setAreas(as => as.map(a => (a.name === name ? { ...a, use } : a)))}
+          onKeepWhole={keepWhole}
           progress={progress}
           country={country}
           onCountry={setCountry}
           onFindPins={refindPins}
-          onChange={(key, patch) => setSpots(ss => ss.map(s => (s.key === key ? { ...s, ...patch } : s)))}
+          onChange={patchSpot}
         />
       )}
 
