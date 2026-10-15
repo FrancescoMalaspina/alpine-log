@@ -36,8 +36,13 @@ export type SimilarSpot = {
 
 export type SimilarArea = { area_id: number; name: string; similarity: number; place_count: number };
 
-/** How similar two names must be to be taken for the same without asking. */
+/** How similar two spot names must be to be taken for the same without asking. */
 const SAME_NAME = 0.75;
+/**
+ * The same for areas, lower: an area is always asked about, and typos in
+ * one word ("Grigneta", "Val Sassina") score 0.6–0.75.
+ */
+const SAME_AREA_NAME = 0.6;
 /** How far apart the same spot can be pinned by two people. */
 const SAME_SPOT_KM = 10;
 const BATCH = 200;
@@ -81,4 +86,4 @@ export async function findSimilarAreas(names: string[]): Promise<Map<string, Sim
 }
 
 /** An area that is almost certainly the one named. */
-export const isLikelySameArea = (a: SimilarArea) => a.similarity >= SAME_NAME;
+export const isLikelySameArea = (a: SimilarArea) => a.similarity >= SAME_AREA_NAME;

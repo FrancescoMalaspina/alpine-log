@@ -115,6 +115,16 @@ const it: Widen<typeof en> = {
     publishTrack: 'Rendi pubblica',
     publishTrackFailed: (msg: string) => `Impossibile rendere pubblica la traccia: ${msg}`,
   },
+  similar: {
+    didYouMean: 'Intendevi',
+    spots: (n: number) => (n === 1 ? '1 spot' : `${n} spot`),
+    looksLikeExisting: 'Sembra uno spot già sulla mappa:',
+    alreadyOnMap: 'Spot simili già sulla mappa:',
+    km: (d: number) => (d < 1 ? `a ${Math.round(d * 1000)} m` : `a ${d.toFixed(1).replace('.', ',')} km`),
+    newIsFine: 'Se il tuo è un altro, continua pure: salvando lo aggiungi.',
+    open: 'Aprilo',
+    useIt: 'Registra la visita lì',
+  },
   placeFields: {
     startLocality: 'Località di partenza',
     startLocalityHint: '(paese o rifugio da cui parti)',

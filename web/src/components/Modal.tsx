@@ -32,7 +32,9 @@ export function Modal({ title, subtitle, onClose, closeOnBackdrop, hidden, class
     if (!el.contains(document.activeElement)) el.focus();
     const onKey = (e: KeyboardEvent) => {
       if (isHidden.current) return;   // the page owns the keyboard while the dialog is set aside
-      if (e.key === 'Escape') {
+      // An open suggestion list (forms/Combobox) closes first.
+      const listOpen = (e.target as HTMLElement).getAttribute('aria-expanded') === 'true';
+      if (e.key === 'Escape' && !listOpen) {
         e.stopPropagation();
         close.current();
       } else if (e.key === 'Tab') {

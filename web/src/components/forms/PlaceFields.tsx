@@ -6,7 +6,10 @@ import { ACTIVITIES, ALPINE_GRADES, activityLabel, errorMessage, gradeSuggestion
 import { ACTIVITY_ORDER, EXPOSITIONS, PROTECTIONS, type Area, type Exposition, type Sector, type Visibility } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
+import { sameName } from '../../lib/names';
+import { Combobox } from './Combobox';
 import type { CoordField, PlaceValues } from './placeForm';
+import { SimilarAreas, SimilarSpots } from './SimilarHints';
 import { TrackLoader } from './TrackLoader';
 
 const NAME_HINT: Record<PlaceValues['activity'], string> = {
@@ -26,6 +29,8 @@ type Props = {
   autoFocusName?: boolean;
   /** A visit is saved with the spot, with this visibility: a loaded track gives its date and duration, and goes with it. */
   visitVisibility?: Visibility;
+  /** Offered next to existing spots like the one being added; without it (editing) none are shown. */
+  existingSpotAction?: { label: string; onPick: (placeId: number) => void };
 };
 
 /** What a sector is for each activity: the crag, the wall, the mountain… */
@@ -37,17 +42,17 @@ const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
 /** Every field of a spot. Used by "Add a spot" and by "Log a visit" at a new spot. */
-export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName, visitVisibility }: Props) {
+export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName, visitVisibility, existingSpotAction }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeFields;
   const [locateError, setLocateError] = useState<string | null>(null);
   const f = ACTIVITIES[v.activity];
-  const isNewArea = v.areaName.trim() && !areas.some(a => a.name.toLowerCase() === v.areaName.trim().toLowerCase());
+  // The server takes an area or sector spelled with other accents or case for the same one.
+  const area = areas.find(a => sameName(a.name, v.areaName));
+  const isNewArea = v.areaName.trim() && !area;
   // Sectors of the area being typed (a new area has none yet).
-  const area = areas.find(a => a.name.toLowerCase() === v.areaName.trim().toLowerCase());
   const areaSectors = sectors.filter(x => x.area_id === (area?.id ?? null));
-  const isNewSector = v.sectorName.trim()
-    && !areaSectors.some(x => x.name.toLowerCase() === v.sectorName.trim().toLowerCase());
+  const isNewSector = v.sectorName.trim() && !areaSectors.some(x => sameName(x.name, v.sectorName));
 
   // Country and province follow the pin while both are empty (they stay editable).
   const pin = parseCoordinates(v.coords);
@@ -99,19 +104,25 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
         <label htmlFor="placeName">{s.name}</label>
         <input id="placeName" required autoFocus={autoFocusName && !isTouchLayout()} value={v.name}
                placeholder={NAME_HINT[v.activity]} onChange={e => onChange({ name: e.target.value })} />
+        {existingSpotAction && (
+          <SimilarSpots name={v.name} activity={v.activity} sector={v.sectorName} pin={pin} action={existingSpotAction} />
+        )}
       </div>
       <div className="field full">
         <label htmlFor="placeArea">{s.area} <span className="hint">{s.areaHint}</span></label>
-        <input id="placeArea" list="areaOptions" value={v.areaName} placeholder={s.areaPlaceholder}
-               onChange={e => onChange({ areaName: e.target.value })} />
-        <datalist id="areaOptions">{areas.map(a => <option key={a.id} value={a.name} />)}</datalist>
-        {isNewArea && <div className="hint-block">{s.newArea(v.areaName.trim())}</div>}
+        <Combobox id="placeArea" value={v.areaName} placeholder={s.areaPlaceholder}
+                  onChange={areaName => onChange({ areaName })}
+                  options={areas.map(a => ({ key: a.id, label: a.name, hint: t.spot.similar.spots(a.place_count) }))} />
+        {isNewArea && <>
+          <div className="hint-block">{s.newArea(v.areaName.trim())}</div>
+          <SimilarAreas name={v.areaName} onPick={areaName => onChange({ areaName })} />
+        </>}
       </div>
       <div className="field full">
         <label htmlFor="placeSector">{s.sector} <span className="hint">{s.sectorHint}</span></label>
-        <input id="placeSector" list="sectorOptions" value={v.sectorName} placeholder={SECTOR_HINT[v.activity]}
-               onChange={e => onChange({ sectorName: e.target.value })} />
-        <datalist id="sectorOptions">{areaSectors.map(x => <option key={x.id} value={x.name} />)}</datalist>
+        <Combobox id="placeSector" value={v.sectorName} placeholder={SECTOR_HINT[v.activity]}
+                  onChange={sectorName => onChange({ sectorName })}
+                  options={areaSectors.map(x => ({ key: x.id, label: x.name, hint: t.spot.similar.spots(x.place_count) }))} />
         {isNewSector && <div className="hint-block">{s.newSector(v.sectorName.trim())}</div>}
       </div>
 

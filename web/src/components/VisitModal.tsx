@@ -253,7 +253,8 @@ export function VisitModal({
         <div className="form-section nested">
           <h3 className="section-title">{s.newSpot}</h3>
           <PlaceFields values={newPlace} onChange={changePlace} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
-                       visitVisibility={values.visibility} />
+                       visitVisibility={values.visibility}
+                       existingSpotAction={{ label: t.spot.similar.useIt, onPick: id => choose(String(id)) }} />
         </div>
       )}
 

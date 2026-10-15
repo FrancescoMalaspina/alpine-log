@@ -566,6 +566,11 @@ export default function App() {
           onClose={closeForms}
           onSaved={showSaved}
           onDeleted={() => { closeForms(); setPanel(null); setFocusedId(null); reload(); }}
+          onOpenExisting={id => {
+            const existing = catalog.find(p => p.id === id);
+            closeForms();
+            if (existing) openPlace(existing);
+          }}
         />
       )}
 

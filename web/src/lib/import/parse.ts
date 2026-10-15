@@ -59,7 +59,11 @@ export async function parseFile(file: File): Promise<ParsedFile> {
 
 async function sheetsToTables(file: File): Promise<RawTable[]> {
   const XLSX = await import('xlsx');
-  const wb = XLSX.read(await file.arrayBuffer(), { cellDates: false, dense: true });
+  const bytes = await file.arrayBuffer();
+  const text = /\.(csv|tsv|txt)$/i.test(file.name) ? utf8(bytes) : null;
+  const wb = text != null
+    ? XLSX.read(text, { type: 'string', cellDates: false, dense: true })
+    : XLSX.read(bytes, { cellDates: false, dense: true });
   const tables: RawTable[] = [];
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName];
@@ -79,6 +83,19 @@ async function sheetsToTables(file: File): Promise<RawTable[]> {
     if (table) tables.push(table);
   }
   return tables;
+}
+
+/**
+ * A text file read as UTF-8, or null when it isn't (an old Excel CSV in
+ * Windows-1252, which the spreadsheet reader decodes itself). The reader
+ * alone takes UTF-8 without a byte-order mark for Latin-1: "Dòrn" → "DÃ²rn".
+ */
+function utf8(bytes: ArrayBuffer): string | null {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
 }
 
 type XlsxCell = { t: string; v?: unknown; w?: string; z?: string | number; l?: { Target?: string } };

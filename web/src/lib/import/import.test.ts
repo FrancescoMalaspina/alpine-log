@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { autoMap, repeatGroups } from './automap';
 import type { RawTable } from './parse';
-import { gridToTable, jsonToTable } from './parse';
+import { gridToTable, jsonToTable, parseFile } from './parse';
 import { applyMapping } from './rows';
 import { buildPayload, geocodeQueries, type ResolvedSpot } from './resolve';
 import {
@@ -87,6 +87,11 @@ describe('transforms', () => {
 });
 
 describe('parse', () => {
+  it('reads a UTF-8 CSV without a byte-order mark as UTF-8', async () => {
+    const f = await parseFile(new File(['spot,area\nSpigolo Dòrn,Valsàssina\n'], 'log.csv', { type: 'text/csv' }));
+    expect(f.kind === 'tables' && f.tables[0].rows[0].map(c => c.v)).toEqual(['Spigolo Dòrn', 'Valsàssina']);
+  });
+
   it('finds the header row below a title and drops empty columns', () => {
     const t = gridToTable('S', [
       [{ v: 'My log 2026' }],

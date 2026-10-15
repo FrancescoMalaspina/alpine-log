@@ -30,10 +30,12 @@ type Props = {
   onClose: () => void;
   onSaved: (placeId: number, loggedVisit: boolean) => void;
   onDeleted: () => void;
+  /** Opens an existing spot the user picked instead of adding this one. */
+  onOpenExisting: (placeId: number) => void;
 };
 
 /** Add or edit a place; a new place can be saved together with a visit there. */
-export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted }: Props) {
+export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted, onOpenExisting }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeModal;
   const [values, setValues] = useState<PlaceValues>(() => ({
@@ -158,7 +160,8 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
     >
       <form onSubmit={e => { e.preventDefault(); save(); }}>
         <PlaceFields values={values} onChange={change} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
-                     autoFocusName visitVisibility={logVisit ? visit.visibility : undefined} />
+                     autoFocusName visitVisibility={logVisit ? visit.visibility : undefined}
+                     existingSpotAction={place ? undefined : { label: t.spot.similar.open, onPick: onOpenExisting }} />
 
         {!place && (
           <div className="form-section">

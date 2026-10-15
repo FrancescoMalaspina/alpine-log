@@ -116,6 +116,16 @@ const en = {
     publishTrack: 'Make public',
     publishTrackFailed: (msg: string) => `Couldn't make the track public: ${msg}`,
   },
+  similar: {
+    didYouMean: 'Did you mean',
+    spots: (n: number) => (n === 1 ? '1 spot' : `${n} spots`),
+    looksLikeExisting: 'This looks like a spot already on the map:',
+    alreadyOnMap: 'Similar spots already on the map:',
+    km: (d: number) => (d < 1 ? `${Math.round(d * 1000)} m away` : `${d.toFixed(1)} km away`),
+    newIsFine: 'If yours is a different one, carry on: saving adds it.',
+    open: 'Open it',
+    useIt: 'Log the visit there',
+  },
   placeFields: {
     startLocality: 'Starting point',
     startLocalityHint: '(village or hut you set off from)',
