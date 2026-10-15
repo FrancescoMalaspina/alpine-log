@@ -315,3 +315,9 @@ One-time setup in the GitHub repository:
 
 `.github/workflows/keep-supabase-awake.yml` reads one row twice a week, so the
 free Supabase project doesn't pause after a week without visitors.
+
+## License
+
+[GNU AGPL-3.0](LICENSE). You may use, change and host this code, but if you
+run a modified version as a service, you must publish your source under the
+same license.
