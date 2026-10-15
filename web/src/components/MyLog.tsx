@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useI18n } from '../i18n';
+import { locale, useI18n } from '../i18n';
 import { fetchImports, fetchVisits, type ImportRecord } from '../lib/api';
 import { activityLabel, errorMessage, formatDate } from '../lib/labels';
-import { computeStats } from '../lib/logStats';
+import { computeStats, type Tally } from '../lib/logStats';
 import { EMPTY_VISIT_FILTERS, type Activity, type Place, type VisitSummary, type Wish } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Drawer } from './Drawer';
@@ -50,6 +50,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
   }, [userId, reloadKey]);
 
   const stats = useMemo(() => (visits ? computeStats(visits) : null), [visits]);
+  const hasTracks = !!stats?.totals.km;
   const shown = useMemo(
     () => (visits ?? []).filter(v => !only || v.place_activity === only), [visits, only]);
   const byYear = useMemo(() => {
@@ -112,6 +113,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
             <thead>
               <tr><th scope="col">{t.account.myLog.activity}</th><th scope="col">{t.account.myLog.days}</th>
                 <th scope="col">{t.account.myLog.routesTotal}</th><th scope="col">{t.account.myLog.pitches}</th>
+                {hasTracks && <TrackHeads />}
                 <th scope="col">{t.account.myLog.hardest}</th>
                 <th scope="col">{t.account.myLog.hardestSent}</th></tr>
             </thead>
@@ -122,6 +124,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
                   <td className="num">{a.days}</td>
                   <td className="num">{a.routes}</td>
                   <td className="num">{a.pitches || '–'}</td>
+                  {hasTracks && <TrackCells tally={a} />}
                   <td className="num">{a.hardest ?? '–'}</td>
                   <td className="num">{a.hardestSent ?? '–'}</td>
                 </tr>
@@ -132,7 +135,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
           <h4 className="stats-heading">{t.account.myLog.byYear}</h4>
           <table className="stats-table">
             <thead><tr><th scope="col">{t.account.myLog.year}</th><th scope="col">{t.account.myLog.days}</th><th scope="col">{t.account.myLog.routesTotal}</th>
-              <th scope="col">{t.account.myLog.pitches}</th></tr></thead>
+              <th scope="col">{t.account.myLog.pitches}</th>{hasTracks && <TrackHeads />}</tr></thead>
             <tbody>
               {stats.byYear.map(y => (
                 <tr key={y.year}>
@@ -140,6 +143,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
                   <td className="num">{y.days}</td>
                   <td className="num">{y.routes}</td>
                   <td className="num">{y.pitches || '–'}</td>
+                  {hasTracks && <TrackCells tally={y} />}
                 </tr>
               ))}
             </tbody>
@@ -187,4 +191,16 @@ function ActionIcon({ d }: { d: string }) {
       <path d={d} />
     </svg>
   );
+}
+
+/** The distance and height the tracks of a row's visits add up to. */
+function TrackHeads() {
+  const { t } = useI18n();
+  return <><th scope="col">{t.account.myLog.distance}</th><th scope="col">{t.account.myLog.climbed}</th></>;
+}
+function TrackCells({ tally }: { tally: Tally }) {
+  return <>
+    <td className="num">{Math.round(tally.km) || '–'}</td>
+    <td className="num">{tally.gain ? tally.gain.toLocaleString(locale()) : '–'}</td>
+  </>;
 }

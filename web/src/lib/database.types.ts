@@ -129,37 +129,67 @@ export type Database = {
           area_id: number | null
           created_at: string
           created_by: string
+          distance_km: number | null
+          elapsed_s: number | null
+          gain_m: number | null
           id: number
           kind: string
+          loss_m: number | null
+          max_ele_m: number | null
+          min_ele_m: number | null
+          moving_s: number | null
           place_id: number | null
+          private: boolean
           size_bytes: number | null
           storage_path: string | null
           title: string | null
+          uphill_s: number | null
           url: string | null
+          visit_id: number | null
         }
         Insert: {
           area_id?: number | null
           created_at?: string
           created_by?: string
+          distance_km?: number | null
+          elapsed_s?: number | null
+          gain_m?: number | null
           id?: never
           kind: string
+          loss_m?: number | null
+          max_ele_m?: number | null
+          min_ele_m?: number | null
+          moving_s?: number | null
           place_id?: number | null
+          private?: boolean
           size_bytes?: number | null
           storage_path?: string | null
           title?: string | null
+          uphill_s?: number | null
           url?: string | null
+          visit_id?: number | null
         }
         Update: {
           area_id?: number | null
           created_at?: string
           created_by?: string
+          distance_km?: number | null
+          elapsed_s?: number | null
+          gain_m?: number | null
           id?: never
           kind?: string
+          loss_m?: number | null
+          max_ele_m?: number | null
+          min_ele_m?: number | null
+          moving_s?: number | null
           place_id?: number | null
+          private?: boolean
           size_bytes?: number | null
           storage_path?: string | null
           title?: string | null
+          uphill_s?: number | null
           url?: string | null
+          visit_id?: number | null
         }
         Relationships: [
           {
@@ -181,6 +211,20 @@ export type Database = {
             columns: ["place_id"]
             isOneToOne: false
             referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attachments_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
             referencedColumns: ["id"]
           },
         ]
@@ -835,6 +879,8 @@ export type Database = {
           sector_id: number | null
           sector_name: string | null
           summary: string | null
+          track_distance_km: number | null
+          track_gain_m: number | null
           user_id: string | null
           username: string | null
           visibility: string | null
@@ -927,6 +973,10 @@ export type Database = {
           distance_km: number
           place_id: number
         }[]
+      }
+      publish_track: {
+        Args: { p_attachment_id: number; p_public_path: string }
+        Returns: undefined
       }
       reopen_wish: { Args: { p_wish_id: number }; Returns: undefined }
       save_place: { Args: { p: Json }; Returns: number }

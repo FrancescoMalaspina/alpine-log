@@ -2,7 +2,8 @@ import { gradeRank } from './grades';
 import { ACTIVITIES } from './labels';
 import { ACTIVITY_ORDER, type Activity, type VisitSummary } from './types';
 
-export type Tally = { days: number; routes: number; pitches: number };
+/** km and gain: what the visits' tracks add up to. */
+export type Tally = { days: number; routes: number; pitches: number; km: number; gain: number };
 /** hardestSent: the hardest climbing grade not marked as an attempt. */
 export type ActivityTally = Tally & { type: Activity; hardest: string | null; hardestSent: string | null };
 export type LogStats = {
@@ -23,19 +24,30 @@ function difficulty(type: Activity, grade: string): number | null {
   return i === -1 ? null : i;
 }
 
+const emptyTally = (): Tally => ({ days: 0, routes: 0, pitches: 0, km: 0, gain: 0 });
+
+/** Counts one visit into a tally. */
+function add(t: Tally, v: VisitSummary) {
+  t.days += 1;
+  t.routes += v.ascent_count;
+  t.pitches += v.pitches_climbed;
+  t.km += v.track_distance_km ?? 0;
+  t.gain += v.track_gain_m ?? 0;
+}
+
 /** A "day" is one visit, counted toward its spot's activity. */
 export function computeStats(visits: VisitSummary[]): LogStats {
   const dates = visits.map(v => v.date).filter((d): d is string => !!d).sort();
   const acts = new Map<Activity, ActivityTally & { best: number; bestSent: number }>();
   const years = new Map<string, Tally>();
+  const totals = emptyTally();
 
   for (const v of visits) {
+    add(totals, v);
     const type = v.place_activity;
     const a = acts.get(type)
-      ?? { type, days: 0, routes: 0, pitches: 0, hardest: null, hardestSent: null, best: -Infinity, bestSent: -Infinity };
-    a.days += 1;
-    a.routes += v.ascent_count;
-    a.pitches += v.pitches_climbed;
+      ?? { type, ...emptyTally(), hardest: null, hardestSent: null, best: -Infinity, bestSent: -Infinity };
+    add(a, v);
     for (const g of v.grades) {
       const d = difficulty(type, g);
       if (d != null && d > a.best) { a.best = d; a.hardest = g; }
@@ -48,18 +60,14 @@ export function computeStats(visits: VisitSummary[]): LogStats {
     acts.set(type, a);
 
     const year = v.date?.slice(0, 4) ?? 'No date';
-    const y = years.get(year) ?? { days: 0, routes: 0, pitches: 0 };
-    y.days += 1;
-    y.routes += v.ascent_count;
-    y.pitches += v.pitches_climbed;
+    const y = years.get(year) ?? emptyTally();
+    add(y, v);
     years.set(year, y);
   }
 
   return {
     totals: {
-      days: visits.length,
-      routes: visits.reduce((n, v) => n + v.ascent_count, 0),
-      pitches: visits.reduce((n, v) => n + v.pitches_climbed, 0),
+      ...totals,
       places: new Set(visits.map(v => v.place_id)).size,
       areas: new Set(visits.map(v => v.area_id).filter(a => a != null)).size,
       first: dates[0] ?? null,

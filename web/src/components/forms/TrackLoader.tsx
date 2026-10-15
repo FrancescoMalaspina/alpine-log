@@ -4,9 +4,10 @@ import { formatCoords } from '../../lib/coords';
 import { reverseGeocode } from '../../lib/geocode';
 import { ACTIVITIES, errorMessage, formatDate, formatHours } from '../../lib/labels';
 import {
-  readTrackFile, summarize, trackVisit, trimTrack, usefulTrackName, TRACK_ACCEPT, type TrackPoint3,
+  readTrackFile, summarize, trackStats, trackVisit, trimTrack, usefulTrackName, TRACK_ACCEPT, type TrackPoint3,
 } from '../../lib/tracks';
-import type { Activity } from '../../lib/types';
+import { trackStatsParts } from '../../lib/trackStats';
+import type { Activity, Visibility } from '../../lib/types';
 import { ErrorText } from '../Modal';
 import { TRACK_ACTIVITIES, type PlaceValues, type TrackDraft } from './placeForm';
 
@@ -18,8 +19,8 @@ type Props = {
   onDraft: (draft: TrackDraft | null) => void;
   /** The spot being written, to fill in from the track; left out when logging a visit to an existing spot. */
   fields?: { values: PlaceValues; onChange: (patch: Partial<PlaceValues>) => void };
-  /** A visit is logged with the track: it takes the track's date and duration. */
-  withVisit?: boolean;
+  /** A visit is logged with the track, with this visibility: it takes the track's date and duration, and the track goes with it. */
+  visitVisibility?: Visibility;
 };
 
 /**
@@ -29,7 +30,7 @@ type Props = {
  * approach: the start as the parking, the end as the pin and the attacco.
  * Only ticked fields are filled; empty fields are ticked to begin with.
  */
-export function TrackLoader({ activity, draft, onDraft, fields, withVisit }: Props) {
+export function TrackLoader({ activity, draft, onDraft, fields, visitVisibility }: Props) {
   const { t } = useI18n();
   const s = t.spot.trackLoader;
   const pf = t.spot.placeFields;
@@ -45,6 +46,7 @@ export function TrackLoader({ activity, draft, onDraft, fields, withVisit }: Pro
     [draft],
   );
   const summary = useMemo(() => summarize(segments), [segments]);
+  const stats = useMemo(() => trackStats(segments), [segments]);
   const full = useMemo(() => (draft ? summarize(draft.file.segments) : null), [draft]);
   const pinAt = summary && (approach ? summary.end : activity === 'trail' ? summary.start : summary.highest ?? summary.start);
 
@@ -129,11 +131,8 @@ export function TrackLoader({ activity, draft, onDraft, fields, withVisit }: Pro
 
   // An approach track's times are the walk in, not the visit.
   const visit = full && !approach ? trackVisit(full) : null;
-  const stats = summary && [
-    `${summary.distanceKm.toFixed(1)} km`,
-    summary.gainM != null ? `+${Math.round(summary.gainM)} m` : null,
-    summary.maxEleM != null ? `max ${Math.round(summary.maxEleM)} m` : null,
-    visit?.hours ? formatHours(visit.hours) : null,
+  const statsLine = stats && [
+    ...trackStatsParts(stats, activity),
     visit ? s.recorded(formatDate(visit.date)) : null,
   ].filter(Boolean).join(' · ');
 
@@ -145,7 +144,7 @@ export function TrackLoader({ activity, draft, onDraft, fields, withVisit }: Pro
         <button type="button" className="link-btn" onClick={() => onDraft(null)}>{s.remove}</button>
       </div>
       <TrackPreview full={draft.file.segments} kept={segments} pin={pinAt} />
-      {stats && <div className="hint-block num">{stats}</div>}
+      {statsLine && <div className="hint-block num">{statsLine}</div>}
 
       <div className="track-trim">
         <label>{s.trimStart}
@@ -184,14 +183,16 @@ export function TrackLoader({ activity, draft, onDraft, fields, withVisit }: Pro
         </div>
       )}
 
-      {withVisit && visit && (
+      {visitVisibility && visit && (
         <div className="hint-block">{s.visitFromTrack(formatDate(visit.date), visit.hours ? formatHours(visit.hours) : null)}</div>
       )}
       <label className="field-inline">
         <input type="checkbox" checked={draft.save} onChange={e => onDraft({ ...draft, save: e.target.checked })} />
         {s.save}
       </label>
-      <span className="hint-block">{s.saveHint}</span>
+      <span className="hint-block">
+        {visitVisibility === 'private' ? s.saveHintPrivate : visitVisibility === 'public' ? s.saveHintPublic : s.saveHint}
+      </span>
       <div>{fileInput(s.loadAnother)}</div>
       <ErrorText error={error} />
     </div>

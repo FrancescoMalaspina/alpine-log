@@ -30,6 +30,8 @@ const en = {
     hardest: 'Hardest',
     hardestSent: 'Hardest sent',
     pitches: 'Pitches',
+    distance: 'km',
+    climbed: 'm up',
     byYear: 'By year',
     year: 'Year',
     noDate: 'No date',

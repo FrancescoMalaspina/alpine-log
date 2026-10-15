@@ -110,8 +110,9 @@ export const USERNAME_RE = /^[A-Za-z0-9_.-]{3,30}$/;
 export const usernameHint = () => tr().common.usernameHint;
 export const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 export const formatHours = (h: number) => {
-  const whole = Math.floor(h);
-  const min = Math.round((h - whole) * 60);
+  const total = Math.round(h * 60);
+  const whole = Math.floor(total / 60);
+  const min = total % 60;
   return min ? `${whole}h${String(min).padStart(2, '0')}` : `${whole}h`;
 };
 export const formatBytes = (n: number) =>

@@ -3,7 +3,7 @@ import { useI18n } from '../../i18n';
 import { currentPosition, formatCoords, parseCoordinates } from '../../lib/coords';
 import { reverseGeocode } from '../../lib/geocode';
 import { ACTIVITIES, ALPINE_GRADES, activityLabel, errorMessage, gradeSuggestions, isTouchLayout, protectionLabel } from '../../lib/labels';
-import { ACTIVITY_ORDER, EXPOSITIONS, PROTECTIONS, type Area, type Exposition, type Sector } from '../../lib/types';
+import { ACTIVITY_ORDER, EXPOSITIONS, PROTECTIONS, type Area, type Exposition, type Sector, type Visibility } from '../../lib/types';
 import { ActivityBadge } from '../ActivityBadge';
 import { ErrorText } from '../Modal';
 import type { CoordField, PlaceValues } from './placeForm';
@@ -24,8 +24,8 @@ type Props = {
   /** Hide the form and let the user click the map; the field is filled on return. */
   onPickOnMap: (field: CoordField) => void;
   autoFocusName?: boolean;
-  /** A visit is saved with the spot: a loaded track also gives its date and duration. */
-  withVisit?: boolean;
+  /** A visit is saved with the spot, with this visibility: a loaded track gives its date and duration, and goes with it. */
+  visitVisibility?: Visibility;
 };
 
 /** What a sector is for each activity: the crag, the wall, the mountain… */
@@ -37,7 +37,7 @@ const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
 /** Every field of a spot. Used by "Add a spot" and by "Log a visit" at a new spot. */
-export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName, withVisit }: Props) {
+export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPickOnMap, autoFocusName, visitVisibility }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeFields;
   const [locateError, setLocateError] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
         </div>
       </div>
       <TrackLoader activity={v.activity} draft={v.track} onDraft={track => onChange({ track })}
-                   fields={{ values: v, onChange }} withVisit={withVisit} />
+                   fields={{ values: v, onChange }} visitVisibility={visitVisibility} />
       <div className="field full">
         <label htmlFor="placeName">{s.name}</label>
         <input id="placeName" required autoFocus={autoFocusName && !isTouchLayout()} value={v.name}

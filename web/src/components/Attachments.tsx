@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { tr, useI18n } from '../i18n';
+import { useI18n } from '../i18n';
 import { addLink, attachmentUrl, deleteAttachment, fetchAttachments, gpxDownloadUrl, uploadAttachment, type AttachmentOwner } from '../lib/api';
-import { parseGpx, type Track, type TrackLayer } from '../lib/gpx';
+import type { TrackLayer } from '../lib/gpx';
 import { errorMessage, formatBytes } from '../lib/labels';
+import { readTrackFile } from '../lib/tracks';
+import { trackStatsParts } from '../lib/trackStats';
 import type { Activity, Attachment } from '../lib/types';
 import { TRACK_ACTIVITIES } from './forms/placeForm';
+import { saveTrackAt } from './forms/save';
 import { ErrorText } from './Modal';
+import { VisibilityPill } from './Sidebar';
 
 type Props = {
   owner: AttachmentOwner;
@@ -13,7 +17,7 @@ type Props = {
   isAdmin: boolean;
   /** The spot's activity: on ski tours, hikes, trail runs and alpine climbs a track is the outing itself, not the approach. */
   activity?: Activity;
-  /** Parsed GPX tracks with their map colours, to show distance and gain and switch them on and off. */
+  /** The GPX tracks drawn on the map, with their colours, to switch them on and off. */
   tracks?: TrackLayer[];
   onToggleTrack?: (id: number) => void;
   /** Called after anything is added or removed. */
@@ -64,7 +68,7 @@ export function Attachments({ owner, userId, isAdmin, activity, tracks, onToggle
         const layer = tracks?.find(l => l.id === a.id);
         return (
           <Item key={a.id} a={a} canDelete={a.created_by === userId || isAdmin} onDelete={() => remove(a)}
-                detail={trackSummary(layer?.track)} layer={layer}
+                detail={a.stats ? trackStatsParts(a.stats, activity).join(', ') : undefined} layer={layer}
                 onToggle={layer && onToggleTrack ? () => onToggleTrack(a.id) : undefined} />
         );
       })}
@@ -81,16 +85,6 @@ export function Attachments({ owner, userId, isAdmin, activity, tracks, onToggle
   );
 }
 
-function trackSummary(t: Track | undefined) {
-  if (!t) return undefined;
-  const s = tr().spot.attachments;
-  return [
-    `${t.distanceKm.toFixed(1)} km`,
-    t.gainM != null && s.up(Math.round(t.gainM)),
-    t.maxEleM != null && s.top(Math.round(t.maxEleM)),
-  ].filter(Boolean).join(', ');
-}
-
 function Item({ a, canDelete, onDelete, detail, layer, onToggle }: {
   a: Attachment; canDelete: boolean; onDelete: () => void; detail?: string;
   /** A GPX's track on the map: its colour and whether it's drawn. */
@@ -105,6 +99,7 @@ function Item({ a, canDelete, onDelete, detail, layer, onToggle }: {
   const label = <>
     <span className="attachment-title">{a.title || a.url}</span>
     {meta && <span className="attachment-meta">{meta}</span>}
+    {a.private && <VisibilityPill visibility="private" />}
   </>;
   return (
     <div className="attachment">
@@ -114,7 +109,7 @@ function Item({ a, canDelete, onDelete, detail, layer, onToggle }: {
       )}
       <span className={`attachment-icon ${a.kind}`} aria-hidden="true"
             style={layer ? { background: layer.color } : undefined}>{ICONS[a.kind]}</span>
-      {a.kind === 'gpx' && a.storage_path
+      {a.kind === 'gpx' && a.file_url
         ? <a href={gpxDownloadUrl(a)} title={t.spot.attachments.download}>{label}</a>
         : <a href={attachmentUrl(a)} target="_blank" rel="noopener noreferrer">{label}</a>}
       {canDelete && <button type="button" aria-label={t.spot.attachments.removeNamed(a.title ?? t.spot.attachments.attachment)} onClick={onDelete}>×</button>}
@@ -144,9 +139,14 @@ function AddAttachment({ owner, userId, onAdded }: { owner: AttachmentOwner; use
       } else {
         if (!file) throw new Error(s.pickFile);
         if (file.name.toLowerCase().endsWith('.gpx')) {
-          if (!parseGpx(await file.text())) throw new Error(s.noTrack);
+          const track = readTrackFile(await file.text());
+          if (!track) throw new Error(s.noTrack);
+          // Saved like any other track: measured, without times, named after the title if there is one.
+          const fileName = title.trim() ? `${title.trim()}.gpx` : file.name;
+          await saveTrackAt(owner, userId, { fileName, file: track, trimStartM: 0, trimEndM: 0, save: true }, file.name);
+        } else {
+          await uploadAttachment(owner, userId, file, title);
         }
-        await uploadAttachment(owner, userId, file, title);
         setFile(null);
         setFileKey(k => k + 1);
       }

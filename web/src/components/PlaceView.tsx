@@ -4,6 +4,7 @@ import { formatCoords } from '../lib/coords';
 import type { TrackLayer } from '../lib/gpx';
 import { useI18n } from '../i18n';
 import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
+import { trackStatsParts } from '../lib/trackStats';
 import { ActivityBadge } from './ActivityBadge';
 import type { Place, Route, Tip, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
@@ -263,6 +264,9 @@ function VisitDetailBody({ visit: v, mine, spot }: { visit: VisitDetail; mine: b
       <VisibilityPill visibility={v.visibility} />
     </div>
     {v.summary && <div className="description">{v.summary}</div>}
+    {v.tracks.map(tr => tr.stats && (
+      <div key={tr.id} className="description num"><b>{s.track}</b> {trackStatsParts(tr.stats, spot.activity).join(', ')}</div>
+    ))}
     {v.conditions && <div className="description"><b>{s.conditions}</b> {v.conditions}</div>}
     {v.approach && <div className="description"><b>{s.approach}</b> {v.approach}</div>}
     {v.descent && <div className="description"><b>{s.descent}</b> {v.descent}</div>}

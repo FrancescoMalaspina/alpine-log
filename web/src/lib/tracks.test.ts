@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { parseGpx } from './gpx';
-import { readTrackFile, summarize, toGpx, trackVisit, trimTrack, usefulTrackName } from './tracks';
+import { trackLines } from './gpx';
+import { readTrackFile, summarize, toGpx, trackStats, trackVisit, trimTrack, usefulTrackName, type TrackPoint3 } from './tracks';
 
 // Three points ~1.1 km apart going north, climbing 1000 → 1500 → 1400 m, over 2 h 10 min.
 const GPX = `<?xml version="1.0"?>
@@ -94,9 +94,8 @@ describe('track files', () => {
     const out = toGpx('A & B', f.segments);
     expect(out).not.toContain('<time>');
     expect(out).toContain('<name>A &#38; B</name>');
-    const back = parseGpx(out)!;
-    expect(back.gainM).toBe(500);
-    expect(back.lines[0]).toHaveLength(3);
+    expect(summarize(readTrackFile(out)!.segments)!.gainM).toBe(500);
+    expect(trackLines(readTrackFile(out)!).lines[0]).toHaveLength(3);
   });
 
   it('ignores names apps give by default', () => {
@@ -104,5 +103,41 @@ describe('track files', () => {
     expect(usefulTrackName('Escursione pomeridiana')).toBeNull();
     expect(usefulTrackName('2025-07-02 08:12')).toBeNull();
     expect(usefulTrackName(' Pizzo dei Tre Signori ')).toBe('Pizzo dei Tre Signori');
+  });
+});
+
+// A point every minute, `metres` north of the last, at the given elevation.
+const walk = (eles: number[], metres = 50, startMin = 0): TrackPoint3[] =>
+  eles.map((ele, i) => ({ lat: 46 + (i * metres) / 111_195, lng: 9.5, ele, time: (startMin + i) * 60_000 }));
+
+describe('track statistics', () => {
+  it('adds up descent and the lowest point like the ascent', () => {
+    const s = summarize(readTrackFile(GPX)!.segments)!;
+    expect(s.lossM).toBe(100);
+    expect(s.minEleM).toBe(1000);
+  });
+
+  it('counts moving and uphill minutes, not pauses', () => {
+    // 10 min up, a 20 min stop at the top (one point, then the next a long gap later), 5 min down.
+    const up = walk([1000, 1010, 1020, 1030, 1040, 1050, 1060, 1070, 1080, 1090, 1100]);
+    const down = walk([1100, 1080, 1060, 1040, 1020, 1000], 50, 30).map(p => ({ ...p, lat: p.lat + 0.01 }));
+    const s = summarize([[...up, ...down]])!;
+    expect(s.movingMs).toBe(15 * 60_000);
+    expect(s.uphillMs).toBe(10 * 60_000);
+    expect(s.endTime! - s.startTime!).toBe(35 * 60_000);
+  });
+
+  it('standing still is not moving, a slow bootpack is', () => {
+    expect(summarize([walk([1000, 1000, 1001, 1000], 2)])!.movingMs).toBe(0);
+    expect(summarize([walk([1000, 1005, 1010, 1015], 2)])!.uphillMs).toBe(3 * 60_000);
+  });
+
+  it('stores whole metres and seconds, and no times for an untimed track', () => {
+    const timed = trackStats(readTrackFile(GPX)!.segments)!;
+    expect(timed).toMatchObject({ gain_m: 500, loss_m: 100, max_ele_m: 1500, min_ele_m: 1000, elapsed_s: 7800 });
+    expect(timed.distance_km).toBeCloseTo(2.22, 2);
+    expect(timed.moving_s).toBeNull(); // points an hour apart: can't tell
+    const untimed = trackStats(readTrackFile(KML)!.segments)!;
+    expect(untimed).toMatchObject({ gain_m: 500, elapsed_s: null, moving_s: null, uphill_s: null });
   });
 });

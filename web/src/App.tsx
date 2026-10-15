@@ -19,10 +19,10 @@ import { WishModal } from './components/WishModal';
 import { useDebounced } from './hooks/useDebounced';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 import {
-  attachmentUrl, fetchAreas, fetchAttachments, fetchSectors, fetchMyPartners, fetchMyWishes, fetchPlaces, fetchRocks, fetchVisits,
+  fetchAreas, fetchAttachments, fetchSectors, fetchMyPartners, fillMissingTrackStats, fetchMyWishes, fetchPlaces, fetchRocks, fetchTrackFile, fetchVisits,
 } from './lib/api';
 import type { LatLng } from './lib/coords';
-import { parseGpx, TRACK_COLORS, type Track, type TrackLayer } from './lib/gpx';
+import { trackLines, TRACK_COLORS, type Track, type TrackLayer } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS,
@@ -64,8 +64,8 @@ async function loadTracks(placeId: number): Promise<Map<number, Track>> {
   const gpx = (await fetchAttachments({ placeId })).filter(a => a.kind === 'gpx');
   const parsed = await Promise.all(gpx.map(async a => {
     try {
-      const track = parseGpx(await (await fetch(attachmentUrl(a))).text());
-      return track ? [a.id, track] as const : null;
+      const file = await fetchTrackFile(a);
+      return file ? [a.id, trackLines(file)] as const : null;
     } catch {
       return null;
     }
@@ -147,6 +147,11 @@ export default function App() {
     return () => { cancelled = true; };
   }, [userId, reloadKey]);
   const partners = userId ? myPartners : [];
+
+  // Tracks saved before their statistics were stored get measured once, in the background.
+  useEffect(() => {
+    if (userId) fillMissingTrackStats(userId).catch(() => {});
+  }, [userId]);
 
   const [wishesKey, setWishesKey] = useState(0);
   const reloadWishes = useCallback(() => setWishesKey(k => k + 1), []);

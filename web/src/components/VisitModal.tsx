@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useConfirm } from '../hooks/useConfirm';
 import { useI18n } from '../i18n';
 import { uploadPhoto } from '../lib/photos';
-import { addLink, completeWish, fetchRoutes, savePlace } from '../lib/api';
+import { addLink, completeWish, fetchRoutes, publishTrack, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
@@ -63,6 +64,7 @@ export function VisitModal({
   const [progress, setProgress] = useState<string | null>(null);
   // Set when the visit is saved but some photos failed: the form then only offers "Done".
   const [savedVisit, setSavedVisit] = useState<{ placeId: number; wishResolved: boolean } | null>(null);
+  const [ask, askDialog] = useConfirm();
   const previews = useMemo(() => photos.map(f => URL.createObjectURL(f)), [photos]);
   useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews]);
 
@@ -139,6 +141,9 @@ export function VisitModal({
     if (typeof placeInput === 'string') return setError(s.newSpotProblem(placeInput));
     const problem = visitProblem(values);
     if (problem) return setError(problem);
+    // A private visit's tracks become public with it, for good.
+    const toPublish = values.visibility === 'public' ? visit?.tracks.filter(tr => tr.private) ?? [] : [];
+    if (toPublish.length && !await ask({ title: s.publishTrackTitle, message: s.publishTrackMessage, confirmLabel: s.publishTrack })) return;
 
     setBusy(true);
     try {
@@ -163,9 +168,16 @@ export function VisitModal({
       const spotTrack = placeInput ? newPlace.track : track;
       if (spotTrack?.save) {
         try {
-          await saveTrackAt(id!, userId, spotTrack, spot.name);
+          await saveTrackAt({ placeId: id! }, userId, spotTrack, spot.name, { id: visitId, visibility: values.visibility });
         } catch (e) {
           failed.push(t.spot.trackLoader.savedButTrackFailed(errorMessage(e)));
+        }
+      }
+      for (const tr of toPublish) {
+        try {
+          await publishTrack(tr);
+        } catch (e) {
+          failed.push(s.publishTrackFailed(errorMessage(e)));
         }
       }
       let wishResolved = false;
@@ -240,14 +252,15 @@ export function VisitModal({
       {isNew && (
         <div className="form-section nested">
           <h3 className="section-title">{s.newSpot}</h3>
-          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick} withVisit />
+          <PlaceFields values={newPlace} onChange={changePlace} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
+                       visitVisibility={values.visibility} />
         </div>
       )}
 
       {(place || isNew) && (
         <div className="visit-modal-body">
           {isNew && <h3 className="section-title">{s.theVisit}</h3>}
-          {place && <TrackLoader activity={place.activity} draft={track} onDraft={changeTrack} withVisit />}
+          {place && <TrackLoader activity={place.activity} draft={track} onDraft={changeTrack} visitVisibility={values.visibility} />}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity}
                        walls={walls} spotName={place?.name ?? newPlace.name} routes={routes}
                        spotDetails={place
@@ -289,6 +302,7 @@ export function VisitModal({
         </div>
       )}
       <div className="form-error-row"><ErrorText error={error} /></div>
+      {askDialog}
     </Modal>
   );
 }

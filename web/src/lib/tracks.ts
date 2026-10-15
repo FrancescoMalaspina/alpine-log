@@ -4,6 +4,8 @@
  * and written back out as GPX, the format spots keep their tracks in.
  */
 
+import type { TrackStats } from './types';
+
 export type TrackPoint3 = { lat: number; lng: number; ele: number | null; time: number | null };
 export type TrackFile = { name: string | null; segments: TrackPoint3[][] };
 
@@ -90,9 +92,11 @@ export function readTrackFile(text: string): TrackFile | null {
 
 export type TrackSummary = {
   distanceKm: number;
-  /** Total ascent, ignoring elevation jitter under 3 m. */
+  /** Total ascent and descent, ignoring elevation jitter under 3 m. */
   gainM: number | null;
+  lossM: number | null;
   maxEleM: number | null;
+  minEleM: number | null;
   start: TrackPoint3;
   end: TrackPoint3;
   /** The highest point, when the track has elevations. */
@@ -100,7 +104,52 @@ export type TrackSummary = {
   /** First and last timestamp (ms), when the track has times. */
   startTime: number | null;
   endTime: number | null;
+  /** Time in motion, and the part of it spent going up (ms), when the track has times. */
+  movingMs: number | null;
+  uphillMs: number | null;
 };
+
+/** Metres climbed along a profile, counting a rise only once it reaches 3 m (GPS and barometers jitter). */
+function climbed(elevations: number[]) {
+  let total = 0;
+  let base = elevations[0];
+  for (const e of elevations) {
+    if (e - base >= 3) { total += e - base; base = e; } else if (e < base) base = e;
+  }
+  return total;
+}
+
+/** Longer gaps between points are pauses (or the recording was stopped). */
+const PAUSE_MS = 5 * 60_000;
+/** Movement is judged minute by minute: point-to-point speeds are mostly GPS noise. */
+const STEP_MS = 60_000;
+/** A minute counts as moving if it covers 10 m on the map or 3 m of height (a slow bootpack still counts). */
+const MOVING_M = 10;
+const MOVING_HEIGHT_M = 3;
+
+/** Moving time, and the moving minutes that gained height. Null without timestamps close enough to tell. */
+function movingTime(segments: TrackPoint3[][]) {
+  let movingMs = 0;
+  let uphillMs = 0;
+  let measured = false;
+  for (const s of segments) {
+    let from: TrackPoint3 | null = null;
+    for (const p of s) {
+      if (p.time == null) continue;
+      if (!from || p.time - from.time! > PAUSE_MS) { from = p; continue; }
+      const dt = p.time - from.time!;
+      if (dt < STEP_MS) continue;
+      measured = true;
+      const rise = p.ele != null && from.ele != null ? p.ele - from.ele : 0;
+      if (haversineKm(from, p) * 1000 >= MOVING_M || Math.abs(rise) >= MOVING_HEIGHT_M) {
+        movingMs += dt;
+        if (rise > 0) uphillMs += dt;
+      }
+      from = p;
+    }
+  }
+  return measured ? { movingMs, uphillMs } : null;
+}
 
 export function summarize(segments: TrackPoint3[][]): TrackSummary | null {
   const points = segments.flat();
@@ -109,23 +158,41 @@ export function summarize(segments: TrackPoint3[][]): TrackSummary | null {
   for (const s of segments) for (let i = 1; i < s.length; i++) distanceKm += haversineKm(s[i - 1], s[i]);
 
   const withEle = points.filter(p => p.ele != null);
-  let gainM: number | null = null;
-  let highest: TrackPoint3 | null = null;
-  if (withEle.length > 1) {
-    gainM = 0;
-    let base = withEle[0].ele!;
-    for (const p of withEle) {
-      const e = p.ele!;
-      if (e - base >= 3) { gainM += e - base; base = e; } else if (e < base) base = e;
-      if (!highest || e > highest.ele!) highest = p;
-    }
-  }
+  const elevations = withEle.map(p => p.ele!);
+  const hasEle = withEle.length > 1;
+  const highest = hasEle ? withEle.reduce((a, b) => (b.ele! > a.ele! ? b : a)) : null;
   const times = points.map(p => p.time).filter((t): t is number => t != null);
+  const moving = movingTime(segments);
   return {
-    distanceKm, gainM, maxEleM: highest?.ele ?? null, highest,
+    distanceKm,
+    gainM: hasEle ? climbed(elevations) : null,
+    lossM: hasEle ? climbed(elevations.map(e => -e)) : null,
+    maxEleM: highest?.ele ?? null,
+    minEleM: hasEle ? elevations.reduce((a, b) => Math.min(a, b)) : null,
+    highest,
     start: points[0], end: points[points.length - 1],
     startTime: times.length ? Math.min(...times) : null,
     endTime: times.length ? Math.max(...times) : null,
+    movingMs: moving?.movingMs ?? null,
+    uphillMs: hasEle ? moving?.uphillMs ?? null : null,
+  };
+}
+
+/** The statistics stored with a saved track, in whole metres and seconds. */
+export function trackStats(segments: TrackPoint3[][]): TrackStats | null {
+  const s = summarize(segments);
+  if (!s) return null;
+  const metres = (m: number | null) => (m == null ? null : Math.round(m));
+  const seconds = (ms: number | null) => (ms == null ? null : Math.round(ms / 1000));
+  return {
+    distance_km: Math.round(s.distanceKm * 100) / 100,
+    gain_m: metres(s.gainM),
+    loss_m: metres(s.lossM),
+    max_ele_m: metres(s.maxEleM),
+    min_ele_m: metres(s.minEleM),
+    elapsed_s: s.startTime != null && s.endTime != null ? seconds(s.endTime - s.startTime) : null,
+    moving_s: seconds(s.movingMs),
+    uphill_s: seconds(s.uphillMs),
   };
 }
 

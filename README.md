@@ -23,8 +23,13 @@ marked public. Admins can see everything.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides
   and GPX tracks. A spot can have several tracks: the approach for climbing
   spots, the outing itself for ski touring, hiking, trail running and alpinism.
-  Each track gets its own colour on the map, with distance and ascent worked
-  out from the file; they can be switched on and off one by one and downloaded.
+  Each track gets its own colour on the map; they can be switched on and off
+  one by one and downloaded. Its numbers are worked out when it's saved, while
+  the recording still has its times: distance, metres up and down, highest and
+  lowest point, moving time and time spent going up. Each activity shows the
+  ones that matter to it (climbing rate for ski touring and alpinism, pace for
+  trail running, the walk in at climbing spots), and the logbook adds up the
+  km and metres climbed.
 - **Spots from a track.** For ski touring, hiking, trail running and
   alpinism, the spot form loads a GPX, TCX or KML exported by Strava, Garmin
   Connect, OruxMaps, Komoot… and offers its summit (or start) as the pin, its
@@ -35,6 +40,11 @@ marked public. Admins can see everything.
   its start is offered as the parking, its end as the pin and the attacco.
   Every value is filled in only when ticked, and stays editable. Logging a
   visit to an existing spot can load a track as well.
+- **Tracks on visits.** A track loaded with a visit is saved on the spot and
+  linked to the visit, which shows its numbers. A private visit's track is
+  private too. Making the visit public shares the track on the spot for good:
+  it stays public even if the visit goes private again, and the app asks
+  first.
 - **Search** finds your places and also mountains, huts and villages
   (OpenStreetMap, via the free [Photon](https://photon.komoot.io) geocoder);
   a found location can become a new place in one click.
@@ -68,7 +78,7 @@ request may read or write (`supabase/migrations/`).
 | Data | Who can read | Who can write |
 |---|---|---|
 | areas, sectors, spots, route lists | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
-| attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket) | any signed-in user adds; the uploader or an admin removes |
+| attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket); tracks of private visits only the uploader and admins | any signed-in user adds; a track goes on a visit only if it's your visit; the uploader or an admin removes |
 | visits, their routes and partners | the owner, everyone if public, admins | the owner (admins may delete) |
 | climbing-partner list | the owner, plus names on visits you can read | the owner |
 | wishlist (places you want to go to) | the owner, everyone if public, admins | the owner (admins may delete); a visit there ticks it off |
@@ -79,6 +89,7 @@ Files live in Supabase Storage (S3-compatible, same project):
 | Bucket | Public | Holds |
 |---|---|---|
 | `place-files` | yes | GPX tracks and PDF guides |
+| `visit-tracks` | no, signed URLs valid for 1 h | GPX tracks of private visits, readable by their uploader and admins |
 | `place-photos` | yes | photos of places |
 | `visit-photos` | no, signed URLs valid for 1 h | photos of visits, readable exactly when the visit is |
 

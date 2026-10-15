@@ -4,15 +4,18 @@
  */
 import type { Json } from './database.types';
 import { supabase } from './supabase';
+import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
   Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
-  Tip, TipInput, Wish, WishInput,
+  Tip, TipInput, TrackStats, VisitTrack, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
 import { USERNAME_RE, usernameHint } from './labels';
 
-/** Public storage bucket for GPX tracks and PDF guides (supabase/migrations). */
+/** Storage buckets for GPX tracks and PDF guides (supabase/migrations): public, and private for tracks of private visits. */
 const BUCKET = 'place-files';
+const PRIVATE_BUCKET = 'visit-tracks';
+const bucketOf = (a: { private: boolean }) => (a.private ? PRIVATE_BUCKET : BUCKET);
 
 function unwrap<T>({ data, error }: { data: T; error: { message: string } | null }): NonNullable<T> {
   if (error) throw new Error(error.message);
@@ -192,21 +195,54 @@ export async function setPlacesSector(placeIds: number[], sectorId: number | nul
 
 export type AttachmentOwner = { placeId: number } | { areaId: number };
 
-export async function fetchAttachments(owner: AttachmentOwner): Promise<Attachment[]> {
-  let q = supabase
-    .from('attachments')
-    .select('id, place_id, area_id, created_by, kind, title, url, storage_path, size_bytes, created_at, profile:profiles (username)')
-    .order('created_at');
-  q = 'placeId' in owner ? q.eq('place_id', owner.placeId) : q.eq('area_id', owner.areaId);
-  return unwrap(await q).map(({ profile, ...a }) => ({
+const ATTACHMENT_COLUMNS = `
+  id, place_id, area_id, created_by, kind, title, url, storage_path, size_bytes, created_at, visit_id, private,
+  distance_km, gain_m, loss_m, max_ele_m, min_ele_m, elapsed_s, moving_s, uphill_s, profile:profiles (username)
+` as const;
+
+type StatsColumns = { [K in keyof TrackStats]: TrackStats[K] | null };
+
+/** A track's statistics columns as one object; null for links, PDFs and tracks not measured yet. */
+export const statsOf = (r: StatsColumns): TrackStats | null =>
+  r.distance_km == null ? null : {
+    distance_km: r.distance_km, gain_m: r.gain_m, loss_m: r.loss_m, max_ele_m: r.max_ele_m, min_ele_m: r.min_ele_m,
+    elapsed_s: r.elapsed_s, moving_s: r.moving_s, uphill_s: r.uphill_s,
+  };
+
+const attachmentQuery = () => supabase.from('attachments').select(ATTACHMENT_COLUMNS).order('created_at');
+
+/** Attachments matching a filter, each with a URL for its file: public, or signed for an hour for a private track. */
+async function queryAttachments(
+  filter: (q: ReturnType<typeof attachmentQuery>) => ReturnType<typeof attachmentQuery>,
+): Promise<Attachment[]> {
+  const rows = unwrap(await filter(attachmentQuery()));
+  const privatePaths = rows.filter(a => a.private && a.storage_path).map(a => a.storage_path!);
+  const signed = new Map<string, string>();
+  if (privatePaths.length) {
+    const { data, error } = await supabase.storage.from(PRIVATE_BUCKET).createSignedUrls(privatePaths, 3600);
+    if (error) throw new Error(error.message);
+    for (const d of data) if (d.path && d.signedUrl) signed.set(d.path, d.signedUrl);
+  }
+  return rows.map(({ profile, ...a }) => ({
     ...a,
     kind: a.kind as Attachment['kind'],
     username: profile?.username ?? null,
+    stats: statsOf(a),
+    file_url: !a.storage_path ? null
+      : a.private ? signed.get(a.storage_path) ?? null
+      : supabase.storage.from(BUCKET).getPublicUrl(a.storage_path).data.publicUrl,
   }));
 }
 
+export const fetchAttachments = (owner: AttachmentOwner) =>
+  queryAttachments(q => ('placeId' in owner ? q.eq('place_id', owner.placeId) : q.eq('area_id', owner.areaId)));
+
 const ownerColumns = (owner: AttachmentOwner) =>
   'placeId' in owner ? { place_id: owner.placeId } : { area_id: owner.areaId };
+
+/** The uploader's folder for a file: under its spot or area, or under its visit while the track is private. */
+const folderOf = (userId: string, owner: AttachmentOwner, privateVisitId?: number) =>
+  `${userId}/${privateVisitId != null ? `visit-${privateVisitId}` : 'placeId' in owner ? `place-${owner.placeId}` : `area-${owner.areaId}`}`;
 
 export async function addLink(owner: AttachmentOwner, title: string, url: string): Promise<void> {
   if (!/^https?:\/\//i.test(url.trim())) throw new Error(tr().common.errors.linkScheme);
@@ -215,41 +251,84 @@ export async function addLink(owner: AttachmentOwner, title: string, url: string
   }));
 }
 
-export async function uploadAttachment(owner: AttachmentOwner, userId: string, file: File, title: string): Promise<void> {
+/** A GPX being saved: its statistics, and the visit it was logged with (private when the visit is). */
+export type TrackUpload = { stats: TrackStats | null; visitId?: number; isPrivate?: boolean };
+
+export async function uploadAttachment(owner: AttachmentOwner, userId: string, file: File, title: string, track?: TrackUpload): Promise<void> {
   const ext = file.name.split('.').pop()?.toLowerCase();
   if (ext !== 'gpx' && ext !== 'pdf') throw new Error(tr().common.errors.fileTypes);
+  const isPrivate = !!track?.isPrivate;
+  const bucket = bucketOf({ private: isPrivate });
   const safeName = file.name.replace(/[^A-Za-z0-9._-]+/g, '_').slice(-80);
-  const folder = 'placeId' in owner ? `place-${owner.placeId}` : `area-${owner.areaId}`;
-  const path = `${userId}/${folder}/${crypto.randomUUID()}-${safeName}`;
+  const path = `${folderOf(userId, owner, isPrivate ? track!.visitId : undefined)}/${crypto.randomUUID()}-${safeName}`;
 
-  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, {
+  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
     contentType: ext === 'gpx' ? 'application/gpx+xml' : 'application/pdf',
   });
   if (uploadError) throw new Error(uploadError.message);
 
   const { error } = await supabase.from('attachments').insert({
     ...ownerColumns(owner), kind: ext, title: title.trim() || file.name, storage_path: path, size_bytes: file.size,
+    visit_id: track?.visitId ?? null, private: isPrivate, ...track?.stats,
   });
+  if (error) {
+    await supabase.storage.from(bucket).remove([path]);
+    throw new Error(error.message);
+  }
+}
+
+/**
+ * Makes a private track public, for good: its file moves to the public
+ * bucket, in the spot's folder, and the row follows (publish_track).
+ */
+export async function publishTrack(a: VisitTrack): Promise<void> {
+  const { data: file, error: downloadError } = await supabase.storage.from(PRIVATE_BUCKET).download(a.storage_path!);
+  if (downloadError) throw new Error(downloadError.message);
+  const path = `${folderOf(a.created_by, { placeId: a.place_id! })}/${a.storage_path!.split('/').pop()}`;
+  const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, file, { contentType: 'application/gpx+xml' });
+  if (uploadError) throw new Error(uploadError.message);
+  const { error } = await supabase.rpc('publish_track', { p_attachment_id: a.id, p_public_path: path });
   if (error) {
     await supabase.storage.from(BUCKET).remove([path]);
     throw new Error(error.message);
   }
+  await supabase.storage.from(PRIVATE_BUCKET).remove([a.storage_path!]);
 }
 
 export async function deleteAttachment(a: Attachment): Promise<void> {
   const rows = unwrap(await supabase.from('attachments').delete().eq('id', a.id).select('id'));
   if (!rows.length) throw new Error(tr().common.errors.cantRemoveAttachment);
-  if (a.storage_path) await supabase.storage.from(BUCKET).remove([a.storage_path]);
+  if (a.storage_path) await supabase.storage.from(bucketOf(a)).remove([a.storage_path]);
 }
 
-export const attachmentUrl = (a: Attachment) =>
-  a.url ?? supabase.storage.from(BUCKET).getPublicUrl(a.storage_path!).data.publicUrl;
+export const attachmentUrl = (a: Attachment) => a.url ?? a.file_url!;
 
 /** A GPX served as a file to save, named after its title: the download attribute doesn't work across origins. */
 export const gpxDownloadUrl = (a: Attachment) => {
-  const name = (a.title || 'track').replace(/[\\/:*?"<>|]+/g, '-').replace(/(\.gpx)?$/i, '.gpx');
-  return supabase.storage.from(BUCKET).getPublicUrl(a.storage_path!, { download: name }).data.publicUrl;
+  const url = new URL(a.file_url!);
+  url.searchParams.set('download', (a.title || 'track').replace(/[\\/:*?"<>|]+/g, '-').replace(/(\.gpx)?$/i, '.gpx'));
+  return url.toString();
 };
+
+/** Downloads and reads a GPX attachment; null if it isn't a readable track. */
+export async function fetchTrackFile(a: Attachment): Promise<TrackFile | null> {
+  const res = await fetch(attachmentUrl(a));
+  return res.ok ? readTrackFile(await res.text()) : null;
+}
+
+/**
+ * Measures your tracks saved before their statistics were stored. Their files
+ * carry no times, so only distances and heights come back. Once they're all
+ * measured this is a single empty query.
+ */
+export async function fillMissingTrackStats(userId: string): Promise<void> {
+  const unmeasured = await queryAttachments(q => q.eq('created_by', userId).eq('kind', 'gpx').is('distance_km', null));
+  for (const a of unmeasured) {
+    const file = await fetchTrackFile(a);
+    const stats = file && trackStats(file.segments);
+    if (stats) unwrap(await supabase.from('attachments').update(stats).eq('id', a.id));
+  }
+}
 
 // ---------------------------------------------------------------- visits
 
@@ -282,7 +361,9 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
       id, user_id, place_id, date, summary, approach, descent, conditions, duration_hours, visibility, rating,
       profile:profiles (username),
       ascents (id, route_id, name, grade, comment, position, style, pitches, aid, place:places (id, name)),
-      visit_partners (same_rope, partner:partners (name))
+      visit_partners (same_rope, partner:partners (name)),
+      attachments (id, title, private, storage_path, place_id, created_by,
+                   distance_km, gain_m, loss_m, max_ele_m, min_ele_m, elapsed_s, moving_s, uphill_s)
     `)
     .eq('place_id', placeId)
     .order('date', { ascending: false, nullsFirst: false })
@@ -290,13 +371,17 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
 
   const names = (list: { partner: { name: string } | null }[]) =>
     list.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort();
-  return rows.map(({ profile, visit_partners, ascents, ...v }) => ({
+  return rows.map(({ profile, visit_partners, ascents, attachments, ...v }) => ({
     ...v,
     visibility: v.visibility as VisitDetail['visibility'],
     username: profile?.username ?? null,
     ascents: ascents.map(a => ({ ...a, style: a.style as VisitDetail['ascents'][number]['style'] })),
     partners: names(visit_partners.filter(vp => vp.same_rope)),
     other_partners: names(visit_partners.filter(vp => !vp.same_rope)),
+    tracks: attachments.map(a => ({
+      id: a.id, title: a.title, private: a.private, storage_path: a.storage_path, place_id: a.place_id,
+      created_by: a.created_by, stats: statsOf(a),
+    })),
   }));
 }
 
@@ -333,9 +418,12 @@ export async function saveVisit(input: VisitInput): Promise<number> {
   return unwrap(await supabase.rpc('save_visit', { v: input }));
 }
 
+/** Deletes a visit. Its private tracks go with it (a trigger removes the rows, their files go here); public ones stay on the spot. */
 export async function deleteVisit(id: number): Promise<void> {
+  const privateTracks = unwrap(await supabase.from('attachments').select('storage_path').eq('visit_id', id).eq('private', true));
   const rows = unwrap(await supabase.from('visits').delete().eq('id', id).select('id'));
   if (!rows.length) throw new Error(tr().common.errors.cantDeleteVisit);
+  await removeFiles(PRIVATE_BUCKET, privateTracks.map(a => a.storage_path!));
 }
 
 export async function isUsernameTaken(username: string): Promise<boolean> {
@@ -438,10 +526,11 @@ const removeFiles = async (bucket: string, paths: string[]) => {
  */
 export async function deleteUser(userId: string): Promise<void> {
   unwrap(await supabase.rpc('delete_user', { p_user_id: userId, p_check_only: true }));
-  const files = unwrap(await supabase.from('attachments').select('storage_path')
+  const files = unwrap(await supabase.from('attachments').select('storage_path, private')
     .eq('created_by', userId).not('storage_path', 'is', null));
   const photos = unwrap(await supabase.from('photos').select('place_id, storage_path, thumb_path').eq('created_by', userId));
-  await removeFiles('place-files', files.map(f => f.storage_path!));
+  await removeFiles(BUCKET, files.filter(f => !f.private).map(f => f.storage_path!));
+  await removeFiles(PRIVATE_BUCKET, files.filter(f => f.private).map(f => f.storage_path!));
   await removeFiles('place-photos', photos.filter(p => p.place_id != null).flatMap(p => [p.storage_path, p.thumb_path]));
   await removeFiles('visit-photos', photos.filter(p => p.place_id == null).flatMap(p => [p.storage_path, p.thumb_path]));
   unwrap(await supabase.rpc('delete_user', { p_user_id: userId }));

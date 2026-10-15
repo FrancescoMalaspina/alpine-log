@@ -86,9 +86,9 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
     try {
       id = await savePlace(input);
       setSavedId(id);
-      if (logVisit) {
-        await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit);
-      }
+      const visitId = logVisit
+        ? await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit)
+        : undefined;
       const guideUrl = guideUrlOf(values);
       if (guideUrl && !linkSaved) {
         try {
@@ -103,7 +103,8 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
       }
       if (values.track?.save && !trackSaved && userId) {
         try {
-          await saveTrackAt(id, userId, values.track, input.name);
+          await saveTrackAt({ placeId: id }, userId, values.track, input.name,
+                            visitId != null ? { id: visitId, visibility: visit.visibility } : undefined);
           setTrackSaved(true);
         } catch (e) {
           setError(t.spot.trackLoader.savedButTrackFailed(errorMessage(e)));
@@ -157,7 +158,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
     >
       <form onSubmit={e => { e.preventDefault(); save(); }}>
         <PlaceFields values={values} onChange={change} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
-                     autoFocusName withVisit={logVisit} />
+                     autoFocusName visitVisibility={logVisit ? visit.visibility : undefined} />
 
         {!place && (
           <div className="form-section">

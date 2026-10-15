@@ -45,6 +45,25 @@ export type Attachment = {
   size_bytes: number | null;
   created_at: string;
   username: string | null;
+  /** The visit a track was logged with; its file is private while `private`. */
+  visit_id: number | null;
+  private: boolean;
+  /** Computed when a GPX is saved; null for links and PDFs. */
+  stats: TrackStats | null;
+  /** Where to fetch the file: its public URL, or a signed one (valid for an hour) for a private track. */
+  file_url: string | null;
+};
+
+/** A track's numbers, stored with it (columns of attachments). Times are null when the file had none. */
+export type TrackStats = {
+  distance_km: number;
+  gain_m: number | null;
+  loss_m: number | null;
+  max_ele_m: number | null;
+  min_ele_m: number | null;
+  elapsed_s: number | null;
+  moving_s: number | null;
+  uphill_s: number | null;
 };
 
 /** One row of the visit_overview view (a visit card). */
@@ -74,6 +93,9 @@ export type VisitSummary = {
   max_sent_grade_rank: number | null;
   /** Each route's pitches, else its spot's, else one at a crag, DWS or gym. */
   pitches_climbed: number;
+  /** What the visit's tracks add up to (only tracks you can see); null without one. */
+  track_distance_km: number | null;
+  track_gain_m: number | null;
   partner_ids: number[];
   partner_names: string[];
 };
@@ -125,7 +147,12 @@ export type VisitDetail = {
   partners: string[];
   /** People in other ropes of the same group. */
   other_partners: string[];
+  /** Tracks logged with the visit (they're also on the spot). */
+  tracks: VisitTrack[];
 };
+
+/** A track logged with a visit, as the visit shows (and publishes) it. */
+export type VisitTrack = Pick<Attachment, 'id' | 'title' | 'private' | 'storage_path' | 'place_id' | 'created_by' | 'stats'>;
 
 export type Partner = { id: number; name: string };
 

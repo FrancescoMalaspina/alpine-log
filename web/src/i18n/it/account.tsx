@@ -32,6 +32,8 @@ const it: Widen<typeof en> = {
     hardest: 'Più difficile',
     hardestSent: 'Più dura chiusa',
     pitches: 'Tiri',
+    distance: 'km',
+    climbed: 'm di salita',
     byYear: 'Per anno',
     year: 'Anno',
     noDate: 'Senza data',
