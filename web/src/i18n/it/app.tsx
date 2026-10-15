@@ -5,6 +5,7 @@ const it: Widen<typeof en> = {
   app: {
     visitSaved: 'Visita salvata',
     spotSaved: 'Spot salvato',
+    suggestionSent: 'Proposta inviata: la valuterà un admin',
     visitSavedWishDone: 'Visita salvata e spuntata dalla tua lista dei desideri',
     accountDeleted: 'Il tuo account è stato eliminato.',
     areaCreated: 'Area creata. Aggiungi qui sotto gli spot.',

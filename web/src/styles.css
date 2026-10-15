@@ -785,6 +785,10 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 .latest-tip:hover { background: var(--tint); }
 .latest-tip-label { font-size: 12.5px; font-weight: 600; color: var(--slate); }
 .latest-tip-body { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-suggestion { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; margin-bottom: 12px;
+  background: var(--paper); border-left: 3px solid var(--granite); border-radius: var(--radius); }
+.my-suggestion-label { font-size: 13.5px; font-weight: 600; }
+.my-suggestion-note { white-space: pre-line; color: var(--slate); }
 
 /* ---------------------------------------------------------------- confirm dialog */
 .confirm-message p { margin: 0 0 8px; }

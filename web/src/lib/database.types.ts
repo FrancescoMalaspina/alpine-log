@@ -388,6 +388,73 @@ export type Database = {
           },
         ]
       }
+      place_suggestions: {
+        Row: {
+          accepted: string[] | null
+          author_id: string
+          base: Json
+          changes: Json
+          created_at: string
+          id: number
+          note: string | null
+          place_id: number
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          accepted?: string[] | null
+          author_id?: string
+          base: Json
+          changes: Json
+          created_at?: string
+          id?: never
+          note?: string | null
+          place_id: number
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          accepted?: string[] | null
+          author_id?: string
+          base?: Json
+          changes?: Json
+          created_at?: string
+          id?: never
+          note?: string | null
+          place_id?: number
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "place_suggestions_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_suggestions_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "place_suggestions_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       places: {
         Row: {
           activity: string
@@ -966,6 +1033,10 @@ export type Database = {
       }
     }
     Functions: {
+      approve_place_suggestion: {
+        Args: { p_fields?: string[]; p_id: number; p_note?: string }
+        Returns: string[]
+      }
       areas_for_spots: {
         Args: { p: Json }
         Returns: {
@@ -1040,6 +1111,21 @@ export type Database = {
         Args: { p_partner_id: number }
         Returns: boolean
       }
+      pending_place_suggestions: {
+        Args: never
+        Returns: {
+          author_id: string
+          author_name: string
+          base: Json
+          changes: Json
+          created_at: string
+          current: Json
+          id: number
+          note: string
+          place_id: number
+          place_name: string
+        }[]
+      }
       places_within: {
         Args: { p_lat: number; p_lng: number; radius_km: number }
         Returns: {
@@ -1049,6 +1135,10 @@ export type Database = {
       }
       publish_track: {
         Args: { p_attachment_id: number; p_public_path: string }
+        Returns: undefined
+      }
+      reject_place_suggestion: {
+        Args: { p_id: number; p_note?: string }
         Returns: undefined
       }
       reopen_wish: { Args: { p_wish_id: number }; Returns: undefined }
@@ -1088,6 +1178,11 @@ export type Database = {
         Args: { name: string; sector: string }
         Returns: string
       }
+      suggest_place_changes: {
+        Args: { p: Json; p_note?: string }
+        Returns: number
+      }
+      withdraw_place_suggestion: { Args: { p_id: number }; Returns: undefined }
     }
     Enums: {
       [_ in never]: never

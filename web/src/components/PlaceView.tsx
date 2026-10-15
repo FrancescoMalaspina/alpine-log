@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { addRoute, deleteRoute, deleteVisit, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips } from '../lib/api';
+import { addRoute, deleteRoute, deleteVisit, fetchMyPlaceSuggestion, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips, withdrawPlaceSuggestion } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { TrackLayer } from '../lib/gpx';
 import { useI18n } from '../i18n';
 import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
 import { trackStatsParts } from '../lib/trackStats';
 import { ActivityBadge } from './ActivityBadge';
-import type { Place, Route, Tip, VisitDetail, Wish } from '../lib/types';
+import type { Place, PlaceSuggestion, Route, Tip, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
 import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
@@ -74,7 +74,11 @@ export function PlaceView(props: Props) {
       onClose={props.onClose}
       footer={<>
         {props.isMobile && <button className="btn btn-ghost" type="button" onClick={props.onShowOnMap}>{t.spot.placeView.showOnMap}</button>}
-        {props.canEdit && <button className="btn btn-ghost" type="button" onClick={props.onEdit}>{t.spot.placeView.editSpot}</button>}
+        {props.userId && (
+          <button className="btn btn-ghost" type="button" onClick={props.onEdit}>
+            {props.canEdit ? t.spot.placeView.editSpot : t.spot.placeView.suggestChanges}
+          </button>
+        )}
         {props.userId && (
           <button className={`btn btn-ghost wish-btn${props.wish ? ' on' : ''}`} type="button" onClick={props.onWish}
                   aria-pressed={!!props.wish}>
@@ -108,7 +112,7 @@ export function PlaceView(props: Props) {
   );
 }
 
-function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onToggleTrack, wish, onChanged, onTab, latestTip }: Props & { latestTip?: Tip }) {
+function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onToggleTrack, wish, onChanged, onTab, onEdit, latestTip }: Props & { latestTip?: Tip }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [wishers, setWishers] = useState<string[]>([]);
@@ -139,6 +143,7 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onTo
 
   return (
     <div className="place-info">
+      {userId && <MySuggestion placeId={p.id} userId={userId} reloadKey={reloadKey} onEdit={onEdit} />}
       <dl className="facts">
         {rows.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
@@ -168,6 +173,55 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onTo
 
       <Attachments owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} activity={p.activity}
                    tracks={tracks} onToggleTrack={onToggleTrack} onChange={onChanged} />
+    </div>
+  );
+}
+
+/** Days a reviewed suggestion stays on its author's view of the spot. */
+const REVIEW_SHOWN_DAYS = 14;
+
+/** The user's suggestion for this spot: waiting for an admin, or recently approved or rejected. */
+function MySuggestion({ placeId, userId, reloadKey, onEdit }: { placeId: number; userId: string; reloadKey: number; onEdit: () => void }) {
+  const { t } = useI18n();
+  const s = t.spot.suggestion;
+  const [suggestion, setSuggestion] = useState<PlaceSuggestion | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchMyPlaceSuggestion(placeId, userId).then(r => {
+      const shown = r && (r.status === 'pending'
+        || Date.now() - Date.parse(r.reviewed_at ?? '') < REVIEW_SHOWN_DAYS * 86_400_000);
+      if (!cancelled) setSuggestion(shown ? r : null);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [placeId, userId, reloadKey]);
+
+  if (!suggestion) return null;
+  const date = formatDate(suggestion.created_at.slice(0, 10));
+
+  async function withdraw() {
+    if (!suggestion || !confirm(s.confirmWithdraw)) return;
+    try {
+      await withdrawPlaceSuggestion(suggestion.id);
+      setSuggestion(null);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+
+  return (
+    <div className="my-suggestion">
+      <span className="my-suggestion-label">
+        {suggestion.status === 'pending' ? s.pending(date) : suggestion.status === 'approved' ? s.approved(date) : s.rejected(date)}
+      </span>
+      {suggestion.review_note && <span className="my-suggestion-note">{suggestion.review_note}</span>}
+      {suggestion.status === 'pending' && (
+        <span className="tip-actions">
+          <button type="button" className="link-btn" onClick={onEdit}>{s.edit}</button>
+          <button type="button" className="link-btn danger" onClick={withdraw}>{s.withdraw}</button>
+        </span>
+      )}
+      <ErrorText error={error} />
     </div>
   );
 }

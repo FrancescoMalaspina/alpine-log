@@ -81,6 +81,19 @@ export function placeValuesFrom(place?: Place): PlaceValues {
   };
 }
 
+/** The spot as a suggestion would leave it: the suggested fields over the current ones. */
+export function placeWithChanges(place: Place, changes: Partial<PlaceInput>): Place {
+  const { area_name, sector_name, ...fields } = changes;
+  const named = (now: Place['area'], name: string | null | undefined) =>
+    name === undefined ? now : name ? { id: now?.id ?? 0, name } : null;
+  return {
+    ...place,
+    ...(fields as Partial<Place>),
+    area: named(place.area, area_name),
+    sector: named(place.sector, sector_name),
+  };
+}
+
 /** The guide link as it will be saved: `https://` added when only the address was typed; null if empty or unusable. */
 export function guideUrlOf(v: Pick<PlaceValues, 'guideUrl'>): string | null {
   const raw = v.guideUrl.trim();

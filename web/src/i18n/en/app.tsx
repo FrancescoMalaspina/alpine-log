@@ -3,6 +3,7 @@ const en = {
   app: {
     visitSaved: 'Visit saved',
     spotSaved: 'Spot saved',
+    suggestionSent: 'Suggestion sent: an admin will review it',
     visitSavedWishDone: 'Visit saved, and ticked off your wishlist',
     accountDeleted: 'Your account has been deleted.',
     areaCreated: 'Area created. Add spots to it below.',

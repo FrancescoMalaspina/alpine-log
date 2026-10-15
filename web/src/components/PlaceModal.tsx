@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { addLink, deletePlace, savePlace } from '../lib/api';
+import { addLink, deletePlace, fetchMyPlaceSuggestion, savePlace, suggestPlaceChanges } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Sector } from '../lib/types';
 import { PlaceFields } from './forms/PlaceFields';
-import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
+import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, placeWithChanges, TRACK_ACTIVITIES, type CoordField, type PlaceValues } from './forms/placeForm';
 import { saveTrackAt, saveVisitAt } from './forms/save';
 import { VisitFields } from './forms/VisitFields';
 import { topoOf, visitFromTrack, visitProblem, visitValuesFrom, type VisitValues } from './forms/visitForm';
@@ -24,11 +24,13 @@ type Props = {
   sectors: Sector[];
   partners: Partner[];
   canDelete: boolean;
+  /** Editing someone else's spot: the changes go to the admins as a suggestion. */
+  suggest: boolean;
   hidden: boolean;
   onPickOnMap: PickOnMap;
   onCoordsChange: (at: LatLng | null) => void;
   onClose: () => void;
-  onSaved: (placeId: number, loggedVisit: boolean) => void;
+  onSaved: (placeId: number, loggedVisit: boolean, suggested?: boolean) => void;
   onDeleted: () => void;
   /** Admins, editing: merge this spot into another. */
   onMerge?: () => void;
@@ -36,14 +38,20 @@ type Props = {
   onOpenExisting: (placeId: number) => void;
 };
 
-/** Add or edit a place; a new place can be saved together with a visit there. */
-export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted, onMerge, onOpenExisting }: Props) {
+/**
+ * Add or edit a place; a new place can be saved together with a visit there.
+ * Someone else's spot is "edited" as a suggestion, starting from the user's pending one.
+ */
+export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, canDelete, suggest, hidden, onPickOnMap, onCoordsChange, onClose, onSaved, onDeleted, onMerge, onOpenExisting }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeModal;
   const [values, setValues] = useState<PlaceValues>(() => ({
     ...placeValuesFrom(place),
     ...(initialAt && !place ? { coords: formatCoords(initialAt.lat, initialAt.lng) } : {}),
   }));
+  const [note, setNote] = useState('');
+  // A suggestion starts from the user's pending one, so the form waits for it.
+  const [ready, setReady] = useState(!suggest);
   const [logVisit, setLogVisit] = useState(false);
   const [visit, setVisit] = useState<VisitValues>(() => visitValuesFrom());
   // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.
@@ -52,6 +60,20 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const userId = useAuth().session?.user.id;
+
+  useEffect(() => {
+    if (!suggest || !place || !userId) return;
+    let cancelled = false;
+    fetchMyPlaceSuggestion(place.id, userId)
+      .then(pending => {
+        if (cancelled || pending?.status !== 'pending') return;
+        setValues(placeValuesFrom(placeWithChanges(place, pending.changes)));
+        setNote(pending.note ?? '');
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setReady(true); });
+    return () => { cancelled = true; };
+  }, [suggest, place, userId]);
   // Set once the track is uploaded, so a retry doesn't upload it twice.
   const [trackSaved, setTrackSaved] = useState(false);
   const [linkSaved, setLinkSaved] = useState(false);
@@ -84,11 +106,19 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
     if (typeof input === 'string') return setError(input);
     const problem = logVisit ? visitProblem(visit) : null;
     if (problem) return setError(s.visitProblem(problem));
+    // Links and tracks are added straight away; only the spot's own fields wait for an admin.
+    const fieldsChanged = !suggest || JSON.stringify(input) !== JSON.stringify(buildPlaceInput(placeValuesFrom(place), savedId));
+    if (!fieldsChanged && !guideUrlOf(values) && !values.track?.save) return setError(s.nothingChanged);
 
     setBusy(true);
     let id = savedId;
     try {
-      id = await savePlace(input);
+      if (suggest && place) {
+        if (fieldsChanged) await suggestPlaceChanges(input, note);
+        id = place.id;
+      } else {
+        id = await savePlace(input);
+      }
       setSavedId(id);
       const visitId = logVisit
         ? await saveVisitAt({ id, name: input.name, grade: input.grade || null, activity: input.activity }, visit)
@@ -117,7 +147,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
           return;
         }
       }
-      onSaved(id, logVisit);
+      onSaved(id, logVisit, suggest && fieldsChanged);
     } catch (e) {
       setError(id && logVisit && !place ? s.savedButVisitFailed(errorMessage(e)) : errorMessage(e));
       setBusy(false);
@@ -142,10 +172,8 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
 
   return (
     <Modal
-      title={place ? s.editTitle : s.addTitle}
-      subtitle={place
-        ? s.editSubtitle
-        : s.addSubtitle}
+      title={suggest ? s.suggestTitle : place ? s.editTitle : s.addTitle}
+      subtitle={suggest ? s.suggestSubtitle : place ? s.editSubtitle : s.addSubtitle}
       onClose={close}
       hidden={hidden}
       footer={<>
@@ -155,13 +183,13 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
         {done != null ? (
           <button className="btn btn-primary" type="button" onClick={() => onSaved(done, logVisit)}>{t.common.done}</button>
         ) : (
-          <button className="btn btn-primary" type="button" disabled={busy} onClick={save}>
-            {place ? s.saveChanges : logVisit ? s.saveSpotAndVisit : s.saveSpot}
+          <button className="btn btn-primary" type="button" disabled={busy || !ready} onClick={save}>
+            {suggest ? s.sendSuggestion : place ? s.saveChanges : logVisit ? s.saveSpotAndVisit : s.saveSpot}
           </button>
         )}
       </>}
     >
-      <form onSubmit={e => { e.preventDefault(); save(); }}>
+      {ready && <form onSubmit={e => { e.preventDefault(); save(); }}>
         <PlaceFields values={values} onChange={change} areas={areas} sectors={sectors} rocks={rocks} onPickOnMap={pick}
                      autoFocusName visitVisibility={logVisit ? visit.visibility : undefined}
                      existingSpotAction={place ? undefined : { label: t.spot.similar.open, onPick: onOpenExisting }} />
@@ -178,10 +206,19 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
             )}
           </div>
         )}
+        {suggest && (
+          <div className="form-section">
+            <div className="field full">
+              <label htmlFor="suggestionNote">{s.suggestionNote} <span className="hint">{t.spot.placeFields.optional}</span></label>
+              <textarea id="suggestionNote" value={note} maxLength={2000} placeholder={s.suggestionNotePlaceholder}
+                        onChange={e => { setNote(e.target.value); setDirty(true); }} />
+            </div>
+          </div>
+        )}
         {place && <p className="form-note">{s.editNote}</p>}
         <div className="form-error-row"><ErrorText error={error} /></div>
         <button type="submit" hidden />
-      </form>
+      </form>}
     </Modal>
   );
 }

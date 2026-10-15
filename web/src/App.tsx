@@ -318,12 +318,12 @@ export default function App() {
     if (isMobile) setMobileTab('map');
   }, [isMobile]);
   /** After a save, show the result: the place's panel, on its visits if one was logged. */
-  const showSaved = (placeId: number, visitLogged: boolean) => {
+  const showSaved = (placeId: number, visitLogged: boolean, suggested = false) => {
     closeForms();
     reload();
     setFocusedId(placeId);
     setPanel({ kind: 'place', placeId, tab: visitLogged ? 'visits' : 'info' });
-    setNotice(visitLogged ? t.app.app.visitSaved : t.app.app.spotSaved);
+    setNotice(visitLogged ? t.app.app.visitSaved : suggested ? t.app.app.suggestionSent : t.app.app.spotSaved);
   };
 
   useEffect(() => {
@@ -565,6 +565,7 @@ export default function App() {
           sectors={sectors}
           partners={partners}
           canDelete={!!placeModal.place && canEdit(placeModal.place)}
+          suggest={!!placeModal.place && !canEdit(placeModal.place)}
           hidden={!!picking}
           onPickOnMap={pickOnMap}
           onCoordsChange={setTempPin}

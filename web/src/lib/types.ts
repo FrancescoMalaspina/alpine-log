@@ -198,6 +198,19 @@ export type Wish = {
 
 export type WishInput = Pick<Wish, 'place_id' | 'priority' | 'seasons' | 'with_people' | 'notes' | 'visibility'> & { id?: number };
 
+/** A change to someone else's spot, waiting for an admin (see supabase/migrations, spot_suggestions). */
+export type PlaceSuggestion = {
+  id: number;
+  place_id: number;
+  /** Only the changed fields, keyed like PlaceInput. */
+  changes: Partial<PlaceInput>;
+  note: string | null;
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn';
+  created_at: string;
+  reviewed_at: string | null;
+  review_note: string | null;
+};
+
 /** Payload of public.save_place (see supabase/migrations). */
 export type PlaceInput = {
   id?: number;

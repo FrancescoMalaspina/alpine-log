@@ -6,7 +6,7 @@ import type { Database, Json } from './database.types';
 import { supabase } from './supabase';
 import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
-  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, Profile, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
   Tip, TipInput, TrackStats, VisitTrack, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
@@ -81,6 +81,31 @@ export async function fetchRocks(): Promise<string[]> {
 
 export async function savePlace(input: PlaceInput): Promise<number> {
   return unwrap(await supabase.rpc('save_place', { p: input }));
+}
+
+// ---------------------------------------------------------------- suggested changes
+
+/** Suggests the changes `input` makes to someone else's spot; replaces the user's pending suggestion there. */
+export async function suggestPlaceChanges(input: PlaceInput, note: string): Promise<number> {
+  return unwrap(await supabase.rpc('suggest_place_changes', { p: input, p_note: note }));
+}
+
+/** The user's latest suggestion for a spot (only authors and admins read suggestions). */
+export async function fetchMyPlaceSuggestion(placeId: number, userId: string): Promise<PlaceSuggestion | null> {
+  const rows = unwrap(await supabase
+    .from('place_suggestions')
+    .select('id, place_id, changes, note, status, created_at, reviewed_at, review_note')
+    .eq('place_id', placeId)
+    .eq('author_id', userId)
+    .neq('status', 'withdrawn')
+    .order('created_at', { ascending: false })
+    .limit(1));
+  return (rows[0] as PlaceSuggestion | undefined) ?? null;
+}
+
+export async function withdrawPlaceSuggestion(id: number): Promise<void> {
+  const { error } = await supabase.rpc('withdraw_place_suggestion', { p_id: id });
+  if (error) throw new Error(error.message);
 }
 
 // ---------------------------------------------------------------- shared route lists
