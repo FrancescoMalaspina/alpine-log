@@ -1,7 +1,13 @@
 import { useId, useState } from 'react';
 import { foldName } from '../../lib/names';
 
-export type ComboOption = { key: string | number; label: string; hint?: string };
+export type ComboOption = {
+  key: string | number;
+  label: string;
+  hint?: string;
+  /** More text the typed words also match, e.g. the area a spot is in. */
+  also?: string;
+};
 
 type Props = {
   id: string;
@@ -27,7 +33,7 @@ export function Combobox({ id, value, onChange, options, placeholder, onPick }: 
 
   const typed = foldName(value);
   const shown = options
-    .filter(o => foldName(o.label).includes(typed))
+    .filter(o => foldName(`${o.label} ${o.also ?? ''}`).includes(typed))
     // What starts with the typed text first.
     .sort((a, b) => Number(foldName(b.label).startsWith(typed)) - Number(foldName(a.label).startsWith(typed)))
     .slice(0, MAX_SHOWN);

@@ -636,6 +636,7 @@ html[lang="it"] .collapsible[open] > summary::after { content: 'Nascondi'; }
 .combobox-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; cursor: pointer; }
 .combobox-list li:hover, .combobox-list li.active { background: var(--tint); }
 .combobox-list .hint { font-size: 13px; white-space: nowrap; }
+.new-spot-link { align-self: flex-start; }
 
 /* Existing areas and spots like the one being typed (forms/SimilarHints). */
 .similar { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 6px; font-size: 13.5px; }

@@ -6,6 +6,7 @@ import { addLink, completeWish, fetchRoutes, publishTrack, savePlace } from '../
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
 import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
+import { Combobox } from './forms/Combobox';
 import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues, type TrackDraft } from './forms/placeForm';
 import { saveTrackAt, saveVisitAt } from './forms/save';
@@ -46,6 +47,11 @@ export function VisitModal({
   const { t } = useI18n();
   const s = t.spot.visitModal;
   const [choice, setChoice] = useState<string>(visit ? String(visit.place_id) : placeId ? String(placeId) : '');
+  // What the spot field shows; a spot is chosen only by picking it from the list.
+  const [query, setQuery] = useState(() => {
+    const initial = places.find(p => String(p.id) === choice);
+    return initial ? spotLabel(initial) : '';
+  });
   const [newPlace, setNewPlace] = useState<PlaceValues>(() => placeValuesFrom());
   // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.
   const [savedPlaceId, setSavedPlaceId] = useState<number | undefined>();
@@ -85,6 +91,8 @@ export function VisitModal({
   // Picking another spot for a new visit resets the untouched route rows to that spot's.
   const choose = (next: string) => {
     setChoice(next);
+    const picked = places.find(p => String(p.id) === next);
+    setQuery(picked ? spotLabel(picked) : '');
     setDirty(true);
     const untouched = values.ascents.every(a => !a.name.trim() && !a.grade.trim() && !a.comment.trim());
     if (!visit && untouched) {
@@ -123,16 +131,16 @@ export function VisitModal({
   const pick = (field: CoordField) =>
     onPickOnMap(coordLabel(field), at => changePlace({ [field]: formatCoords(at.lat, at.lng) }));
 
-  // Places grouped by area for the picker, by sector within it; places without an area last.
-  const groups = useMemo(() => {
-    const byArea = new Map<string, Place[]>();
-    const label = (p: Place) => `${p.sector?.name ?? ''}\u0000${p.name}`;
-    for (const p of [...places].sort((a, b) => label(a).localeCompare(label(b)))) {
-      const key = p.area?.name ?? '';
-      byArea.set(key, [...(byArea.get(key) ?? []), p]);
-    }
-    return [...byArea.entries()].sort(([a], [b]) => (!a ? 1 : !b ? -1 : a.localeCompare(b)));
-  }, [places]);
+  // Spots for the picker, by area, then sector, then name; spots without an area last.
+  const spotOptions = useMemo(() => {
+    const key = (p: Place) => `${p.area ? 0 : 1}${p.area?.name ?? ''}\u0000${p.sector?.name ?? ''}\u0000${p.name}`;
+    return [...places].sort((a, b) => key(a).localeCompare(key(b))).map(p => ({
+      key: p.id,
+      label: spotLabel(p),
+      hint: `${activityLabel(p.activity)} · ${p.area?.name ?? s.noArea}`,
+      also: p.area?.name,
+    }));
+  }, [places, s.noArea]);
 
   async function save() {
     setError(null);
@@ -232,19 +240,13 @@ export function VisitModal({
         {!visit && (
           <div className="field">
             <label htmlFor="visitPlace">{s.where}</label>
-            <select id="visitPlace" value={choice} onChange={e => choose(e.target.value)}>
-              <option value="" disabled>{s.chooseSpot}</option>
-              <option value={NEW}>{s.newSpotOption}</option>
-              {groups.map(([area, list]) => (
-                <optgroup key={area || 'none'} label={area || s.noArea}>
-                  {list.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.sector ? `${p.sector.name} › ` : ''}{p.name} ({activityLabel(p.activity)})
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            <Combobox id="visitPlace" value={query} placeholder={s.chooseSpot} options={spotOptions}
+                      // Typing over a chosen spot unchooses it.
+                      onChange={text => { if (choice) choose(''); setQuery(text); }}
+                      onPick={o => choose(String(o.key))} />
+            {!isNew && (
+              <button type="button" className="btn-link new-spot-link" onClick={() => choose(NEW)}>{s.newSpotOption}</button>
+            )}
           </div>
         )}
       </div>
@@ -306,4 +308,9 @@ export function VisitModal({
       {askDialog}
     </Modal>
   );
+}
+
+/** How a spot reads in the picker: its sector, when it has one, before its name. */
+function spotLabel(p: Place): string {
+  return p.sector ? `${p.sector.name} › ${p.name}` : p.name;
 }
