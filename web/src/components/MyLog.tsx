@@ -106,8 +106,6 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
       {stats && visits!.length > 0 && (
         <dl className="log-totals">
           <div><dt>{t.account.myLog.daysOut}</dt><dd className="num">{stats.totals.days}</dd></div>
-          <div><dt>{t.account.myLog.routesTotal}</dt><dd className="num">{stats.totals.routes}</dd></div>
-          <div><dt>{t.account.myLog.pitches}</dt><dd className="num">{stats.totals.pitches}</dd></div>
           <div><dt>{t.account.myLog.spots}</dt><dd className="num">{stats.totals.places}</dd></div>
           <div><dt>{t.account.myLog.areas}</dt><dd className="num">{stats.totals.areas}</dd></div>
         </dl>
