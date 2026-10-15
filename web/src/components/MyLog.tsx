@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { locale, useI18n } from '../i18n';
 import { fetchImports, fetchVisits, type ImportRecord } from '../lib/api';
 import { activityLabel, errorMessage, formatDate } from '../lib/labels';
-import { computeStats, type Tally } from '../lib/logStats';
+import { computeStats, type ActivityTally, type Tally } from '../lib/logStats';
 import { EMPTY_VISIT_FILTERS, type Activity, type Place, type VisitSummary, type Wish } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Drawer } from './Drawer';
 import { DownloadModal, ImportsModal } from './LogbookModals';
+import { TRACK_ACTIVITIES } from './forms/placeForm';
 import { ErrorText } from './Modal';
 import { ImportWizard } from './import/ImportWizard';
 import { VisitRow } from './Sidebar';
@@ -50,7 +51,16 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
   }, [userId, reloadKey]);
 
   const stats = useMemo(() => (visits ? computeStats(visits) : null), [visits]);
-  const hasTracks = !!stats?.totals.km;
+  // Climbing (routes, pitches, grades) and tours (distance, height) count different things: a table each.
+  const climbing = stats?.byActivity.filter(a => !TRACK_ACTIVITIES.includes(a.type)) ?? [];
+  const tours = stats?.byActivity.filter(a => TRACK_ACTIVITIES.includes(a.type)) ?? [];
+  const activityHead = (a: ActivityTally) =>
+    <span className="meta-item"><ActivityBadge activity={a.type} />{activityLabel(a.type)}</span>;
+  const days: Column<Tally> = { head: t.account.myLog.days, cell: r => r.days };
+  const routes: Column<Tally> = { head: t.account.myLog.routesTotal, cell: r => r.routes };
+  const pitches: Column<Tally> = { head: t.account.myLog.pitches, cell: r => r.pitches };
+  const km: Column<Tally> = { head: t.account.myLog.distance, cell: r => Math.round(r.km) };
+  const climbed: Column<Tally> = { head: t.account.myLog.climbed, cell: r => r.gain && r.gain.toLocaleString(locale()) };
   const shown = useMemo(
     () => (visits ?? []).filter(v => !only || v.place_activity === only), [visits, only]);
   const byYear = useMemo(() => {
@@ -108,46 +118,25 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
       {stats && visits!.length > 0 && <>
         <details className="downloads-panel">
           <summary className="section-title">{t.account.myLog.statistics}</summary>
-          <h4 className="stats-heading">{t.account.myLog.byActivity}</h4>
-          <table className="stats-table">
-            <thead>
-              <tr><th scope="col">{t.account.myLog.activity}</th><th scope="col">{t.account.myLog.days}</th>
-                <th scope="col">{t.account.myLog.routesTotal}</th><th scope="col">{t.account.myLog.pitches}</th>
-                {hasTracks && <TrackHeads />}
-                <th scope="col">{t.account.myLog.hardest}</th>
-                <th scope="col">{t.account.myLog.hardestSent}</th></tr>
-            </thead>
-            <tbody>
-              {stats.byActivity.map(a => (
-                <tr key={a.type}>
-                  <th scope="row"><span className="meta-item"><ActivityBadge activity={a.type} />{activityLabel(a.type)}</span></th>
-                  <td className="num">{a.days}</td>
-                  <td className="num">{a.routes}</td>
-                  <td className="num">{a.pitches || '–'}</td>
-                  {hasTracks && <TrackCells tally={a} />}
-                  <td className="num">{a.hardest ?? '–'}</td>
-                  <td className="num">{a.hardestSent ?? '–'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {climbing.length > 0 && <>
+            <h4 className="stats-heading">{t.account.myLog.climbing}</h4>
+            <StatsTable head={t.account.myLog.activity} rows={climbing} rowKey={a => a.type} rowHead={activityHead} columns={[
+              days, routes, pitches,
+              { head: t.account.myLog.hardest, cell: a => a.hardest },
+              { head: t.account.myLog.hardestSent, cell: a => a.hardestSent },
+            ]} />
+          </>}
+          {tours.length > 0 && <>
+            <h4 className="stats-heading">{t.account.myLog.tours}</h4>
+            <StatsTable head={t.account.myLog.activity} rows={tours} rowKey={a => a.type} rowHead={activityHead} columns={[
+              days, km, climbed,
+              { head: t.account.myLog.hardest, cell: a => a.hardest },
+            ]} />
+          </>}
 
           <h4 className="stats-heading">{t.account.myLog.byYear}</h4>
-          <table className="stats-table">
-            <thead><tr><th scope="col">{t.account.myLog.year}</th><th scope="col">{t.account.myLog.days}</th><th scope="col">{t.account.myLog.routesTotal}</th>
-              <th scope="col">{t.account.myLog.pitches}</th>{hasTracks && <TrackHeads />}</tr></thead>
-            <tbody>
-              {stats.byYear.map(y => (
-                <tr key={y.year}>
-                  <th scope="row" className="num">{y.year === NO_DATE ? t.account.myLog.noDate : y.year}</th>
-                  <td className="num">{y.days}</td>
-                  <td className="num">{y.routes}</td>
-                  <td className="num">{y.pitches || '–'}</td>
-                  {hasTracks && <TrackCells tally={y} />}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <StatsTable head={t.account.myLog.year} rows={stats.byYear} rowKey={y => y.year} columns={[days, routes, pitches, km, climbed]}
+                      rowHead={y => <span className="num">{y.year === NO_DATE ? t.account.myLog.noDate : y.year}</span>} />
         </details>
 
         <h3 className="section-title">{t.account.myLog.allVisits}</h3>
@@ -193,14 +182,26 @@ function ActionIcon({ d }: { d: string }) {
   );
 }
 
-/** The distance and height the tracks of a row's visits add up to. */
-function TrackHeads() {
-  const { t } = useI18n();
-  return <><th scope="col">{t.account.myLog.distance}</th><th scope="col">{t.account.myLog.climbed}</th></>;
-}
-function TrackCells({ tally }: { tally: Tally }) {
-  return <>
-    <td className="num">{Math.round(tally.km) || '–'}</td>
-    <td className="num">{tally.gain ? tally.gain.toLocaleString(locale()) : '–'}</td>
-  </>;
+type Column<R> = { head: string; cell: (row: R) => string | number | null };
+
+/** A statistics table, leaving out the columns with nothing in any row (0 and none show as a dash). */
+function StatsTable<R>({ head, rows, rowKey, rowHead, columns }: {
+  head: string; rows: R[]; rowKey: (row: R) => string; rowHead: (row: R) => ReactNode; columns: Column<R>[];
+}) {
+  const shown = columns.filter(c => rows.some(r => c.cell(r)));
+  return (
+    <table className="stats-table">
+      <thead>
+        <tr><th scope="col">{head}</th>{shown.map(c => <th key={c.head} scope="col">{c.head}</th>)}</tr>
+      </thead>
+      <tbody>
+        {rows.map(r => (
+          <tr key={rowKey(r)}>
+            <th scope="row">{rowHead(r)}</th>
+            {shown.map(c => <td key={c.head} className="num">{c.cell(r) || '–'}</td>)}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
