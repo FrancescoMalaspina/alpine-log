@@ -168,6 +168,7 @@ declare
   pid bigint;
   sid bigint;
   vid bigint;
+  aid bigint;
 begin
   if v_owner is null then
     raise exception 'No auth user with email %. Sign up in the app first.', ${q(owner)};
@@ -216,9 +217,14 @@ ${insertSpot(firstWall ?? s.name, firstWall ? null : s.description, firstWall ? 
     out.push(`  insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', ${q(link)});`);
   }
   for (const v of s.visits) {
-    out.push(`  insert into public.visits (user_id, place_id, date, summary, approach, descent, visibility)
-  values (v_owner, pid, ${v.date ? `${q(v.date)}::date` : 'null'}, ${q(v.summary)}, ${q(v.avvicinamento)}, ${q(v.discesa)}, ${q(visibility)})
+    out.push(`  insert into public.visits (user_id, place_id, date, visibility)
+  values (v_owner, pid, ${v.date ? `${q(v.date)}::date` : 'null'}, ${q(visibility)})
   returning id into vid;`);
+    // What was written about the visit is private: only its author reads it.
+    if (v.summary || v.avvicinamento || v.discesa) {
+      out.push(`  insert into public.visit_notes (visit_id, summary, approach, descent)
+  values (vid, ${q(v.summary)}, ${q(v.avvicinamento)}, ${q(v.discesa)});`);
+    }
     v.routes.forEach((r, i) => {
       // A route on another wall names that spot; one whose sector isn't a wall
       // of this crag keeps the sector's name in its comment.
@@ -226,8 +232,10 @@ ${insertSpot(firstWall ?? s.name, firstWall ? null : s.description, firstWall ? 
       const comment = r.sector && !ownSector ? [r.comment, `(sector: ${r.sector})`].filter(Boolean).join(' ') : r.comment;
       const wall = ownSector && r.sector !== firstWall
         ? `(select id from public.places where sector_id = sid and name = ${q(r.sector)})` : 'null';
-      out.push(`  insert into public.ascents (visit_id, place_id, name, grade, comment, position)
-  values (vid, ${wall}, ${q(r.name)}, ${q(r.grade)}, ${q(comment)}, ${i});`);
+      out.push(`  insert into public.ascents (visit_id, place_id, name, grade, position)
+  values (vid, ${wall}, ${q(r.name)}, ${q(r.grade)}, ${i})${comment ? `
+  returning id into aid;
+  insert into public.ascent_notes (ascent_id, comment) values (aid, ${q(comment)})` : ''};`);
     });
     if (v.with?.length) {
       out.push(`  insert into public.visit_partners (visit_id, partner_id)

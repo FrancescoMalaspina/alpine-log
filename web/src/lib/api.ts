@@ -366,13 +366,21 @@ export async function fetchVisits(f: VisitFilters, userId: string | null): Promi
   return unwrap(await q) as VisitSummary[];
 }
 
+type VisitNotes = Pick<VisitDetail, 'summary' | 'conditions' | 'approach' | 'descent'>;
+
+/** A visit's private notes: empty unless you wrote it (visit_notes is readable only by the author). */
+const notesOf = (n: VisitNotes | null): VisitNotes => ({
+  summary: n?.summary ?? null, conditions: n?.conditions ?? null, approach: n?.approach ?? null, descent: n?.descent ?? null,
+});
+
 export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> {
   const rows = unwrap(await supabase
     .from('visits')
     .select(`
-      id, user_id, place_id, date, summary, approach, descent, conditions, duration_hours, visibility, rating,
+      id, user_id, place_id, date, duration_hours, visibility, rating,
       profile:profiles (username),
-      ascents (id, route_id, name, grade, comment, position, style, pitches, aid, place:places (id, name)),
+      notes:visit_notes (summary, conditions, approach, descent),
+      ascents (id, route_id, name, grade, position, style, pitches, aid, note:ascent_notes (comment), place:places (id, name)),
       visit_partners (same_rope, partner:partners (name)),
       attachments (id, title, private, storage_path, place_id, created_by,
                    distance_km, gain_m, loss_m, max_ele_m, min_ele_m, elapsed_s, moving_s, uphill_s)
@@ -383,11 +391,12 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
 
   const names = (list: { partner: { name: string } | null }[]) =>
     list.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort();
-  return rows.map(({ profile, visit_partners, ascents, attachments, ...v }) => ({
+  return rows.map(({ profile, visit_partners, ascents, attachments, notes, ...v }) => ({
     ...v,
+    ...notesOf(notes),
     visibility: v.visibility as VisitDetail['visibility'],
     username: profile?.username ?? null,
-    ascents: ascents.map(a => ({ ...a, style: a.style as VisitDetail['ascents'][number]['style'] })),
+    ascents: ascents.map(({ note, ...a }) => ({ ...a, comment: note?.comment ?? null, style: a.style as VisitDetail['ascents'][number]['style'] })),
     partners: names(visit_partners.filter(vp => vp.same_rope)),
     other_partners: names(visit_partners.filter(vp => !vp.same_rope)),
     tracks: attachments.map(a => ({
@@ -402,11 +411,12 @@ export async function fetchLogbook(userId: string) {
   const rows = unwrap(await supabase
     .from('visits')
     .select(`
-      id, date, summary, approach, descent, conditions, duration_hours, visibility, rating, created_at,
+      id, date, duration_hours, visibility, rating, created_at,
+      notes:visit_notes (summary, conditions, approach, descent),
       place:places (id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
                     country, province, start_locality, protection, pitches, length_m, alpine_grade, grade_obligatory, aid,
                     area:areas (name), sector:sectors (name)),
-      ascents (name, grade, comment, position, style, pitches, aid, wall:places (name)),
+      ascents (name, grade, position, style, pitches, aid, note:ascent_notes (comment), wall:places (name)),
       visit_partners (same_rope, partner:partners (name))
     `)
     .eq('user_id', userId)
@@ -414,8 +424,10 @@ export async function fetchLogbook(userId: string) {
     .order('position', { referencedTable: 'ascents' }));
   const names = (list: { partner: { name: string } | null }[]) =>
     list.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort();
-  return rows.map(({ visit_partners, ...v }) => ({
+  return rows.map(({ visit_partners, notes, ascents, ...v }) => ({
     ...v,
+    ...notesOf(notes),
+    ascents: ascents.map(({ note, ...a }) => ({ ...a, comment: note?.comment ?? null })),
     partners: names(visit_partners.filter(vp => vp.same_rope)),
     other_partners: names(visit_partners.filter(vp => !vp.same_rope)),
   }));

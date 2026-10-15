@@ -4,7 +4,9 @@ A shared map of climbing and mountain spots (crags, bouldering, multipitch,
 alpinism, ice climbing, deep water solo, indoor climbing, ski mountaineering, hiking, trail
 running) with a personal logbook. Anyone can browse the
 map; signed-in users log their own visits, which stay private unless they're
-marked public. Admins can see everything.
+marked public. What you write about a visit is always private; what others
+should know goes in a tip on the spot. Admins moderate shared data but can't
+read anyone's private visits, notes, wishes or tracks.
 
 - **Area → Sector → Spot → Visit.** An *area* is a geographic bucket (Albard,
   Grignetta, Valsassina), the same for every sport. An optional *sector* groups
@@ -78,10 +80,12 @@ request may read or write (`supabase/migrations/`).
 | Data | Who can read | Who can write |
 |---|---|---|
 | areas, sectors, spots, route lists | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
-| attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket); tracks of private visits only the uploader and admins | any signed-in user adds; a track goes on a visit only if it's your visit; the uploader or an admin removes |
-| visits, their routes and partners | the owner, everyone if public, admins | the owner (admins may delete) |
+| attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket); tracks of private visits only the uploader | any signed-in user adds; a track goes on a visit only if it's your visit; the uploader or an admin removes |
+| visits, their routes and partners | the owner, everyone if public | the owner (admins may delete) |
+| visit notes (how it went, conditions, approach, descent, route comments) | only the owner, even on a public visit | the owner |
+| tips on spots and sectors | everyone | any signed-in user posts, also from the visit form; the author edits; the author or an admin removes |
 | climbing-partner list | the owner, plus names on visits you can read | the owner |
-| wishlist (places you want to go to) | the owner, everyone if public, admins | the owner (admins may delete); a visit there ticks it off |
+| wishlist (places you want to go to) | the owner, everyone if public | the owner (admins may delete); a visit there ticks it off |
 | profiles (username, role) | everyone (emails: admins only, via `list_users()`) | own username; admins rename, delete and change roles of others from *Account → Manage users*, never their own role |
 
 Files live in Supabase Storage (S3-compatible, same project):
@@ -89,7 +93,7 @@ Files live in Supabase Storage (S3-compatible, same project):
 | Bucket | Public | Holds |
 |---|---|---|
 | `place-files` | yes | GPX tracks and PDF guides |
-| `visit-tracks` | no, signed URLs valid for 1 h | GPX tracks of private visits, readable by their uploader and admins |
+| `visit-tracks` | no, signed URLs valid for 1 h | GPX tracks of private visits, readable by their uploader |
 | `place-photos` | yes | photos of places |
 | `visit-photos` | no, signed URLs valid for 1 h | photos of visits, readable exactly when the visit is |
 
@@ -204,7 +208,8 @@ final, reviewed result.
    `Fra. Japo, Vale`, `5c, 6a (ok), 6a+ (no)` (each route's outcome: sent, not
    sent, onsight…), `6a+>5c` or `VI/V, A0` (hardest grade, mandatory grade, aid),
    `Sportiva`/`Trad`, a 1–5 rating, and so on. Columns with no field of their own
-   are kept in the visit notes as `Column: value`.
+   are kept in the visit notes as `Column: value`. Notes stay private; a
+   *Consigli* / *Tips* column becomes a public tip on the spot, dated to the visit.
    - **Sectors**: a *Settore* column is the spot's sector (the wall of a
      multipitch route). On a crag sheet whose name column is the crag
      (*Nome falesia*), the crag becomes the sector and *Settore* the spot.

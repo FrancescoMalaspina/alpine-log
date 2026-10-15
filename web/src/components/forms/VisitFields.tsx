@@ -1,4 +1,5 @@
 import { useI18n } from '../../i18n';
+import { TipTopicPicker } from '../Tips';
 import { PeopleField } from './PeopleField';
 import { ACTIVITIES, gradeSuggestions, styleLabel } from '../../lib/labels';
 import { ASCENT_STYLES, type Activity, type AscentStyle, type Partner, type Route } from '../../lib/types';
@@ -71,35 +72,23 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
                      onChange={otherPeople => onChange({ otherPeople })} />
       </details>
 
-      <textarea className="visit-summary" placeholder={s.summaryPlaceholder} aria-label={s.summary} value={v.summary}
-                onChange={e => onChange({ summary: e.target.value })} />
-      <div className="rating-field" role="radiogroup" aria-label={s.rating}>
-        <span className="field-label">{s.rating}</span>
-        {[1, 2, 3, 4, 5].map(n => (
-          <button key={n} type="button" role="radio" aria-checked={v.rating === n} aria-label={s.stars(n)}
-                  className={`star${v.rating != null && n <= v.rating ? ' on' : ''}`}
-                  onClick={() => onChange({ rating: v.rating === n ? null : n })}>★</button>
-        ))}
-      </div>
-      {f.conditions && (
-        <div className="visit-row">
-          <input type="text" className="visit-conditions" placeholder={s.conditionsPlaceholder}
-                 aria-label={s.conditions} value={v.conditions} onChange={e => onChange({ conditions: e.target.value })} />
+      <div className="visit-row">
+        <div className="rating-field" role="radiogroup" aria-label={s.rating}>
+          <span className="field-label">{s.rating}</span>
+          {[1, 2, 3, 4, 5].map(n => (
+            <button key={n} type="button" role="radio" aria-checked={v.rating === n} aria-label={s.stars(n)}
+                    className={`star${v.rating != null && n <= v.rating ? ' on' : ''}`}
+                    onClick={() => onChange({ rating: v.rating === n ? null : n })}>★</button>
+          ))}
+        </div>
+        {f.conditions && (
           <label className="duration-field">
             <input type="number" inputMode="decimal" min={0.5} max={999} step={0.5} placeholder="h"
                    aria-label={s.durationHours} value={v.duration} onChange={e => onChange({ duration: e.target.value })} />
             <span>{s.hoursUnit}</span>
           </label>
-        </div>
-      )}
-      {f.approach && (
-        <div className="visit-approach">
-          <textarea placeholder={s.approachPlaceholder} aria-label={s.approach} value={v.approach}
-                    onChange={e => onChange({ approach: e.target.value })} />
-          <textarea placeholder={s.descentPlaceholder} aria-label={s.descent} value={v.descent}
-                    onChange={e => onChange({ descent: e.target.value })} />
-        </div>
-      )}
+        )}
+      </div>
 
       {f.routes && <>
       {f.isRoute && first && <>
@@ -198,6 +187,33 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
         </label>
       )}
       </>}
+
+      <fieldset className="visit-section">
+        <legend>{s.notesTitle}</legend>
+        <span className="hint-block">{s.notesHint}</span>
+        <textarea className="visit-summary" placeholder={s.summaryPlaceholder} aria-label={s.summary} value={v.summary}
+                  onChange={e => onChange({ summary: e.target.value })} />
+        {f.conditions && (
+          <input type="text" placeholder={s.conditionsPlaceholder} aria-label={s.conditions} value={v.conditions}
+                 onChange={e => onChange({ conditions: e.target.value })} />
+        )}
+        {f.approach && (
+          <div className="visit-approach">
+            <textarea placeholder={s.approachPlaceholder} aria-label={s.approach} value={v.approach}
+                      onChange={e => onChange({ approach: e.target.value })} />
+            <textarea placeholder={s.descentPlaceholder} aria-label={s.descent} value={v.descent}
+                      onChange={e => onChange({ descent: e.target.value })} />
+          </div>
+        )}
+      </fieldset>
+
+      <fieldset className="visit-section">
+        <legend>{s.tipTitle}</legend>
+        <span className="hint-block">{s.tipHint}</span>
+        <textarea maxLength={2000} placeholder={t.spot.tips.placeholder} aria-label={s.tipTitle} value={v.tip}
+                  onChange={e => onChange({ tip: e.target.value })} />
+        <TipTopicPicker name="visit-tip-topic" value={v.tipTopic} onChange={tipTopic => onChange({ tipTopic })} />
+      </fieldset>
     </div>
   );
 }

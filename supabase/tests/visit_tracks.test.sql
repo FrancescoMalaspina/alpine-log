@@ -74,8 +74,8 @@ select is((select count(*) from public.attachments where gain_m = 999), 0::bigin
 -- ---------------------------------------------------------------- fra publishes
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :fra, 'role', 'authenticated')::text, true);
-select is((select count(*) from public.attachments where private and created_by = :vale::uuid), 1::bigint,
-          'an admin sees other users'' private tracks');
+select is((select count(*) from public.attachments where private and created_by = :vale::uuid), 0::bigint,
+          'an admin does not see other users'' private tracks');
 select throws_ok(format('select public.publish_track(%s, %L)', (select v from ids where k = 'fra_track'), :fra || '/place-1/a.gpx'),
                  '22023', null, 'publishing needs the public copy of the file first');
 insert into storage.objects (bucket_id, name) values ('place-files', :fra || '/place-1/a.gpx');

@@ -13,7 +13,7 @@ export type FieldId =
   | 'spot.pitches' | 'spot.length_m' | 'spot.protection' | 'spot.alpine_grade'
   | 'link'
   | 'visit.date' | 'visit.partners' | 'visit.other_partners' | 'visit.rating' | 'visit.ascents' | 'visit.summary' | 'visit.conditions'
-  | 'visit.approach' | 'visit.descent' | 'visit.duration_hours'
+  | 'visit.approach' | 'visit.descent' | 'visit.duration_hours' | 'visit.tip'
   | 'ascent.name' | 'ascent.grade' | 'ascent.comment';
 
 export type FieldDef = {
@@ -88,6 +88,7 @@ export const FIELDS: FieldDef[] = [
   { id: 'visit.conditions', label: 'Conditions', level: 'visit', synonyms: s(1, 'condizioni', 'conditions', 'meteo', 'weather', 'bedingungen') },
   { id: 'visit.approach', label: 'Approach notes', level: 'visit', synonyms: s(1, 'avvicinamento', 'approach', 'accesso', 'zustieg') },
   { id: 'visit.descent', label: 'Descent notes', level: 'visit', synonyms: s(1, 'discesa', 'descent', 'rientro', 'abstieg') },
+  { id: 'visit.tip', label: 'Public tip for the spot', level: 'visit', synonyms: s(1, 'consigli', 'consiglio', 'tips', 'tip', 'beta', 'public notes', 'note pubbliche') },
   { id: 'visit.duration_hours', label: 'Duration (hours)', level: 'visit', synonyms: s(1, 'durata', 'duration', 'duration hours', 'ore', 'hours', 'tempo', 'time') },
   { id: 'ascent.name', label: 'Route name (one route per row)', level: 'visit', synonyms: [
     ...s(0.9, 'route', 'route name', 'nome tiro', 'tiro', 'via', 'climb name', 'problem'),

@@ -108,7 +108,7 @@ export type Route = {
   grade: string | null;
   grade_rank: number | null;
   created_by: string | null;
-  /** Ascents of it you can see (yours, public ones, everything for admins). */
+  /** Ascents of it you can see (yours and public ones). */
   ascent_count: number;
 };
 
@@ -251,6 +251,8 @@ export type VisitInput = {
     name: string; grade: string; place_id: number | null; route_id: number | null; comment: string;
     style: AscentStyle | null; pitches: number | null; aid: string;
   }[];
+  /** A tip posted on the spot as the visit is saved, dated to the visit. */
+  tip: Pick<TipInput, 'body' | 'topic'> | null;
 };
 
 export type VisitScope = 'mine' | 'public' | 'all';

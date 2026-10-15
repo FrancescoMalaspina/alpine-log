@@ -285,6 +285,7 @@ export function ImportWizard({ onClose, onImported }: Props) {
               <label className="type-option"><input type="radio" name="importVis" checked={visibility === 'private'} onChange={() => setVisibility('private')} />{w.onlyMe}</label>
               <label className="type-option"><input type="radio" name="importVis" checked={visibility === 'public'} onChange={() => setVisibility('public')} />{w.everyone}</label>
             </div>
+            <span className="hint-block">{w.notesStayPrivate}</span>
           </div>
           <p className="hint-block">
             {w.confirmNote}

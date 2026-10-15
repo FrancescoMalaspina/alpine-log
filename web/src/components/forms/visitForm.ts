@@ -1,6 +1,6 @@
 import { tr } from '../../i18n';
 import { ACTIVITIES, localToday } from '../../lib/labels';
-import type { Activity, AscentStyle, Place, Visibility, VisitDetail, VisitInput } from '../../lib/types';
+import type { Activity, AscentStyle, Place, TipTopic, Visibility, VisitDetail, VisitInput } from '../../lib/types';
 import { summarize, trackVisit } from '../../lib/tracks';
 import type { PlaceValues, TrackDraft } from './placeForm';
 
@@ -30,6 +30,9 @@ export type VisitValues = {
   ascents: AscentRow[];
   /** Add new route names to the spot's shared list. */
   addRoutes: boolean;
+  /** A new tip for everyone, posted on the spot when the visit is saved. */
+  tip: string;
+  tipTopic: TipTopic | null;
 };
 
 let nextKey = 1;
@@ -69,6 +72,8 @@ export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' |
     duration: visit?.duration_hours?.toString() ?? '',
     ascents: rows.length ? rows : [ascentRow()],
     addRoutes: false,
+    tip: '',
+    tipTopic: null,
   };
 }
 
@@ -138,5 +143,6 @@ export function buildVisitInput(v: VisitValues, spot: VisitSpot, id?: number): V
       pitches: f.pitches && a.pitches.trim() ? Math.round(Number(a.pitches)) : null,
       aid: f.pitches ? a.aid : '',
     })),
+    tip: v.tip.trim() ? { body: v.tip, topic: v.tipTopic } : null,
   };
 }

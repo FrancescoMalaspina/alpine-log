@@ -34,7 +34,7 @@ insert into ids select 'vale_visit', public.save_visit(jsonb_build_object(
     jsonb_build_object('name', 'Su alto', 'grade', '6c', 'place_id', (select v from ids where k = 'butch_wall')),
     jsonb_build_object('name', 'Busazza', 'grade', '6b'))));
 
-select is((select summary from public.visits where id = (select v from ids where k = 'vale_visit')),
+select is((select summary from public.visit_notes where visit_id = (select v from ids where k = 'vale_visit')),
           'great day', 'text fields are trimmed');
 select is((select count(*) from public.partners where owner_id = :vale::uuid), 2::bigint,
           'new partner names are added once, blanks ignored');

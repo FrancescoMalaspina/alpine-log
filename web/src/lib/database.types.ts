@@ -50,10 +50,32 @@ export type Database = {
           },
         ]
       }
+      ascent_notes: {
+        Row: {
+          ascent_id: number
+          comment: string
+        }
+        Insert: {
+          ascent_id: number
+          comment: string
+        }
+        Update: {
+          ascent_id?: number
+          comment?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ascent_notes_ascent_id_fkey"
+            columns: ["ascent_id"]
+            isOneToOne: true
+            referencedRelation: "ascents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ascents: {
         Row: {
           aid: string | null
-          comment: string | null
           grade: string | null
           grade_rank: number | null
           id: number
@@ -67,7 +89,6 @@ export type Database = {
         }
         Insert: {
           aid?: string | null
-          comment?: string | null
           grade?: string | null
           grade_rank?: number | null
           id?: never
@@ -81,7 +102,6 @@ export type Database = {
         }
         Update: {
           aid?: string | null
-          comment?: string | null
           grade?: string | null
           grade_rank?: number | null
           id?: never
@@ -670,6 +690,45 @@ export type Database = {
           },
         ]
       }
+      visit_notes: {
+        Row: {
+          approach: string | null
+          conditions: string | null
+          descent: string | null
+          summary: string | null
+          visit_id: number
+        }
+        Insert: {
+          approach?: string | null
+          conditions?: string | null
+          descent?: string | null
+          summary?: string | null
+          visit_id: number
+        }
+        Update: {
+          approach?: string | null
+          conditions?: string | null
+          descent?: string | null
+          summary?: string | null
+          visit_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visit_notes_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: true
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visit_notes_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: true
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visit_partners: {
         Row: {
           partner_id: number
@@ -712,49 +771,37 @@ export type Database = {
       }
       visits: {
         Row: {
-          approach: string | null
-          conditions: string | null
           created_at: string
           date: string | null
-          descent: string | null
           duration_hours: number | null
           id: number
           import_id: number | null
           place_id: number
           rating: number | null
-          summary: string | null
           updated_at: string
           user_id: string
           visibility: string
         }
         Insert: {
-          approach?: string | null
-          conditions?: string | null
           created_at?: string
           date?: string | null
-          descent?: string | null
           duration_hours?: number | null
           id?: never
           import_id?: number | null
           place_id: number
           rating?: number | null
-          summary?: string | null
           updated_at?: string
           user_id?: string
           visibility?: string
         }
         Update: {
-          approach?: string | null
-          conditions?: string | null
           created_at?: string
           date?: string | null
-          descent?: string | null
           duration_hours?: number | null
           id?: never
           import_id?: number | null
           place_id?: number
           rating?: number | null
-          summary?: string | null
           updated_at?: string
           user_id?: string
           visibility?: string
@@ -975,6 +1022,7 @@ export type Database = {
         Args: { p_duplicate: number; p_keep: number }
         Returns: Json
       }
+      owns_visit: { Args: { p_visit_id: number }; Returns: boolean }
       partner_on_readable_visit: {
         Args: { p_partner_id: number }
         Returns: boolean

@@ -82,7 +82,7 @@ select ok(exists (select 1 from public.places where id = (select v from ids wher
 set local role authenticated;
 select set_config('request.jwt.claims', json_build_object('sub', :fra, 'role', 'authenticated')::text, true);
 
-select is((select count(*) from public.visits), 31::bigint, 'admin sees every visit, including vale''s private one');
+select is((select count(*) from public.visits), 30::bigint, 'an admin sees her own visits, not vale''s private one');
 insert into public.visits (place_id) values ((select v from ids where k = 'vale_place'));
 update public.visits set visibility = 'public' where id = (select v from ids where k = 'fra_visit');
 

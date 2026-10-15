@@ -370,7 +370,6 @@ export default function App() {
           partners={partners}
           getMapCenter={() => mapCenter.current}
           userId={userId}
-          isAdmin={isAdmin}
           onPlaceClick={focusOnMap}
           onPlaceDetails={p => openPlace(p)}
           onAddVisit={openAddVisit}

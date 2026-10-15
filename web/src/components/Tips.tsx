@@ -149,15 +149,7 @@ function TipForm({ initial, canPostToSector, sectorName, onSubmit, submitLabel, 
     <form className="tip-form" onSubmit={submit}>
       <textarea value={body} maxLength={2000} required placeholder={s.placeholder} aria-label={s.tip}
                 onChange={e => setBody(e.target.value)} />
-      <div className="chip-row" role="radiogroup" aria-label={s.topic}>
-        {TIP_TOPICS.map(x => (
-          <label key={x} className="type-option small">
-            <input type="radio" name={`topic-${initial?.id ?? 'new'}`} checked={topic === x}
-                   onClick={() => { if (topic === x) setTopic(null); }} onChange={() => setTopic(x)} />
-            {s.topics[x]}
-          </label>
-        ))}
-      </div>
+      <TipTopicPicker name={`topic-${initial?.id ?? 'new'}`} value={topic} onChange={setTopic} />
       <div className="tip-form-row">
         <label className="field-inline">
           <span className="hint">{s.observedOnLabel}</span>
@@ -176,5 +168,24 @@ function TipForm({ initial, canPostToSector, sectorName, onSubmit, submitLabel, 
         <button type="submit" className="btn btn-ghost" disabled={busy || !body.trim()}>{submitLabel}</button>
       </div>
     </form>
+  );
+}
+
+/** A tip's topic as chips; clicking the chosen one again clears it. */
+export function TipTopicPicker({ name, value, onChange }: {
+  name: string; value: TipTopic | null; onChange: (topic: TipTopic | null) => void;
+}) {
+  const { t } = useI18n();
+  const s = t.spot.tips;
+  return (
+    <div className="chip-row" role="radiogroup" aria-label={s.topic}>
+      {TIP_TOPICS.map(x => (
+        <label key={x} className="type-option small">
+          <input type="radio" name={name} checked={value === x}
+                 onClick={() => { if (value === x) onChange(null); }} onChange={() => onChange(x)} />
+          {s.topics[x]}
+        </label>
+      ))}
+    </div>
   );
 }

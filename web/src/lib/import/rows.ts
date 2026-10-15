@@ -31,6 +31,8 @@ export type DraftVisit = {
   approach: string;
   descent: string;
   duration_hours: number | null;
+  /** A tip for everyone, posted on the spot with the visit. */
+  tip: string;
   visibility?: Visibility;
   /** "Falesie, row 3" */
   source: string;
@@ -86,12 +88,12 @@ function emptySpot(name: string, activity: Activity): DraftSpot {
 
 const emptyVisit = (source: string): DraftVisit => ({
   date: null, partners: [], otherPartners: [], rating: null, ascents: [], summary: '', conditions: '', approach: '', descent: '',
-  duration_hours: null, source,
+  duration_hours: null, tip: '', source,
 });
 
 /** A visit with nothing in it (repeat-group columns left blank) is not a visit. */
 const hasContent = (v: DraftVisit) =>
-  !!(v.date || v.partners.length || v.otherPartners.length || v.rating || v.ascents.length || v.summary || v.conditions);
+  !!(v.date || v.partners.length || v.otherPartners.length || v.rating || v.ascents.length || v.summary || v.conditions || v.tip);
 
 /** Merges spots with the same key, keeping the first non-empty value of each detail. */
 export function mergeSpots(spots: DraftSpot[]): DraftSpot[] {
@@ -114,6 +116,7 @@ export function mergeSpots(spots: DraftSpot[]): DraftSpot[] {
         for (const p of v.otherPartners) if (!same.otherPartners.includes(p)) same.otherPartners.push(p);
         same.rating ??= v.rating;
         if (v.summary && !same.summary.includes(v.summary)) same.summary = [same.summary, v.summary].filter(Boolean).join('\n');
+        if (v.tip && !same.tip.includes(v.tip)) same.tip = [same.tip, v.tip].filter(Boolean).join('\n');
       } else {
         prev.visits.push(v);
       }
@@ -240,6 +243,7 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
         }
       }
       v.summary = [text(first(row, 'visit.summary', g)), ...(g === 0 ? notes : [])].filter(Boolean).join('\n');
+      v.tip = text(first(row, 'visit.tip', g));
       if (rawDate && !v.date) v.summary = [v.summary, `Date: ${rawDate}`].filter(Boolean).join('\n');
       if (f.conditions) {
         v.conditions = text(first(row, 'visit.conditions', g));
@@ -281,7 +285,7 @@ export function fromBackup(data: AlpineLogBackup): { spots: DraftSpot[]; skipped
     spot.visits.push({
       date: v.date, partners: v.with ?? [], otherPartners: v.other_ropes ?? [], rating: v.rating ?? null,
       summary: v.summary ?? '', conditions: v.conditions ?? '',
-      approach: v.approach ?? '', descent: v.descent ?? '', duration_hours: v.duration_hours ?? null,
+      approach: v.approach ?? '', descent: v.descent ?? '', duration_hours: v.duration_hours ?? null, tip: '',
       visibility: v.visibility === 'public' ? 'public' : 'private',
       ascents: (v.routes ?? []).map(a => ({
         name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '', sector: a.sector ?? '',

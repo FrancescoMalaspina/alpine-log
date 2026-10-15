@@ -217,6 +217,18 @@ describe('automap', () => {
     expect(spots[0].sector).toBe('Scala');
   });
 
+  it('keeps notes private and posts a "consigli" column as a tip', () => {
+    const t = table('log', ['data', 'spot', 'area', 'attività', 'latitude', 'longitude', 'note', 'consigli'], [
+      ['2026-05-23', 'Muro del Butch', 'Lecco', 'Crag', 45.85, 9.39, 'stanco morto', 'Parcheggio pieno dopo le 9'],
+    ]);
+    const m = autoMap(t);
+    expect(m.columns.map(c => c.field).slice(-2)).toEqual(['visit.summary', 'visit.tip']);
+    const { spots } = applyMapping(t, m);
+    const resolved: ResolvedSpot[] = spots.map(s => ({ ...s, matches: [], choice: 'new', pinSource: 'file', pinLabel: '' }));
+    const [visit] = buildPayload('log.csv', resolved, [], 'public').visits;
+    expect(visit).toMatchObject({ summary: 'stanco morto', tip: { body: 'Parcheggio pieno dopo le 9', topic: null } });
+  });
+
   it('takes rows whose spot differs only in accents, case or punctuation for the same spot', () => {
     const t = table('log', ['date', 'spot', 'area', 'activity'], [
       ['2026-05-23', 'Muro del Butch', 'Valsassina', 'Crag'],

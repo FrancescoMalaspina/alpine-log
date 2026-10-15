@@ -263,13 +263,18 @@ function VisitDetailBody({ visit: v, mine, spot }: { visit: VisitDetail; mine: b
       {v.rating != null && <Stars rating={v.rating} />}
       <VisibilityPill visibility={v.visibility} />
     </div>
-    {v.summary && <div className="description">{v.summary}</div>}
     {v.tracks.map(tr => tr.stats && (
       <div key={tr.id} className="description num"><b>{s.track}</b> {trackStatsParts(tr.stats, spot.activity).join(', ')}</div>
     ))}
-    {v.conditions && <div className="description"><b>{s.conditions}</b> {v.conditions}</div>}
-    {v.approach && <div className="description"><b>{s.approach}</b> {v.approach}</div>}
-    {v.descent && <div className="description"><b>{s.descent}</b> {v.descent}</div>}
+    {(v.summary || v.conditions || v.approach || v.descent) && (
+      <div className="visit-notes">
+        <span className="field-label">{s.yourNotes}</span>
+        {v.summary && <div className="description">{v.summary}</div>}
+        {v.conditions && <div className="description"><b>{s.conditions}</b> {v.conditions}</div>}
+        {v.approach && <div className="description"><b>{s.approach}</b> {v.approach}</div>}
+        {v.descent && <div className="description"><b>{s.descent}</b> {v.descent}</div>}
+      </div>
+    )}
     {v.ascents.length ? (
       <ul>
         {v.ascents.map(a => (

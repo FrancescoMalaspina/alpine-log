@@ -31,7 +31,6 @@ type Props = {
   partners: Partner[];
   getMapCenter: () => LatLng;
   userId: string | null;
-  isAdmin: boolean;
   onPlaceClick: (place: Place) => void;
   onPlaceDetails: (place: Place) => void;
   onAddVisit: (place: Place) => void;
@@ -98,7 +97,7 @@ export function Sidebar(props: Props) {
       )}
       {filtersOpen && mode === 'visits' && (
         <VisitFiltersPanel f={vf} onChange={props.onVisitFilters} partners={props.partners} areas={props.areas}
-                           signedIn={!!props.userId} isAdmin={props.isAdmin} />
+                           signedIn={!!props.userId} />
       )}
 
       <div className="list" aria-busy={visitsLoading}>
@@ -375,12 +374,12 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, countries, getMapCenter,
   );
 }
 
-function VisitFiltersPanel({ f, onChange, partners, areas, signedIn, isAdmin }: {
-  f: VisitFilters; onChange: (f: VisitFilters) => void; partners: Partner[]; areas: Area[]; signedIn: boolean; isAdmin: boolean;
+function VisitFiltersPanel({ f, onChange, partners, areas, signedIn }: {
+  f: VisitFilters; onChange: (f: VisitFilters) => void; partners: Partner[]; areas: Area[]; signedIn: boolean;
 }) {
   const { t } = useI18n();
   const scopes: { value: VisitScope; label: string }[] = [
-    { value: 'all', label: isAdmin ? t.app.sidebar.scopeEverything : signedIn ? t.app.sidebar.scopeMinePublic : t.app.sidebar.scopePublic },
+    { value: 'all', label: signedIn ? t.app.sidebar.scopeMinePublic : t.app.sidebar.scopePublic },
     ...(signedIn ? [{ value: 'mine' as const, label: t.app.sidebar.scopeOnlyMine }] : []),
     ...(signedIn ? [{ value: 'public' as const, label: t.app.sidebar.scopeOnlyPublic }] : []),
   ];

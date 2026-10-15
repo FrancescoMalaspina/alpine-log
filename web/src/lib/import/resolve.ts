@@ -221,6 +221,7 @@ export function buildPayload(fileName: string, spots: ResolvedSpot[], areas: Are
           name: a.name, grade: a.grade, comment: a.comment, route_id: null, place_id: null, sector: a.sector,
           style: a.style, pitches: null, aid: '',
         })) : [],
+        tip: v.tip ? { body: v.tip, topic: null } : null,
       };
     })),
   };
