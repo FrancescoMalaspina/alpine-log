@@ -6,6 +6,7 @@ import { AreaView } from './components/AreaView';
 import { AuthModal, NewPasswordModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { DuplicatesSection } from './components/DuplicatesSection';
+import { SuggestionsSection } from './components/SuggestionsSection';
 import { MapView, type MapCommand } from './components/MapView';
 import { MergeModal, type MergeTarget } from './components/MergeModal';
 import { MobileNav, type MobileTab } from './components/MobileNav';
@@ -485,6 +486,10 @@ export default function App() {
 
         {panel?.kind === 'users' && userId && isAdmin && (
           <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })}>
+            <SuggestionsSection onChanged={reload} onOpenPlace={id => {
+              const place = placeById.get(id);
+              if (place) openPlace(place);
+            }} />
             <DuplicatesSection places={catalog} areas={areas} onMerge={setMergeTarget} />
           </UsersPage>
         )}

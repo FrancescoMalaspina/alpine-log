@@ -108,6 +108,47 @@ export async function withdrawPlaceSuggestion(id: number): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Admins: a pending suggestion, with what its fields hold now. */
+export type PendingSuggestion = {
+  id: number;
+  place_id: number;
+  place_name: string;
+  author_name: string;
+  changes: Partial<PlaceInput>;
+  /** The fields when the suggestion was written. */
+  base: Partial<PlaceInput>;
+  /** The fields now; they differ from `base` when the spot changed since. */
+  current: Partial<PlaceInput>;
+  note: string | null;
+  created_at: string;
+};
+
+/** Admins: pending suggestions, oldest first. */
+export async function fetchPendingSuggestions(): Promise<PendingSuggestion[]> {
+  return unwrap(await supabase.rpc('pending_place_suggestions')) as unknown as PendingSuggestion[];
+}
+
+/** Admins: how many suggestions wait for review. */
+export async function countPendingSuggestions(): Promise<number> {
+  const { count, error } = await supabase
+    .from('place_suggestions')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'pending');
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/** Admins: applies the chosen fields (a field brings its group, e.g. lat with lng). */
+export async function approveSuggestion(id: number, fields: string[], note: string): Promise<void> {
+  const { error } = await supabase.rpc('approve_place_suggestion', { p_id: id, p_fields: fields, p_note: note });
+  if (error) throw new Error(error.message);
+}
+
+export async function rejectSuggestion(id: number, note: string): Promise<void> {
+  const { error } = await supabase.rpc('reject_place_suggestion', { p_id: id, p_note: note });
+  if (error) throw new Error(error.message);
+}
+
 // ---------------------------------------------------------------- shared route lists
 
 export async function fetchRoutes(placeId: number): Promise<Route[]> {

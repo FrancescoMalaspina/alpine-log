@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useI18n } from '../i18n';
-import { deleteUser, renameUser } from '../lib/api';
+import { countPendingSuggestions, deleteUser, renameUser } from '../lib/api';
 import { errorMessage } from '../lib/labels';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Drawer } from './Drawer';
@@ -24,6 +24,13 @@ export function AccountPanel(props: Props) {
   const [renameState, setRenameState] = useState<{ busy: boolean; error: string | null; saved: boolean }>(
     { busy: false, error: null, saved: false });
   const [deleting, setDeleting] = useState(false);
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    countPendingSuggestions().then(n => { if (!cancelled) setWaiting(n); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isAdmin]);
 
   const name = username ?? profile?.username ?? '';
   const changed = !!profile && name.trim() !== profile.username;
@@ -68,6 +75,12 @@ export function AccountPanel(props: Props) {
         <section className="account-section">
           <h3 className="section-title">{t.account.accountPanel.users}</h3>
           <p className="hint-block">{t.account.accountPanel.usersHint}</p>
+          {waiting > 0 && (
+            <p className="hint-block">
+              <b>{t.account.accountPanel.suggestionsWaiting(waiting)}</b>{' '}
+              <button type="button" className="link-btn" onClick={props.onOpenUsers}>{t.account.accountPanel.review}</button>
+            </p>
+          )}
           <button type="button" className="btn btn-ghost account-users-btn" onClick={props.onOpenUsers}>{t.account.accountPanel.manageUsers}</button>
         </section>
       )}
