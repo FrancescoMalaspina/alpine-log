@@ -30,6 +30,7 @@ const en = {
     ski: 'Ski mountaineering',
     hike: 'Hiking',
     trail: 'Trail running',
+    mtb: 'Mountain biking',
   },
   protections: { bolted: 'Bolted', trad: 'Trad', mixed: 'Mixed' },
   styles: { onsight: 'Onsight', flash: 'Flash', redpoint: 'Sent', toprope: 'Top rope', attempt: 'Not sent' },

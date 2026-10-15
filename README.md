@@ -24,16 +24,16 @@ read anyone's private visits, notes, wishes or tracks.
   with a listed name is linked to it, so repeats are counted.
 - **Attachments** on a place or area: pasted guide links, uploaded PDF guides
   and GPX tracks. A spot can have several tracks: the approach for climbing
-  spots, the outing itself for ski touring, hiking, trail running and alpinism.
-  Each track gets its own colour on the map; they can be switched on and off
+  spots, the outing itself for ski touring, hiking, trail running, mountain
+  biking and alpinism. Each track gets its own colour on the map; they can be switched on and off
   one by one and downloaded. Its numbers are worked out when it's saved, while
   the recording still has its times: distance, metres up and down, highest and
   lowest point, moving time and time spent going up. Each activity shows the
   ones that matter to it (climbing rate for ski touring and alpinism, pace for
-  trail running, the walk in at climbing spots), and the logbook adds up the
+  trail running, speed for mountain biking, the walk in at climbing spots), and the logbook adds up the
   km and metres climbed.
-- **Spots from a track.** For ski touring, hiking, trail running and
-  alpinism, the spot form loads a GPX, TCX or KML exported by Strava, Garmin
+- **Spots from a track.** For ski touring, hiking, trail running, mountain
+  biking and alpinism, the spot form loads a GPX, TCX or KML exported by Strava, Garmin
   Connect, OruxMaps, Komoot… and offers its summit (or start) as the pin, its
   start as the parking, the starting village, altitude, gain and distance; a
   visit logged with it takes the track's date and duration. The first or last

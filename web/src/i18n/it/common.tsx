@@ -32,6 +32,7 @@ const it: Widen<typeof en> = {
     ski: 'Scialpinismo',
     hike: 'Escursionismo',
     trail: 'Trail running',
+    mtb: 'Mountain bike',
   },
   protections: { bolted: 'Spittata', trad: 'Trad', mixed: 'Mista' },
   styles: { onsight: 'A vista', flash: 'Flash', redpoint: 'Chiusa', toprope: 'In moulinette', attempt: 'Non chiusa' },

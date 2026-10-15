@@ -335,6 +335,7 @@ const it: Widen<typeof en> = {
     moving: (time: string) => `${time} in movimento`,
     uphillRate: (mh: number) => `${mh} m/h in salita`,
     pace: (pace: string) => `${pace}/km`,
+    speed: (kmh: string) => `${kmh} km/h`,
   },
   photos: {
     uploadingOf: (i: number, n: number) => `Caricamento ${i} di ${n}…`,

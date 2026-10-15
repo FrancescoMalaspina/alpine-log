@@ -336,6 +336,7 @@ const en = {
     moving: (time: string) => `${time} moving`,
     uphillRate: (mh: number) => `${mh} m/h uphill`,
     pace: (pace: string) => `${pace}/km`,
+    speed: (kmh: string) => `${kmh} km/h`,
   },
   photos: {
     uploadingOf: (i: number, n: number) => `Uploading ${i} of ${n}…`,

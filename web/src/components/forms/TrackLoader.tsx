@@ -48,7 +48,9 @@ export function TrackLoader({ activity, draft, onDraft, fields, visitVisibility 
   const summary = useMemo(() => summarize(segments), [segments]);
   const stats = useMemo(() => trackStats(segments), [segments]);
   const full = useMemo(() => (draft ? summarize(draft.file.segments) : null), [draft]);
-  const pinAt = summary && (approach ? summary.end : activity === 'trail' ? summary.start : summary.highest ?? summary.start);
+  /** Runs and rides are pinned where they start, not at their highest point. */
+  const startsAtStart = activity === 'trail' || activity === 'mtb';
+  const pinAt = summary && (approach ? summary.end : startsAtStart ? summary.start : summary.highest ?? summary.start);
 
   // The village at the start and the peak or hut at the summit, for the name and starting point.
   const startKey = summary && v ? `${summary.start.lat.toFixed(4)},${summary.start.lng.toFixed(4)}` : '';
@@ -110,7 +112,7 @@ export function TrackLoader({ activity, draft, onDraft, fields, visitVisibility 
   ].filter(p => p.value) : [
     { field: 'name' as const, label: pf.name, value: trackName ?? (activity === 'alpine' ? '' : place.summit ?? '') },
     ...(activity === 'alpine' ? [{ field: 'sectorName' as const, label: s.sectorMountain, value: place.summit ?? '' }] : []),
-    { field: 'coords' as const, label: activity === 'trail' ? s.pinStart : s.pinSummit, value: formatCoords(pinAt!.lat, pinAt!.lng) },
+    { field: 'coords' as const, label: startsAtStart ? s.pinStart : s.pinSummit, value: formatCoords(pinAt!.lat, pinAt!.lng) },
     { field: 'parking' as const, label: s.parkingStart, value: startAt! },
     { field: 'startLocality' as const, label: pf.startLocality, value: place.locality ?? '' },
     ...(f.altitude && summary.maxEleM != null ? [{ field: 'altitude' as const, label: pf.maxAltitude, value: String(Math.round(summary.maxEleM)) }] : []),

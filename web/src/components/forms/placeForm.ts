@@ -45,7 +45,7 @@ export type TrackDraft = {
 };
 
 /** Activities whose spots can be filled in from a recorded track. */
-export const TRACK_ACTIVITIES: Activity[] = ['ski', 'hike', 'trail', 'alpine'];
+export const TRACK_ACTIVITIES: Activity[] = ['ski', 'hike', 'trail', 'mtb', 'alpine'];
 
 /** Which coordinate field a "pick on map" request fills. */
 export type CoordField = 'coords' | 'parking' | 'start';

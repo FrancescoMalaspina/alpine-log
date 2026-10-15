@@ -8,7 +8,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
 const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-2.5-flash';
-const ACTIVITIES = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'];
+const ACTIVITIES = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'mtb', 'hike', 'dws', 'indoor'];
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

@@ -15,7 +15,7 @@ import { TrackLoader } from './TrackLoader';
 const NAME_HINT: Record<PlaceValues['activity'], string> = {
   crag: 'Parete Sud', boulder: 'Sasso Remenno', multipitch: 'Via Raggio di sole', alpine: 'Cresta Segantini', ice: 'Cascata di Lillaz',
   dws: 'Mallorca, Cala Barques', indoor: 'Manga Climbing Milano', ski: 'Pizzo dei Tre Signori',
-  hike: 'Sentiero delle Grigne', trail: 'Giro del Resegone',
+  hike: 'Sentiero delle Grigne', trail: 'Giro del Resegone', mtb: 'Giro dei Corni di Canzo',
 };
 
 type Props = {
@@ -36,7 +36,7 @@ type Props = {
 /** What a sector is for each activity: the crag, the wall, the mountain… */
 const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
   crag: 'Falesia di Civate', boulder: 'Val di Mello', multipitch: 'Parete di Pezol', alpine: 'Breithorn', ice: 'Valle di Cogne',
-  dws: 'Cala Barques', indoor: 'Manga Climbing', ski: 'Pizzo dei Tre Signori', hike: 'Grigna', trail: 'Resegone',
+  dws: 'Cala Barques', indoor: 'Manga Climbing', ski: 'Pizzo dei Tre Signori', hike: 'Grigna', trail: 'Resegone', mtb: 'Corni di Canzo',
 };
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);

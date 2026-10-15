@@ -4,7 +4,7 @@
  */
 import { parseCoordinates } from '../coords';
 import { stripAccents } from '../names';
-import type { Activity, AscentStyle, Protection } from '../types';
+import { ACTIVITY_ORDER, type Activity, type AscentStyle, type Protection } from '../types';
 
 export type DateOrder = 'dmy' | 'mdy';
 
@@ -166,6 +166,7 @@ const ACTIVITY_WORDS: [Activity, RegExp][] = [
   ['alpine', /\b(alpin|neve|misto|mountaineering|hochtour|alta montagna|mixed|snow)/],
   ['crag', /\b(falesi|crag|single ?pitch|monotiri|sport climbing|klettergarten|couennes?)/],
   ['hike', /\b(hik|escursion|trekking|wander|randonn|ferrat)/],
+  ['mtb', /\b(mtb|mountain ?bike|bici|bike|enduro|cicl)/],
   ['trail', /\b(trail|corsa|running|run)\b/],
 ];
 
@@ -173,8 +174,8 @@ const ACTIVITY_WORDS: [Activity, RegExp][] = [
 export function parseActivity(v: unknown): Activity | null {
   if (isBlank(v)) return null;
   const t = stripAccents(String(v)).toLowerCase();
-  const exact = ['crag', 'boulder', 'multipitch', 'alpine', 'ice', 'ski', 'trail', 'hike', 'dws', 'indoor'].find(a => a === t.trim());
-  if (exact) return exact as Activity;
+  const exact = ACTIVITY_ORDER.find(a => a === t.trim());
+  if (exact) return exact;
   return ACTIVITY_WORDS.find(([, re]) => re.test(t))?.[0] ?? null;
 }
 

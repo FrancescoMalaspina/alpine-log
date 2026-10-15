@@ -14,6 +14,7 @@ const GLYPHS: Record<Activity, string> = {
   ice: '<path d="M15 8.5 21 15l-6 6.5L9 15z" fill="#fff"/>',
   ski: '<path d="M11.5 21 16 9M15.5 21.5 20 9.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>',
   trail: '<path d="M8 20l4-6 3 3 5-8" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>',
+  mtb: '<circle cx="10" cy="18" r="3.6" fill="none" stroke="#fff" stroke-width="2"/><circle cx="20" cy="18" r="3.6" fill="none" stroke="#fff" stroke-width="2"/><path d="M10 18l3.5-6.5H18L20 18M13.5 11.5 15 18" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
   hike: '<path d="M9 21c2-4 2-6 6-7s4-3 6-6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="3 2.6"/>',
   dws: '<path d="M8 13.5c2.3-2.4 4.7-2.4 7 0s4.7 2.4 7 0M8 19c2.3-2.4 4.7-2.4 7 0s4.7 2.4 7 0" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/>',
   indoor: '<path d="M8.5 21v-7.5L15 8l6.5 5.5V21z" fill="#fff"/>',

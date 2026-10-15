@@ -90,6 +90,11 @@ export const ACTIVITIES: Record<Activity, ActivityInfo> = {
     routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
     pitches: false, protection: false, alpineGrade: false,
   },
+  mtb: {
+    color: '#C25E1F', grades: ['S0', 'S1', 'S2', 'S3', 'S4', 'S5'],
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    pitches: false, protection: false, alpineGrade: false,
+  },
 };
 
 /** The activity's name in the current language. */

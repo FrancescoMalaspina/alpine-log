@@ -82,6 +82,9 @@ describe('transforms', () => {
     expect(parseActivity('Palestra boulder')).toBe('indoor');
     expect(parseActivity('Neve&Misto')).toBe('alpine');
     expect(parseActivity('Scialpinismo')).toBe('ski');
+    expect(parseActivity('MTB')).toBe('mtb');
+    expect(parseActivity('Mountain bike')).toBe('mtb');
+    expect(parseActivity('Trail running')).toBe('trail');
     expect(parseActivity('Sportiva')).toBeNull();
   });
 });
