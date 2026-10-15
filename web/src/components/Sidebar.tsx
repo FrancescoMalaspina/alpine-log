@@ -37,6 +37,7 @@ type Props = {
   onAreaClick: (areaId: number) => void;
   onSectorClick: (sectorId: number) => void;
   onVisitClick: (visit: VisitSummary) => void;
+  onOpenLogbook: (userId: string) => void;
   onLocationPick: (location: Location) => void;
   onNewArea: () => void;
 };
@@ -139,7 +140,8 @@ export function Sidebar(props: Props) {
         {mode === 'visits' && (
           <ul className="rows">
             {props.visits.map(v => (
-              <VisitRow key={v.id} visit={v} mine={v.user_id === props.userId} onClick={() => props.onVisitClick(v)} />
+              <VisitRow key={v.id} visit={v} mine={v.user_id === props.userId} onClick={() => props.onVisitClick(v)}
+                        onOpenUser={props.onOpenLogbook} />
             ))}
           </ul>
         )}
@@ -227,7 +229,11 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
   );
 }
 
-export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; mine: boolean; onClick: () => void }) {
+export function VisitRow({ visit: v, mine, onClick, onOpenUser }: {
+  visit: VisitSummary; mine: boolean; onClick: () => void;
+  /** Someone else's visit: opens its author's logbook. */
+  onOpenUser?: (userId: string) => void;
+}) {
   const { t } = useI18n();
   const facts = [
     v.partner_names.length ? t.app.sidebar.withPeople(v.partner_names.join(', ')) : null,
@@ -250,6 +256,11 @@ export function VisitRow({ visit: v, mine, onClick }: { visit: VisitSummary; min
         {facts.length > 0 && <span className="row-meta">{facts.join('; ')}</span>}
         {v.summary && <span className="row-summary">{v.summary}</span>}
       </button>
+      {!mine && v.username && onOpenUser && (
+        <div className="row-actions">
+          <button type="button" onClick={() => onOpenUser(v.user_id)}>{t.account.myLog.title(v.username)}</button>
+        </div>
+      )}
     </li>
   );
 }

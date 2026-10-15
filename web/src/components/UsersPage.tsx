@@ -46,7 +46,9 @@ function compare(a: UserRow, b: UserRow, key: SortKey) {
  * how much they logged. Promote, demote, rename or delete from here; role
  * changes apply on that person's next page load.
  */
-export function UsersPage({ myId, onClose, children }: { myId: string; onClose: () => void; children?: ReactNode }) {
+export function UsersPage({ myId, onClose, onOpenLogbook, children }: {
+  myId: string; onClose: () => void; onOpenLogbook: (userId: string) => void; children?: ReactNode;
+}) {
   const { t } = useI18n();
   const [users, setUsers] = useState<UserRow[] | null>(null);
   // "Last active" is relative to when the list was loaded.
@@ -237,7 +239,7 @@ export function UsersPage({ myId, onClose, children }: { myId: string; onClose: 
                           </form>
                         ) : (
                           <span className="user-name">
-                            {u.username}{u.role === 'admin' && <span className="admin-badge">{t.common.admin}</span>}
+                            <button type="button" className="link-btn" onClick={() => onOpenLogbook(u.id)}>{u.username}</button>{u.role === 'admin' && <span className="admin-badge">{t.common.admin}</span>}
                             {me && <span className="hint">{t.common.you}</span>}
                           </span>
                         )}

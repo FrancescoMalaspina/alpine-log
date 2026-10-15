@@ -6,12 +6,15 @@ import { errorMessage } from '../lib/labels';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
+import { PartnersSection } from './PartnersSection';
 
 type Props = {
   userId: string;
   onClose: () => void;
   /** Admins only: the full-page list of users. */
   onOpenUsers: () => void;
+  onOpenLogbook: (userId: string) => void;
+  onPartnersChanged: () => void;
   onDeleted: () => void;
 };
 
@@ -70,6 +73,8 @@ export function AccountPanel(props: Props) {
           <ErrorText error={renameState.error} />
         </form>
       </section>
+
+      <PartnersSection userId={userId} onOpenLogbook={props.onOpenLogbook} onChanged={props.onPartnersChanged} />
 
       {isAdmin && (
         <section className="account-section">

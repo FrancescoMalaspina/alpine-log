@@ -6,6 +6,7 @@ import { AreaView } from './components/AreaView';
 import { AuthModal, NewPasswordModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { DuplicatesSection } from './components/DuplicatesSection';
+import { useUsernames } from './hooks/useUsernames';
 import { SuggestionsSection } from './components/SuggestionsSection';
 import { MapView, type MapCommand } from './components/MapView';
 import { MergeModal, type MergeTarget } from './components/MergeModal';
@@ -45,15 +46,18 @@ type Panel =
   | { kind: 'area'; areaId: number }
   | { kind: 'sector'; sectorId: number }
   | { kind: 'log' }
+  | { kind: 'logbook'; userId: string }
   | { kind: 'account' }
   | { kind: 'users' };
 
 /** The open panel lives in the URL hash (#place-12, #area-3, #sector-5, #log…): shareable, and Back closes it. */
 const panelHash = (p: Panel | null) =>
   !p ? '' : p.kind === 'place' ? `#place-${p.placeId}` : p.kind === 'area' ? `#area-${p.areaId}`
-    : p.kind === 'sector' ? `#sector-${p.sectorId}` : `#${p.kind}`;
+    : p.kind === 'sector' ? `#sector-${p.sectorId}` : p.kind === 'logbook' ? `#logbook-${p.userId}` : `#${p.kind}`;
 function panelFromHash(hash: string): Panel | null {
   if (hash === '#log') return { kind: 'log' };
+  const logbook = hash.match(/^#logbook-([0-9a-f-]{36})$/);
+  if (logbook) return { kind: 'logbook', userId: logbook[1] };
   if (hash === '#account') return { kind: 'account' };
   if (hash === '#users') return { kind: 'users' };
   const m = hash.match(/^#(place|area|sector)-(\d+)$/);
@@ -281,6 +285,14 @@ export default function App() {
     if (!isMobile) setCommand({ kind: 'focus', place, nonce: Date.now() });
   }, [isMobile]);
 
+  const openLoggedVisit = (v: VisitSummary) => {
+    const place = placeById.get(v.place_id);
+    if (place) openPlace(place, 'visits', v.id);
+  };
+  /** Someone's logbook: yours, with its tools, or another user's, read-only. */
+  const openLogbook = (id: string) => setPanel(id === userId ? { kind: 'log' } : { kind: 'logbook', userId: id });
+  const users = useUsernames();
+
   const areaPlaces = useCallback((areaId: number) => catalog.filter(p => p.area_id === areaId), [catalog]);
   const showAreaOnMap = useCallback((areaId: number) => {
     const pts = areaPlaces(areaId).map(p => ({ lat: p.lat, lng: p.lng }));
@@ -388,10 +400,8 @@ export default function App() {
               setCommand({ kind: 'fly', at: loc, zoom: 14, nonce: Date.now() });
             }
           }}
-          onVisitClick={v => {
-            const place = placeById.get(v.place_id);
-            if (place) openPlace(place, 'visits', v.id);
-          }}
+          onVisitClick={openLoggedVisit}
+          onOpenLogbook={openLogbook}
         />
 
         <MapView
@@ -446,6 +456,7 @@ export default function App() {
             onWish={() => requireSignIn(() => setWishModal({ place: panelPlace, wish: openWishByPlace.get(panelPlace.id) }))()}
             onEditVisit={visit => setVisitModal({ placeId: panelPlace.id, visit })}
             onChanged={reload}
+            onOpenLogbook={openLogbook}
           />
         )}
 
@@ -455,18 +466,30 @@ export default function App() {
             username={profile?.username ?? ''}
             reloadKey={reloadKey}
             onClose={() => setPanel(null)}
-            onChanged={reload}
-            onOpenLoggedVisit={v => {
-              const place = placeById.get(v.place_id);
-              if (place) openPlace(place, 'visits', v.id);
+            onOpenLoggedVisit={openLoggedVisit}
+            onOpenLogbook={openLogbook}
+            own={{
+              onChanged: reload,
+              wishes,
+              placeById,
+              onEditWish: (place, wish) => setWishModal({ place, wish }),
+              onLogVisit: place => setVisitModal({ placeId: place.id, withPeople: openWishByPlace.get(place.id)?.with_people }),
+              onOpenPlace: place => openPlace(place),
+              onOpenVisit: (place, visitId) => openPlace(place, 'visits', visitId),
+              onWishesChanged: reloadWishes,
             }}
-            wishes={wishes}
-            placeById={placeById}
-            onEditWish={(place, wish) => setWishModal({ place, wish })}
-            onLogVisit={place => setVisitModal({ placeId: place.id, withPeople: openWishByPlace.get(place.id)?.with_people })}
-            onOpenPlace={place => openPlace(place)}
-            onOpenVisit={(place, visitId) => openPlace(place, 'visits', visitId)}
-            onWishesChanged={reloadWishes}
+          />
+        )}
+
+        {panel?.kind === 'logbook' && (
+          <MyLog
+            key={panel.userId}
+            userId={panel.userId}
+            username={users.find(u => u.id === panel.userId)?.username ?? ''}
+            reloadKey={reloadKey}
+            onClose={() => setPanel(null)}
+            onOpenLoggedVisit={openLoggedVisit}
+            onOpenLogbook={openLogbook}
           />
         )}
 
@@ -475,6 +498,8 @@ export default function App() {
             userId={userId}
             onClose={() => setPanel(null)}
             onOpenUsers={() => setPanel({ kind: 'users' })}
+            onOpenLogbook={openLogbook}
+            onPartnersChanged={reload}
             onDeleted={() => {
               setPanel(null);
               void signOut();
@@ -485,7 +510,7 @@ export default function App() {
         )}
 
         {panel?.kind === 'users' && userId && isAdmin && (
-          <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })}>
+          <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })} onOpenLogbook={openLogbook}>
             <SuggestionsSection onChanged={reload} onOpenPlace={id => {
               const place = placeById.get(id);
               if (place) openPlace(place);

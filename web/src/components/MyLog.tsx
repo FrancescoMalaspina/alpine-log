@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { locale, useI18n } from '../i18n';
-import { fetchImports, fetchVisits, type ImportRecord } from '../lib/api';
+import { fetchImports, fetchTaggedVisits, fetchVisits, type ImportRecord } from '../lib/api';
 import { activityLabel, errorMessage, formatDate } from '../lib/labels';
 import { computeStats, type ActivityTally, type Tally } from '../lib/logStats';
 import { EMPTY_VISIT_FILTERS, type Activity, type Place, type VisitSummary, type Wish } from '../lib/types';
@@ -14,41 +14,60 @@ import { ImportWizard } from './import/ImportWizard';
 import { VisitRow } from './Sidebar';
 import { WishlistSection, type WishlistActions } from './WishlistSection';
 
-type Props = WishlistActions & {
+/** What only your own logbook has: imports, downloads and your wishlist. */
+type OwnLogbook = WishlistActions & {
+  /** Visits were imported or an import was undone. */
+  onChanged: () => void;
+  wishes: Wish[];
+  placeById: Map<number, Place>;
+};
+
+type Props = {
+  /** Whose logbook. */
   userId: string;
   username: string;
   reloadKey: number;
   onClose: () => void;
-  /** Visits were imported or an import was undone. */
-  onChanged: () => void;
   onOpenLoggedVisit: (visit: VisitSummary) => void;
-  wishes: Wish[];
-  placeById: Map<number, Place>;
+  onOpenLogbook: (userId: string) => void;
+  /** Set for your own logbook; without it, someone else's, read-only. */
+  own?: OwnLogbook;
 };
 
 // logStats groups undated visits under this key; it is translated for display.
 const NO_DATE = 'No date';
 const MINE = { ...EMPTY_VISIT_FILTERS, scope: 'mine' as const };
 
-/** The signed-in user's own logbook: every visit they logged, with simple totals. */
-export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenLoggedVisit, wishes, placeById, ...wishActions }: Props) {
+/**
+ * A logbook: every visit of one user you may read (all of your own; someone else's public ones),
+ * with simple totals, and the visits others logged with them.
+ */
+export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit, onOpenLogbook, own }: Props) {
   const { t } = useI18n();
   const [visits, setVisits] = useState<VisitSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [only, setOnly] = useState<Activity | null>(null);
   const [dialog, setDialog] = useState<'download' | 'imports' | 'wizard' | null>(null);
   const [imports, setImports] = useState<ImportRecord[]>([]);
+  const [tagged, setTagged] = useState<VisitSummary[]>([]);
+  const isOwn = !!own;
 
   useEffect(() => {
     let cancelled = false;
+    // "mine" filters by the logbook's user; the database leaves out what you may not read.
     fetchVisits(MINE, userId)
       .then(v => { if (!cancelled) setVisits(v); })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
-    fetchImports()
-      .then(i => { if (!cancelled) setImports(i); })
-      .catch(() => { /* the list of imports is secondary */ });
+    fetchTaggedVisits(userId)
+      .then(v => { if (!cancelled) setTagged(v); })
+      .catch(() => { /* secondary */ });
+    if (isOwn) {
+      fetchImports()
+        .then(i => { if (!cancelled) setImports(i); })
+        .catch(() => { /* the list of imports is secondary */ });
+    }
     return () => { cancelled = true; };
-  }, [userId, reloadKey]);
+  }, [userId, reloadKey, isOwn]);
 
   const stats = useMemo(() => (visits ? computeStats(visits) : null), [visits]);
   // Climbing (routes, pitches, grades) and tours (distance, height) count different things: a table each.
@@ -83,7 +102,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
       onClose={onClose}
     >
       <ErrorText error={error} />
-      <div className="log-actions">
+      {own && <div className="log-actions">
         <button type="button" className="log-action" disabled={!visits?.length} onClick={() => setDialog('download')}>
           <ActionIcon d="M12 4v11 M7 10l5 5 5-5 M5 20h14" />
           <span className="log-action-name">{t.account.myLog.download}</span>
@@ -96,11 +115,11 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
             {imports.length ? t.account.myLog.importPast(imports.length) : t.account.myLog.importNew}
           </span>
         </button>
-      </div>
+      </div>}
 
       {!visits && !error && <div className="empty">{t.account.myLog.loading}</div>}
       {visits && !visits.length && (
-        <div className="empty">{t.account.myLog.empty}</div>
+        <div className="empty">{own ? t.account.myLog.empty : t.account.myLog.emptyOther(username)}</div>
       )}
 
       {stats && visits!.length > 0 && (
@@ -111,7 +130,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
         </dl>
       )}
 
-      <WishlistSection wishes={wishes} placeById={placeById} {...wishActions} />
+      {own && <WishlistSection {...own} />}
 
       {stats && visits!.length > 0 && <>
         <details className="collapsible">
@@ -162,12 +181,25 @@ export function MyLog({ userId, username, reloadKey, onClose, onChanged, onOpenL
           ))}
         </details>
       </>}
+
+      {tagged.length > 0 && (
+        <details className="collapsible" open>
+          <summary className="section-title">
+            {own ? t.account.myLog.taggedYou : t.account.myLog.taggedOther(username)} <span className="tab-count">{tagged.length}</span>
+          </summary>
+          <ul className="rows">
+            {tagged.map(v => (
+              <VisitRow key={v.id} visit={v} mine={false} onClick={() => onOpenLoggedVisit(v)} onOpenUser={onOpenLogbook} />
+            ))}
+          </ul>
+        </details>
+      )}
       {/* Portalled: inside the drawer they would sit below the map's controls. */}
       {dialog && createPortal(
         dialog === 'download' ? <DownloadModal userId={userId} username={username || 'logbook'} onClose={() => setDialog(null)} />
           : dialog === 'imports' ? <ImportsModal imports={imports} onStart={() => setDialog('wizard')}
-                                                  onClose={() => setDialog(null)} onChanged={onChanged} />
-          : <ImportWizard onClose={() => setDialog(null)} onImported={onChanged} />,
+                                                  onClose={() => setDialog(null)} onChanged={own!.onChanged} />
+          : <ImportWizard onClose={() => setDialog(null)} onImported={own!.onChanged} />,
         document.body)}
     </Drawer>
   );

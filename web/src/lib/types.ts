@@ -147,6 +147,8 @@ export type VisitDetail = {
   partners: string[];
   /** People in other ropes of the same group. */
   other_partners: string[];
+  /** Partners the visit's owner linked to a registered user: name → user id. */
+  partner_links: Record<string, string>;
   /** Tracks logged with the visit (they're also on the spot). */
   tracks: VisitTrack[];
 };
@@ -154,7 +156,17 @@ export type VisitDetail = {
 /** A track logged with a visit, as the visit shows (and publishes) it. */
 export type VisitTrack = Pick<Attachment, 'id' | 'title' | 'private' | 'storage_path' | 'place_id' | 'created_by' | 'stats'>;
 
-export type Partner = { id: number; name: string };
+/** A name you put on your visits; it may point to a registered user. */
+export type Partner = {
+  id: number;
+  name: string;
+  linked_user_id: string | null;
+  linked_username: string | null;
+  visit_count: number;
+};
+
+/** A registered user, as anyone may see them. */
+export type UserRef = { id: string; username: string };
 
 export const TIP_TOPICS = ['conditions', 'gear', 'parking', 'approach', 'descent', 'other'] as const;
 export type TipTopic = typeof TIP_TOPICS[number];

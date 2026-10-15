@@ -6,7 +6,7 @@ import type { Database, Json } from './database.types';
 import { supabase } from './supabase';
 import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
-  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
   Tip, TipInput, TrackStats, VisitTrack, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
@@ -447,7 +447,7 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
       profile:profiles (username),
       notes:visit_notes (summary, conditions, approach, descent),
       ascents (id, route_id, name, grade, position, style, pitches, aid, note:ascent_notes (comment), place:places (id, name)),
-      visit_partners (same_rope, partner:partners (name)),
+      visit_partners (same_rope, partner:partners (name, linked_user_id)),
       attachments (id, title, private, storage_path, place_id, created_by,
                    distance_km, gain_m, loss_m, max_ele_m, min_ele_m, elapsed_s, moving_s, uphill_s)
     `)
@@ -465,6 +465,8 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
     ascents: ascents.map(({ note, ...a }) => ({ ...a, comment: note?.comment ?? null, style: a.style as VisitDetail['ascents'][number]['style'] })),
     partners: names(visit_partners.filter(vp => vp.same_rope)),
     other_partners: names(visit_partners.filter(vp => !vp.same_rope)),
+    partner_links: Object.fromEntries(visit_partners.flatMap(({ partner: p }) =>
+      p?.linked_user_id ? [[p.name, p.linked_user_id]] : [])),
     tracks: attachments.map(a => ({
       id: a.id, title: a.title, private: a.private, storage_path: a.storage_path, place_id: a.place_id,
       created_by: a.created_by, stats: statsOf(a),
@@ -500,8 +502,58 @@ export async function fetchLogbook(userId: string) {
 }
 export type LogbookVisit = Awaited<ReturnType<typeof fetchLogbook>>[number];
 
+/** Your partners, with the user each is linked to and how many visits each is on. */
 export async function fetchMyPartners(userId: string): Promise<Partner[]> {
-  return unwrap(await supabase.from('partners').select('id, name').eq('owner_id', userId).order('name'));
+  const rows = unwrap(await supabase
+    .from('partners')
+    .select('id, name, linked_user_id, linked:profiles!partners_linked_user_id_fkey (username), visit_partners (count)')
+    .eq('owner_id', userId)
+    .order('name'));
+  return rows.map(({ linked, visit_partners, ...p }) => ({
+    ...p, linked_username: linked?.username ?? null, visit_count: visit_partners[0]?.count ?? 0,
+  }));
+}
+
+/** Links one of your partners to a registered user, or unlinks it (null). */
+export async function linkPartner(id: number, userId: string | null): Promise<void> {
+  const { error } = await supabase.from('partners').update({ linked_user_id: userId }).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Renames a partner everywhere; to a name you already use, merges the two. Returns the partner that remains. */
+export async function renamePartner(id: number, name: string): Promise<number> {
+  return unwrap(await supabase.rpc('rename_partner', { p_id: id, p_name: name }));
+}
+
+/** Removes a partner (and the name from the visits it is on). */
+export async function deletePartner(id: number): Promise<void> {
+  const { error } = await supabase.from('partners').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Your partner name for a registered user, linked to them; made from their username when there is none. */
+export async function partnerForUser(userId: string): Promise<string> {
+  return unwrap(await supabase.rpc('partner_for_user', { p_user_id: userId }));
+}
+
+/** Every registered user's name (profiles are public). */
+export async function fetchUsernames(): Promise<UserRef[]> {
+  return unwrap(await supabase.from('profiles').select('id, username').order('username'));
+}
+
+/**
+ * Visits other people logged with `userId` as a linked partner, among those you may read
+ * (their public ones, or your own when it's you).
+ */
+export async function fetchTaggedVisits(userId: string): Promise<VisitSummary[]> {
+  const partnerIds = unwrap(await supabase.from('partners').select('id').eq('linked_user_id', userId)).map(p => p.id);
+  if (!partnerIds.length) return [];
+  return unwrap(await supabase
+    .from('visit_overview')
+    .select('*')
+    .overlaps('partner_ids', partnerIds)
+    .neq('user_id', userId)
+    .order('date', { ascending: false, nullsFirst: false })) as VisitSummary[];
 }
 
 export async function saveVisit(input: VisitInput): Promise<number> {

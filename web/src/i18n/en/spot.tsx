@@ -322,6 +322,7 @@ const en = {
   },
   peopleField: {
     addSomeone: 'Add someone new',
+    registered: 'Registered users:',
   },
   placeForm: {
     pickLabels: { coords: 'the map pin', parking: 'the parking', start: 'the start' },

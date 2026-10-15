@@ -1077,3 +1077,14 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 .suggestion-changed { display: block; font-size: 12.5px; color: var(--blaze-deep); }
 .suggestion-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .suggestion-actions input { flex: 1 1 200px; min-width: 0; }
+
+/* Partners (PartnersSection) and registered users in the people picker */
+.partner-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.partner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.partner-name { flex: 1 1 140px; min-width: 0; }
+.partner-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 14px; }
+.partner-link select { max-width: 200px; }
+.partner-rename { display: flex; flex: 1 1 100%; gap: 8px; }
+.partner-rename input { flex: 1; min-width: 0; }
+.person-chip-linked { margin-left: 4px; font-weight: 600; color: var(--slate); }
+.person-users { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }

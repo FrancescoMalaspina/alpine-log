@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { addRoute, deleteRoute, deleteVisit, fetchMyPlaceSuggestion, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips, withdrawPlaceSuggestion } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { TrackLayer } from '../lib/gpx';
@@ -40,6 +40,7 @@ type Props = {
   onWish: () => void;
   onEditVisit: (visit: VisitDetail) => void;
   onChanged: () => void;
+  onOpenLogbook: (userId: string) => void;
 };
 
 export function PlaceView(props: Props) {
@@ -239,7 +240,7 @@ function Waypoint({ label, icon, lat, lng }: { label: string; icon?: string; lat
   );
 }
 
-function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEditVisit, onChanged }: Props) {
+function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEditVisit, onChanged, onOpenLogbook }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [visits, setVisits] = useState<VisitDetail[] | null>(null);
@@ -285,7 +286,7 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
       <div className="visit-detail">
         {!visits && !error && <div className="empty">{t.common.loading}</div>}
         {visits && !selected && <div className="empty">{s.noVisits}</div>}
-        {selected && <VisitDetailBody visit={selected} mine={mine} spot={place} />}
+        {selected && <VisitDetailBody visit={selected} mine={mine} spot={place} onOpenLogbook={onOpenLogbook} />}
         {selected && (
           <PhotoGallery key={selected.id} owner={{ visitId: selected.id }} userId={userId} isAdmin={isAdmin} canAdd={mine}
                         emptyText={mine ? s.noPhotosMine : s.noPhotosOther} />
@@ -301,19 +302,26 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
   );
 }
 
-function VisitDetailBody({ visit: v, mine, spot }: { visit: VisitDetail; mine: boolean; spot: Place }) {
+function VisitDetailBody({ visit: v, mine, spot, onOpenLogbook }: {
+  visit: VisitDetail; mine: boolean; spot: Place; onOpenLogbook: (userId: string) => void;
+}) {
   const { t } = useI18n();
   const s = t.spot.placeView;
+  // A name its owner linked to a registered user leads to their logbook.
+  const person = (name: string, userId?: string) => userId
+    ? <button key={name} type="button" className="link-btn" onClick={() => onOpenLogbook(userId)}>{name}</button>
+    : name;
+  const people = (names: string[]) => joined(names.map(n => person(n, v.partner_links[n])));
   const meta = [
     v.date ? formatDate(v.date) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
-    v.partners.length ? s.with(v.partners.join(', ')) : null,
-    v.other_partners.length ? s.otherRopes(v.other_partners.join(', ')) : null,
-    !mine && v.username ? s.by(v.username) : null,
-  ].filter(Boolean).join(', ');
+    v.partners.length ? <>{s.with('')}{people(v.partners)}</> : null,
+    v.other_partners.length ? <>{s.otherRopes('')}{people(v.other_partners)}</> : null,
+    !mine && v.username ? <>{s.by('')}{person(v.username, v.user_id)}</> : null,
+  ].filter(Boolean);
   return <>
     <div className="visit-meta">
-      {meta && <span>{meta}</span>}
+      {meta.length > 0 && <span>{joined(meta)}</span>}
       {v.rating != null && <Stars rating={v.rating} />}
       <VisibilityPill visibility={v.visibility} />
     </div>
@@ -357,6 +365,11 @@ function VisitDetailBody({ visit: v, mine, spot }: { visit: VisitDetail; mine: b
 }
 
 /** A 1–5 rating as stars. */
+/** Nodes separated by commas. */
+function joined(parts: React.ReactNode[]) {
+  return parts.map((p, i) => <Fragment key={i}>{i > 0 && ', '}{p}</Fragment>);
+}
+
 export function Stars({ rating }: { rating: number }) {
   const { t } = useI18n();
   return (

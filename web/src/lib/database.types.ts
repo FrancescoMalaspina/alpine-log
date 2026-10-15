@@ -1107,6 +1107,7 @@ export type Database = {
         Returns: Json
       }
       owns_visit: { Args: { p_visit_id: number }; Returns: boolean }
+      partner_for_user: { Args: { p_user_id: string }; Returns: string }
       partner_on_readable_visit: {
         Args: { p_partner_id: number }
         Returns: boolean
@@ -1140,6 +1141,10 @@ export type Database = {
       reject_place_suggestion: {
         Args: { p_id: number; p_note?: string }
         Returns: undefined
+      }
+      rename_partner: {
+        Args: { p_id: number; p_name: string }
+        Returns: number
       }
       reopen_wish: { Args: { p_wish_id: number }; Returns: undefined }
       save_place: { Args: { p: Json }; Returns: number }

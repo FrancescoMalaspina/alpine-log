@@ -321,6 +321,7 @@ const it: Widen<typeof en> = {
   },
   peopleField: {
     addSomeone: 'Aggiungi qualcuno',
+    registered: 'Utenti registrati:',
   },
   placeForm: {
     pickLabels: { coords: 'il segnaposto', parking: 'il parcheggio', start: "l'attacco" },
