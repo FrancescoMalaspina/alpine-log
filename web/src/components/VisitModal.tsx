@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLookup } from '../hooks/useLookup';
 import { useConfirm } from '../hooks/useConfirm';
 import { useI18n } from '../i18n';
 import { uploadPhoto } from '../lib/photos';
-import { addLink, completeWish, fetchRoutes, publishTrack, savePlace } from '../lib/api';
+import { acceptInvitation, addLink, completeWish, fetchRoutes, fetchSameDayVisits, publishTrack, requestToJoin, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
-import type { Area, Partner, Place, Route, Sector, VisitDetail, Wish } from '../lib/types';
+import type { Area, Invitation, Partner, Place, Route, Sector, VisitDetail, VisitSummary, Wish } from '../lib/types';
 import { Combobox } from './forms/Combobox';
 import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues, type TrackDraft } from './forms/placeForm';
@@ -29,8 +30,12 @@ type Props = {
   partners: Partner[];
   /** Your open wishes: a new visit at one of these places can tick it off. */
   openWishByPlace: Map<number, Wish>;
-  /** People to preselect, e.g. from the wish the visit was started from. */
-  initialWithPeople?: string[];
+  /** Values to start from: the people of the wish it was started from, or an invitation's day. */
+  prefill?: Partial<VisitValues>;
+  /** The invitation this visit accepts: it joins the inviter's day, at their spot and date. */
+  invite?: Invitation;
+  /** Your invitations: a new visit at the spot and on the day of one offers to join it. */
+  invitations: Invitation[];
   hidden: boolean;
   onPickOnMap: PickOnMap;
   onCoordsChange: (at: LatLng | null) => void;
@@ -42,7 +47,7 @@ const NEW = 'new';
 
 /** Log a visit at an existing place, or at a new place created in the same save. */
 export function VisitModal({
-  placeId, visit, places, areas, sectors, userId, rocks, partners, openWishByPlace, initialWithPeople, hidden, onPickOnMap, onCoordsChange, onClose, onSaved,
+  placeId, visit, places, areas, sectors, userId, rocks, partners, openWishByPlace, prefill, invite, invitations, hidden, onPickOnMap, onCoordsChange, onClose, onSaved,
 }: Props) {
   const { t } = useI18n();
   const s = t.spot.visitModal;
@@ -55,10 +60,10 @@ export function VisitModal({
   const [newPlace, setNewPlace] = useState<PlaceValues>(() => placeValuesFrom());
   // Set once a new place is stored, so a retry after a failed visit save doesn't create it twice.
   const [savedPlaceId, setSavedPlaceId] = useState<number | undefined>();
-  const [values, setValues] = useState<VisitValues>(() => {
-    const v = visitValuesFrom(visit, places.find(p => p.id === (visit?.place_id ?? placeId)));
-    return initialWithPeople?.length ? { ...v, withPeople: initialWithPeople } : v;
-  });
+  const [values, setValues] = useState<VisitValues>(() => ({
+    ...visitValuesFrom(visit, places.find(p => p.id === (visit?.place_id ?? placeId))),
+    ...prefill,
+  }));
   const [tickOff, setTickOff] = useState(true);
   // A track loaded for a visit at an existing spot; a new spot keeps its own in newPlace.
   const [track, setTrack] = useState<TrackDraft | null>(null);
@@ -79,6 +84,15 @@ export function VisitModal({
   const activity = isNew ? newPlace.activity : place?.activity ?? 'crag';
   const routes = place && routeList?.placeId === place.id ? routeList.routes : [];
   const wish = !visit && place ? openWishByPlace.get(place.id) : undefined;
+
+  // Others who logged the spot that day: you may have been together.
+  const sameDay = useLookup(!visit && !invite && place && values.date ? `${place.id}|${values.date}` : null,
+                            () => fetchSameDayVisits(place!.id, values.date, userId));
+  const dayOptions = useMemo(() => sameDayOptions(sameDay ?? [], invitations.filter(i =>
+    i.kind === 'invite' && i.place_id === place?.id && i.date === values.date)), [sameDay, invitations, place, values.date]);
+  // Ticked or not, by option key; untouched, an option you were invited to is ticked.
+  const [together, setTogether] = useState<Map<string, boolean>>(new Map());
+  const isTogether = (o: DayOption) => together.get(o.key) ?? !!o.invitation;
 
   // The chosen spot's shared route list, for suggestions and linking.
   useEffect(() => {
@@ -188,6 +202,17 @@ export function VisitModal({
           failed.push(s.publishTrackFailed(errorMessage(e)));
         }
       }
+      const joins = invite ? [() => acceptInvitation(invite.id, visitId)]
+        : dayOptions.filter(isTogether).map(o => o.invitation
+          ? () => acceptInvitation(o.invitation!.id, visitId)
+          : async () => { await requestToJoin(visitId, o.visitIds[0]); });
+      for (const join of joins) {
+        try {
+          await join();
+        } catch (e) {
+          failed.push(s.joinFailed(errorMessage(e)));
+        }
+      }
       let wishResolved = false;
       if (wish && tickOff) {
         try {
@@ -222,7 +247,7 @@ export function VisitModal({
   return (
     <Modal
       title={visit ? s.editTitle : s.logTitle}
-      subtitle={visit && place ? s.atPlace(place.name) : s.subtitle}
+      subtitle={(visit || invite) && place ? s.atPlace(place.name) : s.subtitle}
       onClose={close}
       hidden={hidden}
       footer={<>
@@ -237,7 +262,7 @@ export function VisitModal({
       </>}
     >
       <div className="visit-modal-body">
-        {!visit && (
+        {!visit && !invite && (
           <div className="field">
             <label htmlFor="visitPlace">{s.where}</label>
             <Combobox id="visitPlace" value={query} placeholder={s.chooseSpot} options={spotOptions}
@@ -268,7 +293,17 @@ export function VisitModal({
                        walls={walls} spotName={place?.name ?? newPlace.name} routes={routes}
                        spotDetails={place
                          ? { grade: place.grade, pitches: place.pitches, aid: place.aid }
-                         : topoOf(newPlace)} />
+                         : topoOf(newPlace)}
+                       dateLocked={!!invite}
+                       dateNote={invite ? t.spot.visitFields.dateOfInvite(invite.from_username)
+                         : visit?.outing_id ? t.spot.visitFields.dateShared : undefined}
+                       sameDay={dayOptions.map(o => (
+                         <label key={o.key} className="field-inline same-day">
+                           <input type="checkbox" checked={isTogether(o)}
+                                  onChange={e => { const on = e.target.checked; setTogether(m => new Map(m).set(o.key, on)); }} />
+                           {o.invitation ? s.invitedSameDay(o.invitation.from_username) : s.sameDay(o.names.join(', '), o.names.length)}
+                         </label>
+                       ))} />
           {wish && (
             <label className="field-inline wish-tick">
               <input type="checkbox" checked={tickOff} onChange={e => setTickOff(e.target.checked)} />
@@ -308,6 +343,30 @@ export function VisitModal({
       {askDialog}
     </Modal>
   );
+}
+
+/** Someone else's day at the spot: one shared day, or one visit, and your invitation to it if any. */
+type DayOption = { key: string; names: string[]; visitIds: number[]; invitation?: Invitation };
+
+/**
+ * The days others logged at a spot on a date (the visits you can see, a shared day
+ * once), and the days you were invited to there, even when their visits are private.
+ */
+function sameDayOptions(visits: VisitSummary[], invitations: Invitation[]): DayOption[] {
+  const days = new Map<string, DayOption>();
+  for (const v of visits) {
+    const key = v.outing_id ? `day-${v.outing_id}` : `visit-${v.id}`;
+    const day = days.get(key) ?? { key, names: [], visitIds: [] };
+    day.visitIds.push(v.id);
+    if (v.username) day.names.push(v.username);
+    days.set(key, day);
+  }
+  for (const i of invitations) {
+    const day = [...days.values()].find(d => d.visitIds.includes(i.from_visit_id));
+    if (day) day.invitation = i;
+    else days.set(`invite-${i.id}`, { key: `invite-${i.id}`, names: [i.from_username], visitIds: [i.from_visit_id], invitation: i });
+  }
+  return [...days.values()];
 }
 
 /** How a spot reads in the picker: its sector, when it has one, before its name. */

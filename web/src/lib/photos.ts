@@ -6,12 +6,14 @@
  *
  * Place photos live in the public "place-photos" bucket. Visit photos live
  * in the private "visit-photos" bucket and are shown through signed URLs,
- * so they're only visible to whoever can see the visit.
+ * so they're only visible to whoever can see the visit. A visit in a shared
+ * day shows the photos of every visit of the day you can see.
  */
 import { tr } from '../i18n';
 import { supabase } from './supabase';
 
-export type PhotoOwner = { placeId: number } | { visitId: number };
+/** Photos go on a spot or a visit; a visit's outingId lists those of its whole shared day. */
+export type PhotoOwner = { placeId: number } | { visitId: number; outingId?: number | null };
 
 export type Photo = {
   id: number;
@@ -78,12 +80,20 @@ export async function uploadPhoto(owner: PhotoOwner, userId: string, file: File,
   }
 }
 
+/** The visit, or every visit of its shared day you can see. */
+async function visitsOf(owner: { visitId: number; outingId?: number | null }): Promise<number[]> {
+  if (!owner.outingId) return [owner.visitId];
+  const { data, error } = await supabase.from('visits').select('id').eq('outing_id', owner.outingId);
+  if (error) throw new Error(error.message);
+  return data.map(v => v.id);
+}
+
 export async function fetchPhotos(owner: PhotoOwner): Promise<Photo[]> {
   let q = supabase
     .from('photos')
     .select('id, created_by, caption, width, height, storage_path, thumb_path, profile:profiles (username)')
     .order('created_at');
-  q = 'placeId' in owner ? q.eq('place_id', owner.placeId) : q.eq('visit_id', owner.visitId);
+  q = 'placeId' in owner ? q.eq('place_id', owner.placeId) : q.in('visit_id', await visitsOf(owner));
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   if (!data.length) return [];

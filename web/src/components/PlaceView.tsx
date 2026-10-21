@@ -1,12 +1,12 @@
-import { Fragment, useEffect, useState } from 'react';
-import { addRoute, deleteRoute, deleteVisit, fetchMyPlaceSuggestion, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips, withdrawPlaceSuggestion } from '../lib/api';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { addRoute, deleteRoute, deleteVisit, fetchMyPlaceSuggestion, fetchOutingMembers, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips, leaveOuting, withdrawPlaceSuggestion } from '../lib/api';
 import { formatCoords } from '../lib/coords';
 import type { TrackLayer } from '../lib/gpx';
 import { useI18n } from '../i18n';
 import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
 import { trackStatsParts } from '../lib/trackStats';
 import { ActivityBadge } from './ActivityBadge';
-import type { Place, PlaceSuggestion, Route, Tip, VisitDetail, Wish } from '../lib/types';
+import type { OutingMember, Place, PlaceSuggestion, Route, Tip, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
 import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
@@ -240,29 +240,66 @@ function Waypoint({ label, icon, lat, lng }: { label: string; icon?: string; lat
   );
 }
 
+/** A spot's visits by day: the visits of a shared day together, any other visit on its own. */
+type Day = { key: string; outingId: number | null; visits: VisitDetail[] };
+
+function groupDays(visits: VisitDetail[], userId: string | null): Day[] {
+  const days = new Map<string, Day>();
+  for (const v of visits) {
+    const key = v.outing_id ? `day-${v.outing_id}` : `visit-${v.id}`;
+    const day = days.get(key) ?? { key, outingId: v.outing_id, visits: [] };
+    // Yours first.
+    if (v.user_id === userId) day.visits.unshift(v); else day.visits.push(v);
+    days.set(key, day);
+  }
+  return [...days.values()];
+}
+
 function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEditVisit, onChanged, onOpenLogbook }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [visits, setVisits] = useState<VisitDetail[] | null>(null);
+  const [members, setMembers] = useState<OutingMember[]>([]);
   const [selectedId, setSelectedId] = useState<number | undefined>(initialVisitId);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     fetchPlaceVisits(place.id)
-      .then(v => { if (!cancelled) setVisits(v); })
+      .then(async v => {
+        const outings = [...new Set(v.flatMap(x => (x.outing_id ? [x.outing_id] : [])))];
+        const m = await fetchOutingMembers(outings).catch(() => []);
+        if (!cancelled) { setVisits(v); setMembers(m); }
+      })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
     return () => { cancelled = true; };
-  }, [place.id, reloadKey]);
+  }, [place.id, reloadKey, userId]);
 
-  const selected = visits?.find(v => v.id === selectedId) ?? visits?.[0];
-  const mine = !!selected && selected.user_id === userId;
+  const days = useMemo(() => groupDays(visits ?? [], userId), [visits, userId]);
+  const selected = days.find(d => d.visits.some(v => v.id === selectedId)) ?? days[0];
+  const membersOf = (d: Day) => members.filter(m => m.outing_id === d.outingId);
+  // Who else was there: everyone in a shared day, the author of a visit on its own.
+  const othersIn = (d: Day) => (d.outingId ? membersOf(d).map(m => ({ id: m.user_id, name: m.username })) : d.visits.map(v => ({ id: v.user_id, name: v.username })))
+    .filter(p => p.id !== userId && p.name).map(p => p.name!);
+  const myVisit = selected?.visits.find(v => v.user_id === userId);
+  const changer = selected?.visits[0].date_changed_by;
+  const changerName = changer && changer !== userId ? selected && membersOf(selected).find(m => m.user_id === changer)?.username : null;
 
-  async function remove() {
-    if (!selected || !confirm(s.confirmDeleteVisit)) return;
+  async function remove(v: VisitDetail) {
+    if (!confirm(s.confirmDeleteVisit)) return;
     try {
-      await deleteVisit(selected.id);
+      await deleteVisit(v.id);
       setSelectedId(undefined);
+      onChanged();
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }
+
+  async function leave(v: VisitDetail) {
+    if (!confirm(s.confirmLeaveDay)) return;
+    try {
+      await leaveOuting(v.id);
       onChanged();
     } catch (e) {
       setError(errorMessage(e));
@@ -273,12 +310,12 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
     <div className="visits-view-body">
       <ErrorText error={error} />
       {visits && <div className="hint-block">{s.visitsYouCanSee(visits.length)}</div>}
-      {visits && visits.length > 0 && (
+      {days.length > 0 && (
         <div className="visits-tabs">
-          {visits.map((v, i) => (
-            <button key={v.id} type="button" className={`visit-tab${v.id === selected?.id ? ' active' : ''}`}
-                    onClick={() => setSelectedId(v.id)}>
-              {v.date ? formatDate(v.date) : s.visitN(i + 1)}{v.user_id !== userId && v.username ? `, ${v.username}` : ''}
+          {days.map((d, i) => (
+            <button key={d.key} type="button" className={`visit-tab${d === selected ? ' active' : ''}`}
+                    onClick={() => setSelectedId(d.visits[0].id)}>
+              {[d.visits[0].date ? formatDate(d.visits[0].date) : s.visitN(i + 1), ...othersIn(d)].join(', ')}
             </button>
           ))}
         </div>
@@ -286,24 +323,34 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
       <div className="visit-detail">
         {!visits && !error && <div className="empty">{t.common.loading}</div>}
         {visits && !selected && <div className="empty">{s.noVisits}</div>}
-        {selected && <VisitDetailBody visit={selected} mine={mine} spot={place} onOpenLogbook={onOpenLogbook} />}
+        {changerName && <div className="hint-block">{s.dateChangedBy(changerName)}</div>}
+        {selected?.visits.map(v => {
+          const mine = v.user_id === userId;
+          return (
+            <section key={v.id} className="day-visit">
+              <VisitDetailBody visit={v} mine={mine} spot={place} members={membersOf(selected)} onOpenLogbook={onOpenLogbook} />
+              {(mine || isAdmin) && (
+                <div className="visit-detail-actions">
+                  {mine && <button type="button" onClick={() => onEditVisit(v)}>{s.editVisit}</button>}
+                  {mine && v.outing_id && <button type="button" onClick={() => leave(v)}>{s.leaveDay}</button>}
+                  <button type="button" className="danger" onClick={() => remove(v)}>{s.deleteVisit}</button>
+                </div>
+              )}
+            </section>
+          );
+        })}
         {selected && (
-          <PhotoGallery key={selected.id} owner={{ visitId: selected.id }} userId={userId} isAdmin={isAdmin} canAdd={mine}
-                        emptyText={mine ? s.noPhotosMine : s.noPhotosOther} />
+          <PhotoGallery key={selected.key} owner={{ visitId: myVisit?.id ?? selected.visits[0].id, outingId: selected.outingId }}
+                        userId={userId} isAdmin={isAdmin} canAdd={!!myVisit}
+                        emptyText={myVisit ? s.noPhotosMine : s.noPhotosOther} />
         )}
       </div>
-      {selected && (mine || isAdmin) && (
-        <div className="visit-detail-actions">
-          {mine && <button type="button" onClick={() => onEditVisit(selected)}>{s.editVisit}</button>}
-          <button type="button" className="danger" onClick={remove}>{s.deleteVisit}</button>
-        </div>
-      )}
     </div>
   );
 }
 
-function VisitDetailBody({ visit: v, mine, spot, onOpenLogbook }: {
-  visit: VisitDetail; mine: boolean; spot: Place; onOpenLogbook: (userId: string) => void;
+function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
+  visit: VisitDetail; mine: boolean; spot: Place; members: OutingMember[]; onOpenLogbook: (userId: string) => void;
 }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
@@ -311,12 +358,16 @@ function VisitDetailBody({ visit: v, mine, spot, onOpenLogbook }: {
   const person = (name: string, userId?: string) => userId
     ? <button key={name} type="button" className="link-btn" onClick={() => onOpenLogbook(userId)}>{name}</button>
     : name;
-  const people = (names: string[]) => joined(names.map(n => person(n, v.partner_links[n])));
+  const people = (names: string[]) => names.map(n => person(n, v.partner_links[n]));
+  // The others in its shared day the visit doesn't name were there too, in other ropes.
+  const named = new Set(Object.values(v.partner_links));
+  const unnamed = members.filter(m => m.user_id !== v.user_id && !named.has(m.user_id)).map(m => person(m.username, m.user_id));
+  const others = [...people(v.other_partners), ...unnamed];
   const meta = [
     v.date ? formatDate(v.date) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
-    v.partners.length ? <>{s.with('')}{people(v.partners)}</> : null,
-    v.other_partners.length ? <>{s.otherRopes('')}{people(v.other_partners)}</> : null,
+    v.partners.length ? <>{(v.outing_id ? s.together : s.with)('')}{joined(people(v.partners))}</> : null,
+    others.length ? <>{s.otherRopes('')}{joined(others)}</> : null,
     !mine && v.username ? <>{s.by('')}{person(v.username, v.user_id)}</> : null,
   ].filter(Boolean);
   return <>

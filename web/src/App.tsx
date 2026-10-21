@@ -23,14 +23,16 @@ import { WishModal } from './components/WishModal';
 import { useDebounced } from './hooks/useDebounced';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
 import {
-  fetchAreas, fetchAttachments, fetchSectors, fetchMyPartners, fillMissingTrackStats, fetchMyWishes, fetchPlaces, fetchRocks, fetchTrackFile, fetchVisits,
+  fetchAreas, fetchAttachments, fetchSectors, fetchInvitations, fetchInvitePrefill, fetchMyPartners, fillMissingTrackStats, fetchMyWishes, fetchPlaces,
+  fetchRocks, fetchTrackFile, fetchVisits, partnerForUser,
 } from './lib/api';
+import { visitPrefillFromInvite, type VisitValues } from './components/forms/visitForm';
 import type { LatLng } from './lib/coords';
 import { trackLines, TRACK_COLORS, type Track, type TrackLayer } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
   EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS,
-  type Area, type Partner, type Place, type Sector, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
+  type Area, type Invitation, type Partner, type Place, type Sector, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
 } from './lib/types';
 
 const hasPlaceFilters = (f: PlaceFilters) =>
@@ -155,6 +157,16 @@ export default function App() {
   }, [userId, reloadKey]);
   const partners = userId ? myPartners : [];
 
+  // Invitations and requests to answer; checked on sign-in and after every change.
+  const [myInvitations, setMyInvitations] = useState<Invitation[]>([]);
+  useEffect(() => {
+    if (!userId) return;
+    let cancelled = false;
+    fetchInvitations().then(i => { if (!cancelled) setMyInvitations(i); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [userId, reloadKey]);
+  const invitations = userId ? myInvitations : [];
+
   // Tracks saved before their statistics were stored get measured once, in the background.
   useEffect(() => {
     if (userId) fillMissingTrackStats(userId).catch(() => {});
@@ -230,7 +242,9 @@ export default function App() {
   }, []);
   const [placeModal, setPlaceModal] = useState<{ place?: Place; at?: LatLng } | null>(null);
   const [mergeTarget, setMergeTarget] = useState<MergeTarget | null>(null);
-  const [visitModal, setVisitModal] = useState<{ placeId?: number; visit?: VisitDetail; withPeople?: string[] } | null>(null);
+  const [visitModal, setVisitModal] = useState<{
+    placeId?: number; visit?: VisitDetail; prefill?: Partial<VisitValues>; invite?: Invitation;
+  } | null>(null);
   const [wishModal, setWishModal] = useState<{ place: Place; wish?: Wish } | null>(null);
 
   // GPX tracks of the focused place, drawn on the map and summarised in its panel.
@@ -326,6 +340,22 @@ export default function App() {
     if (!userId) return setAuthOpen(true);
     setVisitModal({ placeId: place.id });
   };
+  /** A wish's people start the visit that ticks it off. */
+  const logWishVisit = (place: Place) => {
+    const people = openWishByPlace.get(place.id)?.with_people;
+    setVisitModal({ placeId: place.id, prefill: people?.length ? { withPeople: people } : undefined });
+  };
+  /** "Add to my logbook": a visit filled in from the invitation, the people by the names you know them by. */
+  const acceptWithVisit = async (invite: Invitation) => {
+    try {
+      const prefill = await fetchInvitePrefill(invite.id);
+      const users = [...new Set(prefill.people.flatMap(p => (p.user_id ? [p.user_id] : [])))];
+      const names = new Map(await Promise.all(users.map(async u => [u, await partnerForUser(u)] as const)));
+      setVisitModal({ placeId: invite.place_id, invite, prefill: visitPrefillFromInvite(prefill, u => names.get(u) ?? '') });
+    } catch (e) {
+      setNotice(errorMessage(e));
+    }
+  };
   const pickOnMap = useCallback((label: string, apply: (at: LatLng) => void) => {
     setPicking({ label, apply });
     if (isMobile) setMobileTab('map');
@@ -362,6 +392,7 @@ export default function App() {
         onSignIn={() => setAuthOpen(true)}
         onOpenLog={() => setPanel({ kind: 'log' })}
         onOpenAccount={() => setPanel({ kind: 'account' })}
+        invitations={invitations.length}
       />
 
       <div className={`stage${isMobile ? ` mobile show-${mobileTab}` : ''}`}>
@@ -467,13 +498,14 @@ export default function App() {
             reloadKey={reloadKey}
             onClose={() => setPanel(null)}
             onOpenLoggedVisit={openLoggedVisit}
-            onOpenLogbook={openLogbook}
             own={{
               onChanged: reload,
               wishes,
               placeById,
+              invitations,
+              onAddInvitation: acceptWithVisit,
               onEditWish: (place, wish) => setWishModal({ place, wish }),
-              onLogVisit: place => setVisitModal({ placeId: place.id, withPeople: openWishByPlace.get(place.id)?.with_people }),
+              onLogVisit: logWishVisit,
               onOpenPlace: place => openPlace(place),
               onOpenVisit: (place, visitId) => openPlace(place, 'visits', visitId),
               onWishesChanged: reloadWishes,
@@ -489,7 +521,6 @@ export default function App() {
             reloadKey={reloadKey}
             onClose={() => setPanel(null)}
             onOpenLoggedVisit={openLoggedVisit}
-            onOpenLogbook={openLogbook}
           />
         )}
 
@@ -574,6 +605,7 @@ export default function App() {
           onSignIn={() => setAuthOpen(true)}
           onOpenLog={() => setPanel({ kind: 'log' })}
           onOpenAccount={() => setPanel({ kind: 'account' })}
+          invitations={invitations.length}
         />
       )}
 
@@ -613,7 +645,7 @@ export default function App() {
 
       {visitModal && userId && (
         <VisitModal
-          key={`visit-${visitModal.visit?.id ?? 'new'}-${visitModal.placeId ?? ''}`}
+          key={`visit-${visitModal.visit?.id ?? 'new'}-${visitModal.placeId ?? ''}-${visitModal.invite?.id ?? ''}`}
           placeId={visitModal.placeId}
           visit={visitModal.visit}
           places={catalog}
@@ -623,7 +655,9 @@ export default function App() {
           rocks={rocks}
           partners={partners}
           openWishByPlace={openWishByPlace}
-          initialWithPeople={visitModal.withPeople}
+          prefill={visitModal.prefill}
+          invite={visitModal.invite}
+          invitations={invitations}
           hidden={!!picking}
           onPickOnMap={pickOnMap}
           onCoordsChange={setTempPin}

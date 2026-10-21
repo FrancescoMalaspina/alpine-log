@@ -98,6 +98,8 @@ export type VisitSummary = {
   track_gain_m: number | null;
   partner_ids: number[];
   partner_names: string[];
+  /** The shared day the visit is in, with the visits of the people who were there. */
+  outing_id: number | null;
 };
 
 /** A route in a spot's shared list. */
@@ -151,6 +153,10 @@ export type VisitDetail = {
   partner_links: Record<string, string>;
   /** Tracks logged with the visit (they're also on the spot). */
   tracks: VisitTrack[];
+  /** The shared day the visit is in. */
+  outing_id: number | null;
+  /** Who last moved the shared day to another date. */
+  date_changed_by: string | null;
 };
 
 /** A track logged with a visit, as the visit shows (and publishes) it. */
@@ -167,6 +173,35 @@ export type Partner = {
 
 /** A registered user, as anyone may see them. */
 export type UserRef = { id: string; username: string };
+
+/** "Anna added you" to her day (invite), or "Bob says he was with you" (request). */
+export type Invitation = {
+  id: number;
+  kind: 'invite' | 'request';
+  from_user_id: string;
+  from_username: string;
+  from_visit_id: number;
+  place_id: number;
+  date: string;
+  /** Your visit it would join: for an invite, one you already logged at that spot that day. */
+  my_visit_id: number | null;
+  created_at: string;
+};
+
+/** Someone who was there: a registered user, or a name. same_rope: in your rope. */
+export type PrefillPerson = { user_id: string | null; username: string | null; name: string | null; same_rope: boolean };
+
+/** What your visit starts from when you accept an invitation (public.invite_prefill). */
+export type InvitePrefill = {
+  place_id: number;
+  date: string;
+  people: PrefillPerson[];
+  /** The inviter's routes, when you were in their rope. */
+  ascents: (Pick<Ascent, 'route_id' | 'name' | 'grade' | 'pitches' | 'aid'> & { place_id: number | null })[];
+};
+
+/** Someone in a shared day. visit_id is null when you can't read their visit. */
+export type OutingMember = { outing_id: number; user_id: string; username: string; visit_id: number | null };
 
 export const TIP_TOPICS = ['conditions', 'gear', 'parking', 'approach', 'descent', 'other'] as const;
 export type TipTopic = typeof TIP_TOPICS[number];

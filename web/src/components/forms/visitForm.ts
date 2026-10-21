@@ -1,6 +1,6 @@
 import { tr } from '../../i18n';
 import { ACTIVITIES, localToday } from '../../lib/labels';
-import type { Activity, AscentStyle, Place, TipTopic, Visibility, VisitDetail, VisitInput } from '../../lib/types';
+import type { Activity, AscentStyle, InvitePrefill, Place, PrefillPerson, TipTopic, Visibility, VisitDetail, VisitInput } from '../../lib/types';
 import { summarize, trackVisit } from '../../lib/tracks';
 import type { PlaceValues, TrackDraft } from './placeForm';
 
@@ -74,6 +74,27 @@ export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' |
     addRoutes: false,
     tip: '',
     tipTopic: null,
+  };
+}
+
+/**
+ * Your visit as an invitation starts it: the day's date, the people (yours
+ * by the names you know them by, `nameOf` a registered user), and the
+ * inviter's routes when you were in their rope, without how they climbed them.
+ */
+export function visitPrefillFromInvite(p: InvitePrefill, nameOf: (userId: string) => string): Partial<VisitValues> {
+  const names = (people: PrefillPerson[]) =>
+    [...new Set(people.map(x => (x.user_id ? nameOf(x.user_id) : x.name ?? '')).filter(Boolean))];
+  return {
+    date: p.date,
+    withPeople: names(p.people.filter(x => x.same_rope)),
+    otherPeople: names(p.people.filter(x => !x.same_rope)),
+    ...(p.ascents.length ? {
+      ascents: p.ascents.map(a => ({
+        ...ascentRow(), name: a.name ?? '', grade: a.grade ?? '', wallId: a.place_id ? String(a.place_id) : '',
+        pitches: a.pitches?.toString() ?? '', aid: a.aid ?? '',
+      })),
+    } : {}),
   };
 }
 

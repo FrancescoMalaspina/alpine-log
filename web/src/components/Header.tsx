@@ -11,6 +11,8 @@ type Props = {
   onSignIn: () => void;
   onOpenLog: () => void;
   onOpenAccount: () => void;
+  /** Invitations waiting for an answer, counted on "My logbook". */
+  invitations: number;
 };
 
 /** Two peaks, the higher one snow-capped. */
@@ -23,7 +25,7 @@ export function Logo() {
   );
 }
 
-export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenAccount }: Props) {
+export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenAccount, invitations }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
   const { t } = useI18n();
 
@@ -42,6 +44,7 @@ export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, 
           <div className="account">
             <button type="button" className="account-name" onClick={onOpenLog} title={t.app.header.logbookTitle}>
               {t.app.header.logbook}
+              <InvitationsBadge n={invitations} />
               {isAdmin && <span className="admin-badge">{t.common.admin}</span>}
             </button>
             <button type="button" className="link-btn account-user" onClick={onOpenAccount} title={t.app.header.accountTitle}>
@@ -55,6 +58,13 @@ export function Header({ isMobile, onAddPlace, onLogVisit, onSignIn, onOpenLog, 
       )}
     </header>
   );
+}
+
+/** How many invitations wait for an answer, when any do. */
+export function InvitationsBadge({ n }: { n: number }) {
+  const { t } = useI18n();
+  if (!n) return null;
+  return <span className="count-badge" title={t.app.header.invitationsWaiting(n)} aria-label={t.app.header.invitationsWaiting(n)}>{n}</span>;
 }
 
 export function StatsLine({ stats }: { stats: Stats }) {

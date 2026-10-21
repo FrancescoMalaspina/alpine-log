@@ -16,6 +16,7 @@ const it: Widen<typeof en> = {
     logVisit: 'Registra una visita',
     logbook: 'Il mio diario',
     logbookTitle: 'Le tue visite, la lista dei desideri e i totali',
+    invitationsWaiting: (n: number) => (n === 1 ? '1 invito in attesa' : `${n} inviti in attesa`),
     accountTitle: 'Il tuo account',
     signOut: 'Esci',
     signIn: 'Accedi per registrare le salite',

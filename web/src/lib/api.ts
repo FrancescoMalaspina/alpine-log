@@ -6,7 +6,7 @@ import type { Database, Json } from './database.types';
 import { supabase } from './supabase';
 import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
-  Area, Attachment, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, Invitation, InvitePrefill, OutingMember, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
   Tip, TipInput, TrackStats, VisitTrack, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
@@ -443,8 +443,9 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
   const rows = unwrap(await supabase
     .from('visits')
     .select(`
-      id, user_id, place_id, date, duration_hours, visibility, rating,
+      id, user_id, place_id, date, duration_hours, visibility, rating, outing_id,
       profile:profiles (username),
+      outing:outings (date_changed_by),
       notes:visit_notes (summary, conditions, approach, descent),
       ascents (id, route_id, name, grade, position, style, pitches, aid, note:ascent_notes (comment), place:places (id, name)),
       visit_partners (same_rope, partner:partners (name, linked_user_id)),
@@ -457,9 +458,10 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
 
   const names = (list: { partner: { name: string } | null }[]) =>
     list.map(vp => vp.partner?.name).filter((n): n is string => !!n).sort();
-  return rows.map(({ profile, visit_partners, ascents, attachments, notes, ...v }) => ({
+  return rows.map(({ profile, outing, visit_partners, ascents, attachments, notes, ...v }) => ({
     ...v,
     ...notesOf(notes),
+    date_changed_by: outing?.date_changed_by ?? null,
     visibility: v.visibility as VisitDetail['visibility'],
     username: profile?.username ?? null,
     ascents: ascents.map(({ note, ...a }) => ({ ...a, comment: note?.comment ?? null, style: a.style as VisitDetail['ascents'][number]['style'] })),
@@ -541,23 +543,59 @@ export async function fetchUsernames(): Promise<UserRef[]> {
   return unwrap(await supabase.from('profiles').select('id, username').order('username'));
 }
 
-/**
- * Visits other people logged with `userId` as a linked partner, among those you may read
- * (their public ones, or your own when it's you).
- */
-export async function fetchTaggedVisits(userId: string): Promise<VisitSummary[]> {
-  const partnerIds = unwrap(await supabase.from('partners').select('id').eq('linked_user_id', userId)).map(p => p.id);
-  if (!partnerIds.length) return [];
+export async function saveVisit(input: VisitInput): Promise<number> {
+  return unwrap(await supabase.rpc('save_visit', { v: input }));
+}
+
+// ---------------------------------------------------------------- shared visits
+
+/** Invitations and requests waiting for your answer, newest first. */
+export async function fetchInvitations(): Promise<Invitation[]> {
+  return unwrap(await supabase.rpc('my_invitations')) as Invitation[];
+}
+
+/** What your visit starts from when you accept an invitation: spot, date, people and, in their rope, routes. */
+export async function fetchInvitePrefill(id: number): Promise<InvitePrefill> {
+  return unwrap(await supabase.rpc('invite_prefill', { p_invite_id: id })) as unknown as InvitePrefill;
+}
+
+/** Accepts an invitation with a visit of yours (new, or already logged), or a request to join yours. */
+export async function acceptInvitation(id: number, visitId?: number): Promise<void> {
+  const { error } = await supabase.rpc('accept_invitation', { p_id: id, p_visit_id: visitId });
+  if (error) throw new Error(error.message);
+}
+
+/** "Not me" to an invitation, or no to a request. */
+export async function declineInvitation(id: number): Promise<void> {
+  const { error } = await supabase.rpc('decline_invitation', { p_id: id });
+  if (error) throw new Error(error.message);
+}
+
+/** Asks to join someone's visit with yours: 'joined' right away when they had invited you to that day. */
+export async function requestToJoin(myVisitId: number, theirVisitId: number): Promise<'joined' | 'requested'> {
+  return unwrap(await supabase.rpc('request_to_join', { p_my_visit_id: myVisitId, p_their_visit_id: theirVisitId })) as 'joined' | 'requested';
+}
+
+/** Takes your visit out of its shared day; everyone else's stays. */
+export async function leaveOuting(visitId: number): Promise<void> {
+  const { error } = await supabase.rpc('leave_outing', { p_visit_id: visitId });
+  if (error) throw new Error(error.message);
+}
+
+/** Who is in each of these shared days. */
+export async function fetchOutingMembers(outingIds: number[]): Promise<OutingMember[]> {
+  if (!outingIds.length) return [];
+  return unwrap(await supabase.rpc('outing_members', { p_outing_ids: outingIds }));
+}
+
+/** Visits others logged at a spot on a date that you can see: the people you may have been with. */
+export async function fetchSameDayVisits(placeId: number, date: string, userId: string): Promise<VisitSummary[]> {
   return unwrap(await supabase
     .from('visit_overview')
     .select('*')
-    .overlaps('partner_ids', partnerIds)
-    .neq('user_id', userId)
-    .order('date', { ascending: false, nullsFirst: false })) as VisitSummary[];
-}
-
-export async function saveVisit(input: VisitInput): Promise<number> {
-  return unwrap(await supabase.rpc('save_visit', { v: input }));
+    .eq('place_id', placeId)
+    .eq('date', date)
+    .neq('user_id', userId)) as VisitSummary[];
 }
 
 /** Deletes a visit. Its private tracks go with it (a trigger removes the rows, their files go here); public ones stay on the spot. */
