@@ -6,6 +6,7 @@ import { activityLabel, errorMessage, formatDate } from '../lib/labels';
 import { computeStats, type ActivityTally, type Tally } from '../lib/logStats';
 import { EMPTY_VISIT_FILTERS, type Activity, type Invitation, type Place, type VisitSummary, type Wish } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
+import { Collapsible } from './Collapsible';
 import { Drawer } from './Drawer';
 import { DownloadModal, ImportsModal } from './LogbookModals';
 import { TRACK_ACTIVITIES } from './forms/placeForm';
@@ -102,20 +103,6 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
       <ErrorText error={error} />
       {own && <InvitationsSection invitations={own.invitations} placeById={own.placeById}
                                   onAdd={own.onAddInvitation} onChanged={own.onChanged} />}
-      {own && <div className="log-actions">
-        <button type="button" className="log-action" disabled={!visits?.length} onClick={() => setDialog('download')}>
-          <ActionIcon d="M12 4v11 M7 10l5 5 5-5 M5 20h14" />
-          <span className="log-action-name">{t.account.myLog.download}</span>
-          <span className="log-action-use">{t.account.myLog.downloadUse}</span>
-        </button>
-        <button type="button" className="log-action" onClick={() => setDialog(imports.length ? 'imports' : 'wizard')}>
-          <ActionIcon d="M12 15V4 M7 9l5-5 5 5 M5 20h14" />
-          <span className="log-action-name">{t.account.myLog.import}</span>
-          <span className="log-action-use">
-            {imports.length ? t.account.myLog.importPast(imports.length) : t.account.myLog.importNew}
-          </span>
-        </button>
-      </div>}
 
       {!visits && !error && <div className="empty">{t.account.myLog.loading}</div>}
       {visits && !visits.length && (
@@ -133,8 +120,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
       {own && <WishlistSection {...own} />}
 
       {stats && visits!.length > 0 && <>
-        <details className="collapsible">
-          <summary className="section-title">{t.account.myLog.statistics}</summary>
+        <Collapsible id="log.statistics" title={t.account.myLog.statistics}>
           {climbing.length > 0 && <>
             <h4 className="stats-heading">{t.account.myLog.climbing}</h4>
             <StatsTable head={t.account.myLog.activity} rows={climbing} rowKey={a => a.type} rowHead={activityHead} columns={[
@@ -154,10 +140,9 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
           <h4 className="stats-heading">{t.account.myLog.byYear}</h4>
           <StatsTable head={t.account.myLog.year} rows={stats.byYear} rowKey={y => y.year} columns={[days, routes, pitches, km, climbed]}
                       rowHead={y => <span className="num">{y.year === NO_DATE ? t.account.myLog.noDate : y.year}</span>} />
-        </details>
+        </Collapsible>
 
-        <details className="collapsible" open>
-          <summary className="section-title">{t.account.myLog.allVisits}</summary>
+        <Collapsible id="log.visits" title={t.account.myLog.allVisits}>
           {stats.byActivity.length > 1 && (
             <div className="chip-row" role="group" aria-label={t.account.myLog.onlyOne}>
               <label className="type-option small">
@@ -179,9 +164,22 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
               </ul>
             </details>
           ))}
-        </details>
+        </Collapsible>
       </>}
 
+      {own && <div className="log-actions">
+        <button type="button" className="log-action" disabled={!visits?.length} title={t.account.myLog.downloadUse}
+                onClick={() => setDialog('download')}>
+          <ActionIcon d="M12 4v11 M7 10l5 5 5-5 M5 20h14" />
+          <span className="log-action-name">{t.account.myLog.download}</span>
+        </button>
+        <button type="button" className="log-action"
+                title={imports.length ? t.account.myLog.importPast(imports.length) : t.account.myLog.importNew}
+                onClick={() => setDialog(imports.length ? 'imports' : 'wizard')}>
+          <ActionIcon d="M12 15V4 M7 9l5-5 5 5 M5 20h14" />
+          <span className="log-action-name">{t.account.myLog.import}</span>
+        </button>
+      </div>}
       {/* Portalled: inside the drawer they would sit below the map's controls. */}
       {dialog && createPortal(
         dialog === 'download' ? <DownloadModal userId={userId} username={username || 'logbook'} onClose={() => setDialog(null)} />
