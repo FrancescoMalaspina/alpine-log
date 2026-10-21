@@ -281,6 +281,114 @@ export type Database = {
           },
         ]
       }
+      outing_invites: {
+        Row: {
+          answered_at: string | null
+          created_at: string
+          from_visit_id: number
+          id: number
+          kind: string
+          status: string
+          to_user_id: string
+          to_visit_id: number | null
+        }
+        Insert: {
+          answered_at?: string | null
+          created_at?: string
+          from_visit_id: number
+          id?: never
+          kind: string
+          status?: string
+          to_user_id: string
+          to_visit_id?: number | null
+        }
+        Update: {
+          answered_at?: string | null
+          created_at?: string
+          from_visit_id?: number
+          id?: never
+          kind?: string
+          status?: string
+          to_user_id?: string
+          to_visit_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outing_invites_from_visit_id_fkey"
+            columns: ["from_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outing_invites_from_visit_id_fkey"
+            columns: ["from_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outing_invites_to_user_id_fkey"
+            columns: ["to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outing_invites_to_visit_id_fkey"
+            columns: ["to_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visit_overview"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outing_invites_to_visit_id_fkey"
+            columns: ["to_visit_id"]
+            isOneToOne: false
+            referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      outings: {
+        Row: {
+          created_at: string
+          date: string
+          date_changed_by: string | null
+          id: number
+          place_id: number
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          date_changed_by?: string | null
+          id?: never
+          place_id: number
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          date_changed_by?: string | null
+          id?: never
+          place_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "outings_date_changed_by_fkey"
+            columns: ["date_changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "outings_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partners: {
         Row: {
           id: number
@@ -843,6 +951,7 @@ export type Database = {
           duration_hours: number | null
           id: number
           import_id: number | null
+          outing_id: number | null
           place_id: number
           rating: number | null
           updated_at: string
@@ -855,6 +964,7 @@ export type Database = {
           duration_hours?: number | null
           id?: never
           import_id?: number | null
+          outing_id?: number | null
           place_id: number
           rating?: number | null
           updated_at?: string
@@ -867,6 +977,7 @@ export type Database = {
           duration_hours?: number | null
           id?: never
           import_id?: number | null
+          outing_id?: number | null
           place_id?: number
           rating?: number | null
           updated_at?: string
@@ -879,6 +990,13 @@ export type Database = {
             columns: ["import_id"]
             isOneToOne: false
             referencedRelation: "imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visits_outing_id_fkey"
+            columns: ["outing_id"]
+            isOneToOne: false
+            referencedRelation: "outings"
             referencedColumns: ["id"]
           },
           {
@@ -982,6 +1100,7 @@ export type Database = {
           id: number | null
           max_grade_rank: number | null
           max_sent_grade_rank: number | null
+          outing_id: number | null
           partner_ids: number[] | null
           partner_names: string[] | null
           pitches_climbed: number | null
@@ -1016,6 +1135,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "visits_outing_id_fkey"
+            columns: ["outing_id"]
+            isOneToOne: false
+            referencedRelation: "outings"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "visits_place_id_fkey"
             columns: ["place_id"]
             isOneToOne: false
@@ -1033,6 +1159,10 @@ export type Database = {
       }
     }
     Functions: {
+      accept_invitation: {
+        Args: { p_id: number; p_visit_id?: number }
+        Returns: number
+      }
       approve_place_suggestion: {
         Args: { p_fields?: string[]; p_id: number; p_note?: string }
         Returns: string[]
@@ -1057,6 +1187,7 @@ export type Database = {
         Returns: undefined
       }
       core_name: { Args: { t: string }; Returns: string }
+      decline_invitation: { Args: { p_id: number }; Returns: undefined }
       delete_user: {
         Args: { p_check_only?: boolean; p_user_id: string }
         Returns: undefined
@@ -1082,7 +1213,9 @@ export type Database = {
       fold_name: { Args: { t: string }; Returns: string }
       grade_rank: { Args: { grade: string }; Returns: number }
       import_logbook: { Args: { p: Json }; Returns: Json }
+      invite_prefill: { Args: { p_invite_id: number }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      leave_outing: { Args: { p_visit_id: number }; Returns: undefined }
       list_users: {
         Args: never
         Returns: {
@@ -1105,6 +1238,29 @@ export type Database = {
       merge_places: {
         Args: { p_duplicate: number; p_keep: number }
         Returns: Json
+      }
+      my_invitations: {
+        Args: never
+        Returns: {
+          created_at: string
+          date: string
+          from_user_id: string
+          from_username: string
+          from_visit_id: number
+          id: number
+          kind: string
+          my_visit_id: number
+          place_id: number
+        }[]
+      }
+      outing_members: {
+        Args: { p_outing_ids: number[] }
+        Returns: {
+          outing_id: number
+          user_id: string
+          username: string
+          visit_id: number
+        }[]
       }
       owns_visit: { Args: { p_visit_id: number }; Returns: boolean }
       partner_for_user: { Args: { p_user_id: string }; Returns: string }
@@ -1147,6 +1303,10 @@ export type Database = {
         Returns: number
       }
       reopen_wish: { Args: { p_wish_id: number }; Returns: undefined }
+      request_to_join: {
+        Args: { p_my_visit_id: number; p_their_visit_id: number }
+        Returns: string
+      }
       save_place: { Args: { p: Json }; Returns: number }
       save_visit: { Args: { v: Json }; Returns: number }
       set_user_role: {
