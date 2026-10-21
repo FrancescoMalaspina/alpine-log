@@ -93,16 +93,18 @@ const it: Widen<typeof en> = {
 
   partners: {
     title: 'Compagni',
-    hint: 'Le persone che metti nelle tue visite. Collega un nome a un utente registrato: nelle visite che gli altri possono vedere porterà al suo diario. Rinominare con un nome che usi già unisce i due.',
+    hint: 'Le persone che metti nelle tue visite. Collega un nome a un utente registrato e diventa il suo nome utente, quello che vedono tutti; nelle visite che gli altri possono vedere porterà al suo diario. Rinominare con un nome che usi già unisce i due.',
     none: 'Ancora nessun compagno: compaiono quando aggiungi persone alle tue visite.',
     visits: (n: number) => (n === 1 ? '1 visita' : `${n} visite`),
     newName: (name: string) => `Nuovo nome per ${name}`,
     rename: 'Rinomina',
     confirmMerge: (from: string, to: string) => `Hai già "${to}". Unire "${from}" a questo? Visite e desideri diventano di uno solo.`,
+    confirmMergeLinked: (from: string, to: string, username: string) =>
+      `"${to}" è già @${username}. Unire "${from}" a questo? Visite e desideri diventano di uno solo.`,
     unlink: 'Scollega',
     isThis: (username: string) => `È @${username}?`,
     linkTo: (name: string) => `Collega ${name} a un utente registrato`,
-    linkToUser: 'Collega a un utente…',
+    linkToUser: 'Collega a un utente: scrivi il nome…',
   },
   accountPanel: {
     title: 'Account',

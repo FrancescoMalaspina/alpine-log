@@ -91,16 +91,18 @@ const en = {
 
   partners: {
     title: 'Partners',
-    hint: 'The people you put on your visits. Link a name to a registered user, and on visits others can see it leads to their logbook. Renaming to a name you already use merges the two.',
+    hint: 'The people you put on your visits. Link a name to a registered user and it becomes their username, the name everyone sees; on visits others can see, it leads to their logbook. Renaming to a name you already use merges the two.',
     none: 'No partners yet: they appear as you add people to your visits.',
     visits: (n: number) => (n === 1 ? '1 visit' : `${n} visits`),
     newName: (name: string) => `New name for ${name}`,
     rename: 'Rename',
     confirmMerge: (from: string, to: string) => `You already have "${to}". Merge "${from}" into it? Their visits and wishes become one.`,
+    confirmMergeLinked: (from: string, to: string, username: string) =>
+      `"${to}" is already @${username}. Merge "${from}" into it? Their visits and wishes become one.`,
     unlink: 'Unlink',
     isThis: (username: string) => `Is this @${username}?`,
     linkTo: (name: string) => `Link ${name} to a registered user`,
-    linkToUser: 'Link to a user…',
+    linkToUser: 'Link to a user: type their name…',
   },
   accountPanel: {
     title: 'Account',

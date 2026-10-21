@@ -30,6 +30,8 @@ export function Combobox({ id, value, onChange, options, placeholder, onPick }: 
   const listId = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
+  // The label picked from the list, until typing changes it; what the field starts with counts as picked.
+  const [picked, setPicked] = useState<string | null>(value);
 
   const typed = foldName(value);
   const shown = options
@@ -37,10 +39,13 @@ export function Combobox({ id, value, onChange, options, placeholder, onPick }: 
     // What starts with the typed text first.
     .sort((a, b) => Number(foldName(b.label).startsWith(typed)) - Number(foldName(a.label).startsWith(typed)))
     .slice(0, MAX_SHOWN);
-  // Nothing to suggest once the field holds exactly one option.
-  const expanded = open && shown.length > 0 && !(shown.length === 1 && foldName(shown[0].label) === typed);
+  // Nothing to suggest once the field holds exactly one option: picked from the list
+  // when picking means something (onPick), typed out is enough for free text.
+  const settled = shown.length === 1 && foldName(shown[0].label) === typed && (!onPick || picked === value);
+  const expanded = open && shown.length > 0 && !settled;
 
   function pick(o: ComboOption) {
+    setPicked(o.label);
     onChange(o.label);
     onPick?.(o);
     setOpen(false);
@@ -66,7 +71,7 @@ export function Combobox({ id, value, onChange, options, placeholder, onPick }: 
       <input id={id} value={value} placeholder={placeholder} autoComplete="off"
              role="combobox" aria-autocomplete="list" aria-expanded={expanded} aria-controls={listId}
              aria-activedescendant={expanded && active >= 0 ? `${listId}-${active}` : undefined}
-             onChange={e => { onChange(e.target.value); setOpen(true); setActive(-1); }}
+             onChange={e => { onChange(e.target.value); setPicked(null); setOpen(true); setActive(-1); }}
              onFocus={() => setOpen(true)}
              onBlur={() => setOpen(false)}
              onKeyDown={onKeyDown} />

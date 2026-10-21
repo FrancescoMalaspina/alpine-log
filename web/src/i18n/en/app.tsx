@@ -142,6 +142,11 @@ const en = {
     none: (q: string) => `No locations called "${q}".`,
     attribution: 'Location search by Photon, data © OpenStreetMap contributors',
   },
+  people: {
+    aria: 'People on Alpine Log',
+    head: 'People',
+    openLogbook: 'Open their logbook',
+  },
   drawer: { closePanel: 'Close panel' },
   coords: {
     noGeolocation: 'This browser has no location access.',

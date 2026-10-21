@@ -144,6 +144,11 @@ const it: Widen<typeof en> = {
     none: (q: string) => `Nessun luogo chiamato "${q}".`,
     attribution: 'Ricerca dei luoghi con Photon, dati © OpenStreetMap contributors',
   },
+  people: {
+    aria: 'Persone su Alpine Log',
+    head: 'Persone',
+    openLogbook: 'Apri il suo diario',
+  },
   drawer: { closePanel: 'Chiudi il pannello' },
   coords: {
     noGeolocation: 'Questo browser non ha accesso alla posizione.',

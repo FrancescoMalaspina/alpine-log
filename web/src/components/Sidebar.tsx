@@ -4,6 +4,7 @@ import { GRADE_OPTIONS } from '../lib/grades';
 import { activityLabel, formatDate, formatHours, protectionLabel } from '../lib/labels';
 import { ActivityBadge } from './ActivityBadge';
 import { LocationResults } from './LocationResults';
+import { PeopleResults } from './PeopleResults';
 import type { Location } from '../lib/geocode';
 import type { LatLng } from '../lib/coords';
 import {
@@ -115,6 +116,7 @@ export function Sidebar(props: Props) {
                 : t.app.sidebar.emptyNothing}
           </div>
         )}
+        {mode !== 'areas' && <PeopleResults query={search} onOpenLogbook={props.onOpenLogbook} />}
         {mode === 'places' && <PlaceGroups {...props} />}
         {mode === 'places' && (
           <LocationResults query={pf.search} getMapCenter={props.getMapCenter} onPick={props.onLocationPick} />
