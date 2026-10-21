@@ -8,6 +8,18 @@ const en = {
     typeToConfirm: (name: string) => <>Type <strong translate="no">{name}</strong> to confirm</>,
   },
 
+  invitations: {
+    title: 'Invitations',
+    invited: (who: string, spot: string, date: string) => <><b>{who}</b> added you to <b>{spot}</b>, {date}.</>,
+    requested: (who: string, spot: string, date: string) => <><b>{who}</b> says they were with you at <b>{spot}</b>, {date}.</>,
+    linkHint: 'You logged this spot that day too: linking keeps your visit as it is.',
+    add: 'Add to my logbook',
+    link: 'Link my visit',
+    notMe: 'Not me',
+    accept: 'Accept',
+    decline: 'Decline',
+  },
+
   myLog: {
     title: (name: string) => `${name}'s logbook`,
     titleNoName: 'My logbook',
@@ -20,8 +32,6 @@ const en = {
     loading: 'Loading your visits…',
     empty: 'Nothing logged yet. Use Log a visit to start your logbook, or import it from a spreadsheet.',
     emptyOther: (name: string) => `${name || 'This user'} has no visits you can see: only public ones are shown.`,
-    taggedYou: 'With you, logged by others',
-    taggedOther: (name: string) => `With ${name || 'them'}, logged by others`,
     daysOut: 'Days out',
     routesTotal: 'Routes',
     spots: 'Spots',

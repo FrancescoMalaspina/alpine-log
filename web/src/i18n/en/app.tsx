@@ -14,6 +14,7 @@ const en = {
     logVisit: 'Log a visit',
     logbook: 'My logbook',
     logbookTitle: 'Your visits, wishlist and totals',
+    invitationsWaiting: (n: number) => (n === 1 ? '1 invitation waiting' : `${n} invitations waiting`),
     accountTitle: 'Your account',
     signOut: 'Sign out',
     signIn: 'Sign in to log climbs',

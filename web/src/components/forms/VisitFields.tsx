@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useI18n } from '../../i18n';
 import { TipTopicPicker } from '../Tips';
 import { PeopleField } from './PeopleField';
@@ -22,10 +23,16 @@ type Props = {
   routes?: Route[];
   /** The spot's topo values, shown as what your climb overrides. */
   spotDetails?: { grade: string | null; pitches: number | null; aid: string | null };
+  /** A word about the date: it is a shared day's. */
+  dateNote?: string;
+  /** The date can't change here (the day you're joining has it). */
+  dateLocked?: boolean;
+  /** Under the people: others who logged the spot that day, to join. */
+  sameDay?: ReactNode;
 };
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
-export function VisitFields({ values: v, onChange, partners, activity, walls, spotName, routes = [], spotDetails }: Props) {
+export function VisitFields({ values: v, onChange, partners, activity, walls, spotName, routes = [], spotDetails, dateNote, dateLocked, sameDay }: Props) {
   const { t } = useI18n();
   const s = t.spot.visitFields;
   const f = ACTIVITIES[activity];
@@ -47,7 +54,7 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
       <div className="visit-row">
         <label className="field-inline">
           <span className="field-label">{s.date}</span>
-          <input type="date" className="visit-date" value={v.date} onChange={e => onChange({ date: e.target.value })} />
+          <input type="date" className="visit-date" value={v.date} disabled={dateLocked} onChange={e => onChange({ date: e.target.value })} />
         </label>
         <div className="segmented" role="radiogroup" aria-label={s.whoCanSee}>
           {(['private', 'public'] as const).map(vis => (
@@ -59,6 +66,7 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
         </div>
       </div>
       <div className="hint-block">
+        {dateNote && <>{dateNote} </>}
         {v.visibility === 'private'
           ? s.privateHint
           : s.publicHint}
@@ -71,6 +79,7 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
         <PeopleField label={s.otherRopesLabel} partners={partners} value={v.otherPeople}
                      onChange={otherPeople => onChange({ otherPeople })} />
       </details>
+      {sameDay}
 
       <div className="visit-row">
         <div className="rating-field" role="radiogroup" aria-label={s.rating}>

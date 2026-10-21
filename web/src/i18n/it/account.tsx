@@ -10,6 +10,18 @@ const it: Widen<typeof en> = {
     typeToConfirm: (name: string) => <>Scrivi <strong translate="no">{name}</strong> per confermare</>,
   },
 
+  invitations: {
+    title: 'Inviti',
+    invited: (who: string, spot: string, date: string) => <><b>{who}</b> ti ha aggiunto a <b>{spot}</b>, {date}.</>,
+    requested: (who: string, spot: string, date: string) => <><b>{who}</b> dice che era con te a <b>{spot}</b>, {date}.</>,
+    linkHint: 'Anche tu hai registrato questo spot quel giorno: collegandola, la tua visita resta com’è.',
+    add: 'Aggiungi al mio diario',
+    link: 'Collega la mia visita',
+    notMe: 'Non ero io',
+    accept: 'Accetta',
+    decline: 'Rifiuta',
+  },
+
   myLog: {
     title: (name: string) => `Diario di ${name}`,
     titleNoName: 'Il mio diario',
@@ -22,8 +34,6 @@ const it: Widen<typeof en> = {
     loading: 'Caricamento delle tue visite…',
     empty: 'Ancora nulla nel diario. Usa Registra una visita per iniziare, oppure importalo da un foglio di calcolo.',
     emptyOther: (name: string) => `${name || 'Questo utente'} non ha visite che puoi vedere: si vedono solo quelle pubbliche.`,
-    taggedYou: 'Con te, registrate da altri',
-    taggedOther: (name: string) => `Con ${name || 'lui o lei'}, registrate da altri`,
     daysOut: 'Uscite',
     routesTotal: 'Vie',
     spots: 'Spot',

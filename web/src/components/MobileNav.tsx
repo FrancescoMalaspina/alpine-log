@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { useI18n } from '../i18n';
-import { StatsLine, type Stats } from './Header';
+import { InvitationsBadge, StatsLine, type Stats } from './Header';
 
 export type MobileTab = 'map' | 'list';
 
@@ -14,10 +14,12 @@ type Props = {
   onSignIn: () => void;
   onOpenLog: () => void;
   onOpenAccount: () => void;
+  /** Invitations waiting for an answer, counted on "Me" and on the logbook. */
+  invitations: number;
 };
 
 /** Bottom tab bar for phones: map, list, add, account. */
-export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenAccount }: Props) {
+export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn, onOpenLog, onOpenAccount, invitations }: Props) {
   const { session, profile, isAdmin, signOut } = useAuth();
   const { t } = useI18n();
   const [sheet, setSheet] = useState<'add' | 'account' | null>(null);
@@ -44,7 +46,7 @@ export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn,
               {profile?.username}{isAdmin && <span className="admin-badge">{t.common.admin}</span>}
             </div>
             <StatsLine stats={stats} />
-            <button type="button" autoFocus onClick={pick(onOpenLog)}>{t.app.header.logbook}</button>
+            <button type="button" autoFocus onClick={pick(onOpenLog)}>{t.app.header.logbook}<InvitationsBadge n={invitations} /></button>
             <button type="button" onClick={pick(onOpenAccount)}>{t.app.mobileNav.account}</button>
             <button type="button" onClick={pick(() => signOut())}>{t.app.header.signOut}</button>
           </>}
@@ -67,6 +69,7 @@ export function MobileNav({ tab, onTab, stats, onAddPlace, onLogVisit, onSignIn,
       <button type="button" onClick={() => (session ? setSheet('account') : onSignIn())}>
         <NavIcon d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21c1-4 4-6 8-6s7 2 8 6" />
         <span className="nav-label">{session ? profile?.username ?? t.app.mobileNav.me : t.app.auth.signIn}</span>
+        {session && <InvitationsBadge n={invitations} />}
       </button>
     </nav>
   </>;
