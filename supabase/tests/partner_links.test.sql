@@ -1,8 +1,9 @@
--- Partners linked to registered users: rename_partner, partner_for_user, tags readable with their visit (#4).
+-- Partners linked to registered users: link_partner, rename_partner, partner_for_user, tags readable
+-- with their visit (#4); a linked name is the username, one per user, and follows it (#34).
 -- Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(30);
 
 \set fra  '\'11111111-1111-4111-8111-111111111111\''
 \set vale '\'22222222-2222-4222-8222-222222222222\''
@@ -34,11 +35,13 @@ insert into ids select 'Vale', id from public.partners where name = 'Vale';
 insert into ids select 'V.', id from public.partners where name = 'V.';
 
 -- ---------------------------------------------------------------- linking
-select throws_ok(format('update public.partners set linked_user_id = %L where id = %s', :ugo, pg_temp.id('Vale')),
-                 '23514', null, 'a name cannot be linked to its owner');
-select lives_ok(format('update public.partners set linked_user_id = %L where id = %s', :vale, pg_temp.id('Vale')),
-                'the owner links a name to a registered user');
-select is(public.partner_for_user(:vale), 'Vale', 'partner_for_user finds the name linked to them');
+select throws_ok(format('select public.link_partner(%s, %L)', pg_temp.id('Vale'), :ugo),
+                 '22023', null, 'a name cannot be linked to its owner');
+select throws_ok(format('update public.partners set linked_user_id = %L where id = %s', :vale, pg_temp.id('Vale')),
+                 '42501', null, 'links change only through link_partner');
+select is(public.link_partner(pg_temp.id('Vale'), :vale), pg_temp.id('Vale'), 'the owner links a name to a registered user');
+select is((select name from public.partners where id = pg_temp.id('Vale')), 'vale', '…and it takes their username');
+select is(public.partner_for_user(:vale), 'vale', 'partner_for_user finds the name linked to them');
 select throws_ok(format('select public.partner_for_user(%L)', :ugo), '22023', null, '…not for yourself');
 select is(public.partner_for_user(:fra), (select username from public.profiles where id = :fra),
           '…and makes a linked name from the username when there is none');
@@ -47,8 +50,7 @@ select is((select linked_user_id from public.partners where owner_id = :ugo and 
 
 -- ---------------------------------------------------------------- others see the tag with readable visits
 select pg_temp.as_user(:fra);
-update public.partners set linked_user_id = :fra where id = pg_temp.id('V.');
-select is((select linked_user_id from public.partners where id = pg_temp.id('V.')), null, 'nobody else links your names');
+select throws_ok(format('select public.link_partner(%s, %L)', pg_temp.id('V.'), :fra), 'P0002', null, 'nobody else links your names');
 select is((select linked_user_id from public.partners where id = pg_temp.id('Vale')), :vale::uuid,
           'on a public visit, the tag is readable');
 select pg_temp.as_user(:vale);
@@ -65,13 +67,41 @@ select pg_temp.as_user(:ugo);
 select throws_ok(format($$select public.rename_partner(%s, '  ')$$, pg_temp.id('Vale')), '22023', null, 'a name cannot be blank');
 select is(public.rename_partner(pg_temp.id('V.'), ' Valentina '), pg_temp.id('V.'), 'renaming to a new name keeps the partner');
 select is((select with_people from public.wishlist where user_id = :ugo), '{Valentina}', '…and renames them in wishes');
-select is(public.rename_partner(pg_temp.id('V.'), 'Vale'), pg_temp.id('Vale'), 'renaming to a name you use merges into it');
+select is(public.rename_partner(pg_temp.id('V.'), 'vale'), pg_temp.id('Vale'), 'renaming to a name you use merges into it');
 select ok(not exists (select 1 from public.partners where id = pg_temp.id('V.')), 'the other name is gone');
 select is((select array_agg(visit_id order by visit_id) from public.visit_partners where partner_id = pg_temp.id('Vale')),
           array[pg_temp.id('pub'), pg_temp.id('priv')], 'the merged partner is on both visits, once');
 select is((select same_rope from public.visit_partners where partner_id = pg_temp.id('Vale') and visit_id = pg_temp.id('pub')), true,
           'in the same rope where either was');
 select is((select linked_user_id from public.partners where id = pg_temp.id('Vale')), :vale::uuid, 'and still linked');
+
+-- ---------------------------------------------------------------- one name per user, the username (#34)
+-- ugo knows vale as "vale" (linked, both visits) and now also as "Valentina" (their wish).
+update public.wishlist set with_people = '{Valentina}' where user_id = :ugo;
+insert into public.partners (name) values ('Valentina');
+insert into ids select 'Valentina', id from public.partners where owner_id = :ugo and name = 'Valentina';
+select throws_ok(format($$insert into public.partners (name, linked_user_id) values ('Vally', %L)$$, :vale),
+                 '23505', null, 'one name per registered user');
+select is(public.link_partner(pg_temp.id('Valentina'), :vale), pg_temp.id('Valentina'), 'linking a second name to them…');
+select is((select array_agg(name) from public.partners where owner_id = :ugo and linked_user_id = :vale), '{vale}',
+          '…merges the two, called by the username');
+select is((select count(*) from public.visit_partners where partner_id = pg_temp.id('Valentina')), 2::bigint,
+          'with the visits of both');
+
+-- vale renames herself; fra takes a username ugo already uses for someone else.
+select pg_temp.as_user(:vale);
+update public.profiles set username = 'valentina' where id = :vale;
+select pg_temp.as_user(:ugo);
+select is((select name from public.partners where id = pg_temp.id('Valentina')), 'valentina', 'the name follows the username');
+select ok(exists (select 1 from public.wishlist where user_id = :ugo and with_people = '{valentina}'), '…in wishes too');
+insert into public.partners (name) values ('zed');
+select pg_temp.as_user(:fra);
+update public.profiles set username = 'zed' where id = :fra;
+select pg_temp.as_user(:ugo);
+select is((select name from public.partners where owner_id = :ugo and linked_user_id = :fra), '@zed',
+          'when you call someone else by that username, it is "@username"');
+select lives_ok(format('select public.link_partner(%s)', pg_temp.id('Valentina')), 'unlinking…');
+select is((select name from public.partners where id = pg_temp.id('Valentina')), 'valentina', '…keeps the name');
 
 select * from finish();
 rollback;

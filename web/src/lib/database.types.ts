@@ -1216,6 +1216,10 @@ export type Database = {
       invite_prefill: { Args: { p_invite_id: number }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
       leave_outing: { Args: { p_visit_id: number }; Returns: undefined }
+      link_partner: {
+        Args: { p_id: number; p_user_id?: string }
+        Returns: number
+      }
       list_users: {
         Args: never
         Returns: {
