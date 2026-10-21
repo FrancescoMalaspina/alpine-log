@@ -516,9 +516,12 @@ export async function fetchMyPartners(userId: string): Promise<Partner[]> {
   }));
 }
 
-/** Links one of your partners to a registered user, or unlinks it (null). */
+/**
+ * Links one of your partners to a registered user, or unlinks it (null). A linked partner
+ * takes the username, and any other name you have for that user merges into it.
+ */
 export async function linkPartner(id: number, userId: string | null): Promise<void> {
-  const { error } = await supabase.from('partners').update({ linked_user_id: userId }).eq('id', id);
+  const { error } = await supabase.rpc('link_partner', { p_id: id, p_user_id: userId ?? undefined });
   if (error) throw new Error(error.message);
 }
 
