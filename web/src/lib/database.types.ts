@@ -1298,6 +1298,10 @@ export type Database = {
         Args: { p_duplicate: number; p_keep: number }
         Returns: Json
       }
+      merge_crag_sectors: {
+        Args: { p_duplicate: number; p_keep: number }
+        Returns: number
+      }
       merge_places: {
         Args: { p_duplicate: number; p_keep: number }
         Returns: Json

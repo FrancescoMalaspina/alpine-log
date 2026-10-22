@@ -78,6 +78,8 @@ const en = {
     editSector: 'Edit',
     removeSector: 'Remove',
     confirmRemoveSector: (name: string) => `Remove the sector "${name}"? Its routes stay, in no sector.`,
+    confirmMergeSector: (from: string, to: string) =>
+      `"${to}" is already a sector of this crag. Merge "${from}" into it? Its routes, and the routes climbed there, become "${to}"'s.`,
     inCragSector: 'Sector',
   },
   // What a spot's routes are called: tiri at a crag, blocchi at a boulder area, vie elsewhere.

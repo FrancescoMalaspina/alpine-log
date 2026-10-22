@@ -77,6 +77,8 @@ const it: Widen<typeof en> = {
     editSector: 'Modifica',
     removeSector: 'Rimuovi',
     confirmRemoveSector: (name: string) => `Rimuovere il settore "${name}"? I suoi tiri restano, senza settore.`,
+    confirmMergeSector: (from: string, to: string) =>
+      `"${to}" è già un settore di questa falesia. Unire "${from}" a questo? I suoi tiri, e quelli saliti lì, passano a "${to}".`,
     inCragSector: 'Settore',
   },
   // Come si chiamano le vie di uno spot: tiri in falesia, blocchi nel boulder, vie altrove.

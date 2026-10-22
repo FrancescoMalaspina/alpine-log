@@ -1,9 +1,11 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import {
   addCragSector, addRoute, deleteCragSector, deleteRoute, deleteVisit, fetchCragSectors, fetchMyPlaceSuggestion, fetchOutingMembers, fetchPlaceVisits,
+  mergeCragSectors,
   fetchPlaceWishers, fetchRoutes, fetchTips, leaveOuting, updateCragSector, withdrawPlaceSuggestion, type CragSectorInput,
 } from '../lib/api';
 import { formatCoords, parseCoordinates } from '../lib/coords';
+import { sameName } from '../lib/names';
 import type { TrackLayer } from '../lib/gpx';
 import { useI18n } from '../i18n';
 import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions, routeKind } from '../lib/labels';
@@ -511,7 +513,8 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
       {routes && groups.map(g => (
         <div key={g.sector?.id ?? 'none'} className="route-group">
           {g.sector ? (
-            <SectorHead sector={g.sector} canChange={canChange(g.sector.created_by)} onChange={change} />
+            <SectorHead sector={g.sector} others={sectors.filter(x => x.id !== g.sector!.id)}
+                        canChange={canChange(g.sector.created_by)} onChange={change} />
           ) : sectors.length > 0 && <h4 className="route-group-head">{s.noSector}</h4>}
           {g.routes.length > 0 && (
             <ul>
@@ -562,17 +565,25 @@ function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
   );
 }
 
-/** A crag sector's heading: its name, the way there, what it's like; edit and remove for who may. */
-function SectorHead({ sector: cs, canChange, onChange }: {
-  sector: CragSector; canChange: boolean; onChange: (run: () => Promise<unknown>) => Promise<boolean>;
+/**
+ * A crag sector's heading: its name, the way there, what it's like; edit and remove for who may.
+ * Renaming it to the name of another of the crag's sectors (`others`) merges it into that one.
+ */
+function SectorHead({ sector: cs, others, canChange, onChange }: {
+  sector: CragSector; others: CragSector[]; canChange: boolean; onChange: (run: () => Promise<unknown>) => Promise<boolean>;
 }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [editing, setEditing] = useState(false);
-  if (editing) {
-    return <SectorForm sector={cs} onCancel={() => setEditing(false)}
-                       onSave={next => onChange(() => updateCragSector(cs.id, next)).then(ok => { if (ok) setEditing(false); })} />;
+
+  async function save(next: CragSectorInput) {
+    const twin = others.find(x => sameName(x.name, next.name));
+    if (twin && !confirm(s.confirmMergeSector(cs.name, twin.name))) return;
+    const ok = await onChange(() => (twin ? mergeCragSectors(twin.id, cs.id) : updateCragSector(cs.id, next)));
+    if (ok) setEditing(false);
   }
+
+  if (editing) return <SectorForm sector={cs} onCancel={() => setEditing(false)} onSave={save} />;
   return (
     <div className="crag-sector-head">
       <h4 className="route-group-head">{cs.name}</h4>
