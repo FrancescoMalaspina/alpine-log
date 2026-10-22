@@ -447,6 +447,27 @@ aside {
 .add-attachment-row input { flex: 1; }
 
 /* Logbook */
+/* A logbook: find a climber, then its own search and filters over the visits. */
+.log-people { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.log-find, .log-filters .search input {
+  width: 100%; padding: 8px 12px;
+  background: var(--plate); border: 1px solid var(--rule); border-radius: var(--radius);
+}
+.log-people .people-results { width: 100%; }
+.log-filters { display: flex; flex-direction: column; gap: 8px; }
+.log-filters .search { padding: 0; }
+.log-filters .filters { margin: 0; }
+.drawer.drawer-hidden { display: none; }
+/* On a phone's map: whose logbook's spots are shown, with the way back. */
+.map-chip {
+  /* Clear of the zoom buttons on the left, centred in the rest. */
+  position: absolute; top: 10px; left: 60px; right: 12px; width: fit-content; margin-inline: auto; z-index: 1000;
+  display: flex; align-items: center; gap: 12px;
+  padding: 4px 6px 4px 14px; border-radius: var(--radius);
+  background: var(--plate); box-shadow: var(--lift); font-weight: 600;
+}
+.map-chip-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.map-chip .link-btn { white-space: nowrap; }
 .log-totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; margin: 0; }
 .log-totals div { padding: 10px 12px; background: var(--paper); border-radius: var(--radius); }
 .log-totals dt { font-size: 13.5px; color: var(--slate); }

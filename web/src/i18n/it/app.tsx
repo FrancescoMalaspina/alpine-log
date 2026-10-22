@@ -10,6 +10,7 @@ const it: Widen<typeof en> = {
     accountDeleted: 'Il tuo account è stato eliminato.',
     areaCreated: 'Area creata. Aggiungi qui sotto gli spot.',
     pickOnMap: (touch: boolean, label: string) => `${touch ? 'Tocca' : 'Clicca su'} la mappa per impostare ${label}.`,
+    backToLogbook: '← Indietro',
   },
   header: {
     addSpot: 'Aggiungi uno spot',

@@ -271,13 +271,30 @@ export default function App() {
     setTrackToggles({ placeId: focusedId, shown });
   };
 
-  const pins = places;
+  // While a logbook is open, the map shows only the spots of the visits it lists.
+  const [logPlaces, setLogPlaces] = useState<{ log: string; ids: Set<number> } | null>(null);
+  const logKeyNow = panel?.kind === 'log' || panel?.kind === 'logbook' ? panelHash(panel) : null;
+  const logPlaceIds = logPlaces && logPlaces.log === logKeyNow ? logPlaces.ids : null;
+  const pins = useMemo(
+    () => (logPlaceIds ? catalog.filter(p => logPlaceIds.has(p.id)) : places), [logPlaceIds, catalog, places]);
+  const fitTo = useCallback((list: Place[]) => {
+    if (list.length) setCommand({ kind: 'fit', points: list.map(p => ({ lat: p.lat, lng: p.lng })), nonce: Date.now() });
+  }, []);
+  const showLogPlaces = useCallback((ids: number[], first: boolean) => {
+    if (!logKeyNow) return;
+    const set = new Set(ids);
+    setLogPlaces({ log: logKeyNow, ids: set });
+    if (first) fitTo(catalog.filter(p => set.has(p.id)));
+  }, [logKeyNow, catalog, fitTo]);
+  // On a phone, "Show on map" hides the logbook (still open) behind its spots.
+  const [logOnMap, setLogOnMap] = useState<string | null>(null);
+  const showingLogOnMap = isMobile && !!logKeyNow && logOnMap === logKeyNow;
 
   // The spot list: open, folded (remembered on this device) or across the whole
   // width. A logbook folds it while it is open, unless it's opened again meanwhile.
   const [listFolded, setListFolded] = useRemembered('sidebar.collapsed', false);
   const [listFull, setListFull] = useState(false);
-  const logKey = panel?.kind === 'log' || panel?.kind === 'logbook' ? panelHash(panel) : null;
+  const logKey = logKeyNow;
   const [peekedLog, setPeekedLog] = useState<string | null>(null);
   const sidebarView: SidebarView = isMobile ? 'open'
     : (logKey && peekedLog !== logKey) || listFolded ? 'collapsed' : listFull ? 'full' : 'open';
@@ -311,6 +328,20 @@ export default function App() {
   /** Someone's logbook: yours, with its tools, or another user's, read-only. */
   const openLogbook = (id: string) => setPanel(id === userId ? { kind: 'log' } : { kind: 'logbook', userId: id });
   const users = useUsernames();
+  /** What every logbook panel gets, yours or someone else's. */
+  const logbookProps = {
+    reloadKey,
+    onClose: () => setPanel(null),
+    onOpenLoggedVisit: openLoggedVisit,
+    onOpenLogbook: userId ? openLogbook : undefined,
+    onShownPlaces: showLogPlaces,
+    onShowOnMap: isMobile ? () => {
+      setLogOnMap(logKeyNow);
+      setMobileTab('map');
+      fitTo(pins);
+    } : undefined,
+    hidden: showingLogOnMap,
+  };
 
   const areaPlaces = useCallback((areaId: number) => catalog.filter(p => p.area_id === areaId), [catalog]);
   const showAreaOnMap = useCallback((areaId: number) => {
@@ -509,12 +540,11 @@ export default function App() {
 
         {panel?.kind === 'log' && userId && (
           <MyLog
+            {...logbookProps}
             userId={userId}
             username={profile?.username ?? ''}
-            reloadKey={reloadKey}
-            onClose={() => setPanel(null)}
-            onOpenLoggedVisit={openLoggedVisit}
             own={{
+              partners,
               onChanged: reload,
               wishes,
               placeById,
@@ -531,13 +561,24 @@ export default function App() {
 
         {panel?.kind === 'logbook' && (
           <MyLog
+            {...logbookProps}
             key={panel.userId}
             userId={panel.userId}
             username={users.find(u => u.id === panel.userId)?.username ?? ''}
-            reloadKey={reloadKey}
-            onClose={() => setPanel(null)}
-            onOpenLoggedVisit={openLoggedVisit}
+            onOpenMine={userId ? () => openLogbook(userId) : undefined}
           />
+        )}
+
+        {showingLogOnMap && (
+          <div className="map-chip" role="status">
+            <span className="map-chip-name">
+              {panel?.kind === 'logbook' ? t.account.myLog.title(users.find(u => u.id === panel.userId)?.username ?? '')
+                : t.account.myLog.titleNoName}
+            </span>
+            <button type="button" className="link-btn" onClick={() => setLogOnMap(null)}>{t.app.app.backToLogbook}</button>
+            <button type="button" className="icon-btn small" aria-label={t.app.drawer.closePanel}
+                    onClick={() => { setLogOnMap(null); setPanel(null); }}>×</button>
+          </div>
         )}
 
         {panel?.kind === 'account' && userId && (
@@ -614,7 +655,7 @@ export default function App() {
       {isMobile && (
         <MobileNav
           tab={mobileTab}
-          onTab={tab => { setMobileTab(tab); setPanel(null); }}
+          onTab={tab => { setMobileTab(tab); setPanel(null); setLogOnMap(null); }}
           stats={stats}
           onAddPlace={openAddPlace}
           onLogVisit={openLogVisit}

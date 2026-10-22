@@ -8,6 +8,7 @@ const en = {
     accountDeleted: 'Your account has been deleted.',
     areaCreated: 'Area created. Add spots to it below.',
     pickOnMap: (touch: boolean, label: string) => `${touch ? 'Tap' : 'Click'} the map to set ${label}.`,
+    backToLogbook: '← Back',
   },
   header: {
     addSpot: 'Add a spot',

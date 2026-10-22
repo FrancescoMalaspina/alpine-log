@@ -54,6 +54,10 @@ const it: Widen<typeof en> = {
     allVisits: 'Tutte le visite',
     onlyOne: 'Mostra una sola attività',
     all: 'Tutte',
+    findClimber: 'Cerca un arrampicatore…',
+    backToMine: '← Il mio diario',
+    showOnMap: 'Mostra sulla mappa',
+    searchVisits: 'Cerca spot, persone, vie…',
   },
 
   logbookModals: {

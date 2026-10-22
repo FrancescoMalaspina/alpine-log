@@ -52,6 +52,10 @@ const en = {
     allVisits: 'All visits',
     onlyOne: 'Show only one activity',
     all: 'All',
+    findClimber: 'Find a climber…',
+    backToMine: '← My logbook',
+    showOnMap: 'Show on map',
+    searchVisits: 'Search spots, people, routes…',
   },
 
   logbookModals: {
