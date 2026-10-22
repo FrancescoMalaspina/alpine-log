@@ -7,6 +7,7 @@ import { AuthModal, NewPasswordModal } from './components/AuthModal';
 import { Header } from './components/Header';
 import { DuplicatesSection } from './components/DuplicatesSection';
 import { useUsernames } from './hooks/useUsernames';
+import { PhotoReviewSection } from './components/PhotoReviewSection';
 import { SuggestionsSection } from './components/SuggestionsSection';
 import { MapView, type MapCommand } from './components/MapView';
 import { MergeModal, type MergeTarget } from './components/MergeModal';
@@ -31,6 +32,7 @@ import { visitPrefillFromInvite, type VisitValues } from './components/forms/vis
 import { inBounds, type Bounds, type LatLng } from './lib/coords';
 import { trackLines, TRACK_COLORS, type Track, type TrackLayer } from './lib/gpx';
 import { errorMessage } from './lib/labels';
+import { removeLeftoverPhotoFiles } from './lib/photos';
 import {
   EMPTY_PLACE_FILTERS,
   type Area, type Invitation, type Partner, type Place, type Sector, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
@@ -153,9 +155,12 @@ export default function App() {
   }, [userId, reloadKey]);
   const invitations = userId ? myInvitations : [];
 
-  // Tracks saved before their statistics were stored get measured once, in the background.
+  // In the background on sign-in: tracks saved before their statistics were stored get
+  // measured, and files of your photos the database dropped get removed.
   useEffect(() => {
-    if (userId) fillMissingTrackStats(userId).catch(() => {});
+    if (!userId) return;
+    fillMissingTrackStats(userId).catch(() => {});
+    removeLeftoverPhotoFiles().catch(() => {});
   }, [userId]);
 
   const [wishesKey, setWishesKey] = useState(0);
@@ -321,6 +326,10 @@ export default function App() {
     if (!isMobile) setCommand({ kind: 'focus', place, nonce: Date.now() });
   }, [isMobile]);
 
+  const openPlaceById = (id: number) => {
+    const place = placeById.get(id);
+    if (place) openPlace(place);
+  };
   const openLoggedVisit = (v: VisitSummary) => {
     const place = placeById.get(v.place_id);
     if (place) openPlace(place, 'visits', v.id);
@@ -599,10 +608,8 @@ export default function App() {
 
         {panel?.kind === 'users' && userId && isAdmin && (
           <UsersPage myId={userId} onClose={() => setPanel({ kind: 'account' })} onOpenLogbook={openLogbook}>
-            <SuggestionsSection onChanged={reload} onOpenPlace={id => {
-              const place = placeById.get(id);
-              if (place) openPlace(place);
-            }} />
+            <SuggestionsSection onChanged={reload} onOpenPlace={openPlaceById} />
+            <PhotoReviewSection onChanged={reload} onOpenPlace={openPlaceById} />
             <DuplicatesSection places={catalog} areas={areas} onMerge={setMergeTarget} />
           </UsersPage>
         )}

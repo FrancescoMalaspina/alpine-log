@@ -127,6 +127,7 @@ const en = {
     usersHint: 'Everyone who signed up: when they were last active and how much they logged.',
     manageUsers: 'Manage users',
     suggestionsWaiting: (n: number) => (n === 1 ? '1 suggested change to review.' : `${n} suggested changes to review.`),
+    photosWaiting: (n: number) => (n === 1 ? '1 photo to review.' : `${n} photos to review.`),
     review: 'Review',
     deleteTitle: 'Delete account',
     deleteHint: 'Deletes your visits, photos, attachments, imports and wishlist. Spots, areas and routes you added stay for everyone.',

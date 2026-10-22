@@ -175,9 +175,9 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onTo
       )}
 
       <h3 className="section-title">{s.photos}</h3>
-      <p className="hint-block">{s.photosHint}</p>
+      <p className="hint-block">{canEdit || !userId ? s.photosHint : s.photosHintReview}</p>
       <PhotoGallery owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} canAdd={!!userId}
-                    emptyText={s.noPhotos} />
+                    emptyText={s.noPhotos} spot={{ id: p.id, name: p.name, canEdit }} />
 
       <Attachments owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} activity={p.activity}
                    tracks={tracks} onToggleTrack={onToggleTrack} onChange={onChanged} />
@@ -262,7 +262,7 @@ function groupDays(visits: VisitDetail[], userId: string | null): Day[] {
   return [...days.values()];
 }
 
-function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEditVisit, onChanged, onOpenLogbook }: Props) {
+function PlaceVisits({ place, initialVisitId, userId, isAdmin, canEdit, reloadKey, onEditVisit, onChanged, onOpenLogbook }: Props) {
   const { t } = useI18n();
   const s = t.spot.placeView;
   const [visits, setVisits] = useState<VisitDetail[] | null>(null);
@@ -353,7 +353,8 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
         {selected && (
           <PhotoGallery key={selected.key} owner={{ visitId: myVisit?.id ?? selected.visits[0].id, outingId: selected.outingId }}
                         userId={userId} isAdmin={isAdmin} canAdd={!!myVisit}
-                        emptyText={myVisit ? s.noPhotosMine : s.noPhotosOther} />
+                        emptyText={myVisit ? s.noPhotosMine : s.noPhotosOther}
+                        spot={{ id: place.id, name: place.name, canEdit }} />
         )}
       </div>
     </div>

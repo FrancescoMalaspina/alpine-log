@@ -129,6 +129,7 @@ const it: Widen<typeof en> = {
     usersHint: 'Tutti gli iscritti: quando sono stati attivi l’ultima volta e quanto hanno registrato.',
     manageUsers: 'Gestisci utenti',
     suggestionsWaiting: (n: number) => (n === 1 ? '1 modifica proposta da valutare.' : `${n} modifiche proposte da valutare.`),
+    photosWaiting: (n: number) => (n === 1 ? '1 foto da valutare.' : `${n} foto da valutare.`),
     review: 'Valuta',
     deleteTitle: 'Elimina account',
     deleteHint: 'Elimina le tue visite, foto, allegati, importazioni e lista dei desideri. Spot, aree e vie che hai aggiunto restano per tutti.',

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useConfirm } from '../hooks/useConfirm';
 import { useI18n } from '../i18n';
 import { errorMessage } from '../lib/labels';
-import { deletePhoto, fetchPhotos, updatePhotoCaption, uploadPhoto, type Photo, type PhotoOwner } from '../lib/photos';
+import { deletePhoto, fetchPhotos, movePhotoToSpot, updatePhotoCaption, uploadPhoto, type Photo, type PhotoOwner } from '../lib/photos';
 import { ErrorText } from './Modal';
 
 type Props = {
@@ -12,12 +13,16 @@ type Props = {
   /** Whether this user may add photos here (any signed-in user for places, the owner for visits). */
   canAdd: boolean;
   emptyText: string;
+  /** The spot the photos are on, or the visits are at: whether you may edit it decides if your photos there wait for review. */
+  spot: { id: number; name: string; canEdit: boolean };
 };
 
 /** Thumbnail grid with an add button and a full-screen viewer. */
-export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Props) {
+export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText, spot }: Props) {
   const { t } = useI18n();
   const s = t.spot.photos;
+  const [confirm, confirmDialog] = useConfirm();
+  const [notice, setNotice] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [open, setOpen] = useState<number | null>(null);
@@ -37,6 +42,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
   async function add(files: FileList | null) {
     if (!files?.length || !userId) return;
     setError(null);
+    setNotice('placeId' in owner && !spot.canEdit ? s.sentForReview : null);
     const list = [...files];
     try {
       for (const [i, f] of list.entries()) {
@@ -53,15 +59,36 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
   }
 
   const remove = useCallback(async (photo: Photo) => {
-    if (!confirm(s.confirmDelete)) return;
+    setOpen(null);
+    if (!await confirm({ title: s.confirmDelete, confirmLabel: t.common.delete, danger: true })) return;
     try {
       await deletePhoto(owner, photo);
-      setOpen(null);
       setReloadKey(k => k + 1);
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [owner, s]);
+  }, [owner, s, t, confirm]);
+
+  // A visit photo goes to the spot for good; on a spot you can't edit, once an admin agrees.
+  const move = useCallback(async (photo: Photo) => {
+    if (!userId) return;
+    setOpen(null);
+    if (!await confirm({
+      title: s.moveTitle(spot.name),
+      message: spot.canEdit ? s.moveNow : s.moveReview,
+      confirmLabel: s.move,
+    })) return;
+    setError(null);
+    try {
+      const pending = await movePhotoToSpot(photo, spot.id, userId);
+      setNotice(pending ? s.movePending : s.moved);
+      setReloadKey(k => k + 1);
+    } catch (e) {
+      setError(errorMessage(e));
+    }
+  }, [userId, spot, s, confirm]);
+  const canMove = useCallback(
+    (p: Photo) => 'visitId' in owner && p.created_by === userId && !p.moving, [owner, userId]);
 
   const caption = useCallback(async (photo: Photo, text: string) => {
     try {
@@ -81,6 +108,7 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
               <button type="button" className="photo-thumb" onClick={() => setOpen(i)} aria-label={p.caption ?? s.photoN(i + 1)}>
                 <img src={p.thumbUrl} alt={p.caption ?? ''} loading="lazy" width={160} height={120} />
               </button>
+              {(p.pending || p.moving) && <span className="photo-badge">{p.pending ? s.waitingReview : s.onItsWay}</span>}
               {p.caption && <span className="photo-caption">{p.caption}</span>}
             </li>
           ))}
@@ -94,20 +122,24 @@ export function PhotoGallery({ owner, userId, isAdmin, canAdd, emptyText }: Prop
           {progress ?? s.addPhotos}
         </label>
       )}
+      {notice && <p className="hint" role="status">{notice}</p>}
       <ErrorText error={error} />
       {open != null && photos?.[open] && (
         <Lightbox photos={photos} index={open} onIndex={setOpen} onClose={() => setOpen(null)}
                   canDelete={p => p.created_by === userId || isAdmin} onDelete={remove}
-                  canEdit={p => p.created_by === userId} onCaption={caption} />
+                  canEdit={p => p.created_by === userId} onCaption={caption}
+                  canMove={canMove} onMove={move} />
       )}
+      {confirmDialog}
     </div>
   );
 }
 
-function Lightbox({ photos, index, onIndex, onClose, canDelete, onDelete, canEdit, onCaption }: {
+function Lightbox({ photos, index, onIndex, onClose, canDelete, onDelete, canEdit, onCaption, canMove, onMove }: {
   photos: Photo[]; index: number; onIndex: (i: number) => void; onClose: () => void;
   canDelete: (p: Photo) => boolean; onDelete: (p: Photo) => void;
   canEdit: (p: Photo) => boolean; onCaption: (p: Photo, caption: string) => void;
+  canMove: (p: Photo) => boolean; onMove: (p: Photo) => void;
 }) {
   const { t } = useI18n();
   const s = t.spot.photos;
@@ -158,6 +190,7 @@ function Lightbox({ photos, index, onIndex, onClose, canDelete, onDelete, canEdi
             {photo.caption ? s.editCaption : s.addCaption}
           </button>
         )}
+        {canMove(photo) && <button type="button" onClick={() => onMove(photo)}>{s.moveToSpot}</button>}
         {canDelete(photo) && <button type="button" onClick={() => onDelete(photo)}>{t.common.delete}</button>}
         <button ref={closeBtn} type="button" onClick={onClose}>{t.common.close}</button>
       </div>
