@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useConfirm } from '../hooks/useConfirm';
 import { useUsernames } from '../hooks/useUsernames';
 import { useI18n } from '../i18n';
-import { deletePartner, fetchMyPartners, linkPartner, renamePartner } from '../lib/api';
+import { canMergePartners, deletePartner, fetchMyPartners, linkPartner, mergePartners, partnerKeptByMerge, renamePartner } from '../lib/api';
 import { errorMessage } from '../lib/labels';
-import { sameName } from '../lib/names';
+import { foldName, sameName } from '../lib/names';
+import type { ConfirmOptions } from './ConfirmDialog';
 import type { Partner, UserRef } from '../lib/types';
+import { Collapsible } from './Collapsible';
 import { Combobox, type ComboOption } from './forms/Combobox';
 import { ErrorText } from './Modal';
+
+/** From this many partners on, a search box narrows the list. */
+const SEARCH_FROM = 8;
 
 type Props = {
   userId: string;
@@ -25,6 +31,8 @@ export function PartnersSection({ userId, onOpenLogbook, onChanged }: Props) {
   const [partners, setPartners] = useState<Partner[] | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [confirm, confirmDialog] = useConfirm();
 
   useEffect(() => {
     let cancelled = false;
@@ -46,89 +54,133 @@ export function PartnersSection({ userId, onOpenLogbook, onChanged }: Props) {
     }
   }
 
+  const q = foldName(search.replace(/^@/, ''));
+  const shown = (partners ?? []).filter(p => !q || foldName(`${p.name} ${p.linked_username ?? ''}`).includes(q));
+
   return (
     <section className="account-section">
-      <h3 className="section-title">{s.title}</h3>
-      <p className="hint-block">{s.hint}</p>
-      <ErrorText error={error} />
-      {partners?.length === 0 && <p className="hint">{s.none}</p>}
-      {partners && partners.length > 0 && (
-        <ul className="partner-list">
-          {partners.map(p => (
-            <PartnerRow key={p.id} partner={p} partners={partners} users={users} userOptions={userOptions}
-                        onOpenLogbook={onOpenLogbook} onChange={change} />
-          ))}
-        </ul>
-      )}
+      <Collapsible id="account.partners" title={partners?.length ? `${s.title} (${partners.length})` : s.title}>
+        <p className="hint-block">{s.hint}</p>
+        <ErrorText error={error} />
+        {partners?.length === 0 && <p className="hint">{s.none}</p>}
+        {partners && partners.length >= SEARCH_FROM && (
+          <input type="search" className="partner-search" value={search} placeholder={s.search} aria-label={s.search}
+                 spellCheck={false} onChange={e => setSearch(e.target.value)} />
+        )}
+        {partners && partners.length > 0 && (
+          <ul className="partner-list">
+            {shown.map(p => (
+              <PartnerRow key={p.id} partner={p} partners={partners} users={users} userOptions={userOptions}
+                          onOpenLogbook={onOpenLogbook} onChange={change} confirm={confirm} />
+            ))}
+          </ul>
+        )}
+      </Collapsible>
+      {confirmDialog}
     </section>
   );
 }
 
-function PartnerRow({ partner: p, partners, users, userOptions, onOpenLogbook, onChange }: {
+function PartnerRow({ partner: p, partners, users, userOptions, onOpenLogbook, onChange, confirm }: {
   partner: Partner; partners: Partner[]; users: UserRef[]; userOptions: ComboOption[];
   onOpenLogbook: (userId: string) => void; onChange: (run: () => Promise<unknown>) => void;
+  confirm: (options: ConfirmOptions) => Promise<boolean>;
 }) {
   const { t } = useI18n();
   const s = t.account.partners;
   const [renaming, setRenaming] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [mergeSearch, setMergeSearch] = useState('');
   const likely = !p.linked_user_id ? users.find(u => sameName(u.username, p.name)) : undefined;
+  const mergeOptions = partners
+    .filter(x => x.id !== p.id && canMergePartners(p, x))
+    .map(x => ({ key: x.id, label: x.name, hint: x.linked_username && x.linked_username !== x.name ? `@${x.linked_username}` : undefined }));
+
+  /** Asks before two names become one, saying which one stays. */
+  const confirmMerge = (other: Partner) => confirm({
+    title: s.mergeTitle,
+    message: s.confirmMerge(p.name, other.name, partnerKeptByMerge(p, other).name),
+    confirmLabel: s.merge,
+  });
 
   // The name becomes their username; another name you have for them merges into it.
-  function link(user: UserRef) {
+  async function link(user: UserRef) {
     const other = partners.find(x => x.id !== p.id && x.linked_user_id === user.id);
-    if (other && !confirm(s.confirmMergeLinked(p.name, other.name, user.username))) return;
+    if (other && !await confirm({ title: s.mergeTitle, message: s.confirmMergeLinked(p.name, other.name, user.username), confirmLabel: s.merge })) return;
     setSearch('');
     onChange(() => linkPartner(p.id, user.id));
   }
 
-  function rename(e: React.FormEvent) {
+  async function rename(e: React.FormEvent) {
     e.preventDefault();
     const name = renaming?.trim() ?? '';
     if (!name || name === p.name) return setRenaming(null);
     const other = partners.find(x => x.id !== p.id && x.name === name);
-    if (other && !confirm(s.confirmMerge(p.name, name))) return;
+    if (other && !await confirmMerge(other)) return;
     setRenaming(null);
     onChange(() => renamePartner(p.id, name));
   }
 
+  async function merge(option: ComboOption) {
+    const other = partners.find(x => x.id === option.key);
+    if (!other || !await confirmMerge(other)) return;
+    setMergeSearch('');
+    onChange(() => mergePartners(p, other));
+  }
+
   return (
-    <li className="partner-row">
-      {renaming != null ? (
-        <form className="partner-rename" onSubmit={rename}>
-          <input value={renaming} autoFocus aria-label={s.newName(p.name)} onChange={e => setRenaming(e.target.value)} />
-          <button type="submit" className="btn btn-primary">{t.common.save}</button>
-          <button type="button" className="btn btn-ghost" onClick={() => setRenaming(null)}>{t.common.cancel}</button>
-        </form>
-      ) : (
-        <span className="partner-name">
-          <b>{p.name}</b> <span className="hint">{s.visits(p.visit_count)}</span>
-        </span>
-      )}
-      <span className="partner-link">
-        {p.linked_user_id ? <>
-          <button type="button" className="link-btn" onClick={() => onOpenLogbook(p.linked_user_id!)}>@{p.linked_username}</button>
-          <button type="button" className="link-btn" onClick={() => onChange(() => linkPartner(p.id, null))}>{s.unlink}</button>
-        </> : <>
-          {likely && (
-            <button type="button" className="link-btn" onClick={() => link(likely)}>
-              {s.isThis(likely.username)}
-            </button>
+    <li>
+      <details className="partner-row">
+        <summary className="partner-name">
+          <b>{p.name}</b>
+          {p.linked_username && p.linked_username !== p.name && <span className="hint"> @{p.linked_username}</span>}
+          {p.linked_user_id && p.linked_username === p.name && <span className="hint"> {s.registered}</span>}
+          <span className="hint"> · {s.visits(p.visit_count)}</span>
+        </summary>
+        <div className="partner-actions">
+          {renaming != null ? (
+            <form className="partner-rename" onSubmit={rename}>
+              <input value={renaming} autoFocus aria-label={s.newName(p.name)} onChange={e => setRenaming(e.target.value)} />
+              <button type="submit" className="btn btn-primary">{t.common.save}</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setRenaming(null)}>{t.common.cancel}</button>
+            </form>
+          ) : (
+            <span className="tip-actions">
+              {p.linked_user_id && (
+                <button type="button" className="link-btn" onClick={() => onOpenLogbook(p.linked_user_id!)}>{s.openLogbook}</button>
+              )}
+              {/* A linked name is their username. */}
+              {!p.linked_user_id && <button type="button" className="link-btn" onClick={() => setRenaming(p.name)}>{s.rename}</button>}
+              {p.linked_user_id && (
+                <button type="button" className="link-btn" onClick={() => onChange(() => linkPartner(p.id, null))}>{s.unlink}</button>
+              )}
+              {p.visit_count === 0 && (
+                <button type="button" className="link-btn danger" onClick={() => onChange(() => deletePartner(p.id))}>{t.common.delete}</button>
+              )}
+            </span>
           )}
-          <label className="visually-hidden" htmlFor={`link-${p.id}`}>{s.linkTo(p.name)}</label>
-          <Combobox id={`link-${p.id}`} value={search} placeholder={s.linkToUser} options={userOptions}
-                    onChange={setSearch} onPick={o => { const u = users.find(x => x.id === o.key); if (u) link(u); }} />
-        </>}
-      </span>
-      {renaming == null && (
-        <span className="tip-actions">
-          {/* A linked name is their username. */}
-          {!p.linked_user_id && <button type="button" className="link-btn" onClick={() => setRenaming(p.name)}>{s.rename}</button>}
-          {p.visit_count === 0 && (
-            <button type="button" className="link-btn danger" onClick={() => onChange(() => deletePartner(p.id))}>{t.common.delete}</button>
+          {!p.linked_user_id && (
+            <span className="partner-link">
+              {likely && (
+                <button type="button" className="link-btn" onClick={() => link(likely)}>
+                  {s.isThis(likely.username)}
+                </button>
+              )}
+              <label className="visually-hidden" htmlFor={`link-${p.id}`}>{s.linkTo(p.name)}</label>
+              <Combobox id={`link-${p.id}`} value={search} placeholder={s.linkToUser} options={userOptions}
+                        onChange={setSearch} onPick={o => { const u = users.find(x => x.id === o.key); if (u) link(u); }} />
+            </span>
           )}
-        </span>
-      )}
+          {mergeOptions.length > 0 && (
+            <span className="partner-link">
+              <label className="visually-hidden" htmlFor={`merge-${p.id}`}>{s.mergeWith(p.name)}</label>
+              <Combobox id={`merge-${p.id}`} value={mergeSearch} placeholder={s.mergeWithPlaceholder} options={mergeOptions}
+                        onChange={setMergeSearch} onPick={merge} />
+            </span>
+          )}
+          {p.linked_user_id && partners.some(x => x.id !== p.id && x.linked_user_id) && <p className="hint">{s.linkedMergeHint}</p>}
+        </div>
+      </details>
     </li>
   );
 }

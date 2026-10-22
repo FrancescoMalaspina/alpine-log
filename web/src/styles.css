@@ -1147,8 +1147,13 @@ th[aria-sort="ascending"] .sort-btn, th[aria-sort="descending"] .sort-btn { colo
 
 /* Partners (PartnersSection) and registered users in the people picker */
 .partner-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
-.partner-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 8px 0; border-bottom: 1px solid var(--rule); }
-.partner-name { flex: 1 1 140px; min-width: 0; }
+.partner-row { padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.partner-name { cursor: pointer; min-width: 0; }
+.partner-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 8px 0 4px 16px; }
+.partner-search {
+  width: 100%; margin-bottom: 6px; padding: 8px 12px;
+  background: var(--plate); border: 1px solid var(--rule); border-radius: var(--radius);
+}
 .partner-link { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 14px; }
 .partner-link select { max-width: 200px; }
 .partner-rename { display: flex; flex: 1 1 100%; gap: 8px; }

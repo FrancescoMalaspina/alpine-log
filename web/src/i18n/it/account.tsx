@@ -97,12 +97,21 @@ const it: Widen<typeof en> = {
 
   partners: {
     title: 'Compagni',
-    hint: 'Le persone che metti nelle tue visite. Collega un nome a un utente registrato e diventa il suo nome utente, quello che vedono tutti; nelle visite che gli altri possono vedere porterà al suo diario. Rinominare con un nome che usi già unisce i due.',
+    hint: 'Le persone che metti nelle tue visite. Apri un nome per rinominarlo, collegarlo a un utente registrato (diventa il suo nome utente, quello che vedono tutti, e porta al suo diario) o unirlo a un altro nome che hai dato alla stessa persona.',
     none: 'Ancora nessun compagno: compaiono quando aggiungi persone alle tue visite.',
     visits: (n: number) => (n === 1 ? '1 visita' : `${n} visite`),
     newName: (name: string) => `Nuovo nome per ${name}`,
     rename: 'Rinomina',
-    confirmMerge: (from: string, to: string) => `Hai già "${to}". Unire "${from}" a questo? Visite e desideri diventano di uno solo.`,
+    confirmMerge: (from: string, to: string, kept: string) =>
+      `"${from}" e "${to}" diventano un solo compagno, "${kept}". Visite e desideri si uniscono.`,
+    mergeTitle: 'Unire due compagni?',
+    merge: 'Unisci',
+    mergeWith: (name: string) => `Unisci ${name} a un altro compagno`,
+    mergeWithPlaceholder: 'Unisci a…',
+    linkedMergeHint: 'Due nomi collegati a utenti diversi sono due persone: non si possono unire.',
+    search: 'Cerca un compagno…',
+    registered: '(registrato)',
+    openLogbook: 'Il suo diario',
     confirmMergeLinked: (from: string, to: string, username: string) =>
       `"${to}" è già @${username}. Unire "${from}" a questo? Visite e desideri diventano di uno solo.`,
     unlink: 'Scollega',

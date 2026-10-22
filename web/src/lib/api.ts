@@ -581,6 +581,24 @@ export async function renamePartner(id: number, name: string): Promise<number> {
   return unwrap(await supabase.rpc('rename_partner', { p_id: id, p_name: name }));
 }
 
+/** Two partners linked to two different users are two people: they can't merge. */
+export const canMergePartners = (a: Partner, b: Partner) => !(a.linked_user_id && b.linked_user_id);
+
+/** Which of two merging partners stays: the one linked to a registered user (it is named after them), else the other. */
+export const partnerKeptByMerge = (merged: Partner, into: Partner) =>
+  merged.linked_user_id && !into.linked_user_id ? merged : into;
+
+/**
+ * Makes two of your partners one: their visits and wishes join, under the
+ * name that stays (see partnerKeptByMerge). Returns the partner that remains.
+ */
+export async function mergePartners(merged: Partner, into: Partner): Promise<number> {
+  if (!canMergePartners(merged, into)) throw new Error(tr().account.partners.linkedMergeHint);
+  const keep = partnerKeptByMerge(merged, into);
+  const gone = keep === into ? merged : into;
+  return renamePartner(gone.id, keep.name);
+}
+
 /** Removes a partner (and the name from the visits it is on). */
 export async function deletePartner(id: number): Promise<void> {
   const { error } = await supabase.from('partners').delete().eq('id', id);

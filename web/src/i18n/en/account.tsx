@@ -95,12 +95,21 @@ const en = {
 
   partners: {
     title: 'Partners',
-    hint: 'The people you put on your visits. Link a name to a registered user and it becomes their username, the name everyone sees; on visits others can see, it leads to their logbook. Renaming to a name you already use merges the two.',
+    hint: 'The people you put on your visits. Open a name to rename it, link it to a registered user (it becomes their username, the name everyone sees, and leads to their logbook), or merge it with another name you gave the same person.',
     none: 'No partners yet: they appear as you add people to your visits.',
     visits: (n: number) => (n === 1 ? '1 visit' : `${n} visits`),
     newName: (name: string) => `New name for ${name}`,
     rename: 'Rename',
-    confirmMerge: (from: string, to: string) => `You already have "${to}". Merge "${from}" into it? Their visits and wishes become one.`,
+    confirmMerge: (from: string, to: string, kept: string) =>
+      `"${from}" and "${to}" become one partner, "${kept}". Their visits and wishes join.`,
+    mergeTitle: 'Merge two partners?',
+    merge: 'Merge',
+    mergeWith: (name: string) => `Merge ${name} with another partner`,
+    mergeWithPlaceholder: 'Merge with…',
+    linkedMergeHint: 'Two names linked to different users are two people, so they can’t be merged.',
+    search: 'Find a partner…',
+    registered: '(registered)',
+    openLogbook: 'Their logbook',
     confirmMergeLinked: (from: string, to: string, username: string) =>
       `"${to}" is already @${username}. Merge "${from}" into it? Their visits and wishes become one.`,
     unlink: 'Unlink',
