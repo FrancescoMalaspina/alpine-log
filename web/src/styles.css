@@ -519,6 +519,15 @@ aside {
 .route-add input, .route-add select { min-width: 0; padding: 7px 9px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--plate); }
 .route-add input:first-child { flex: 1 1 160px; }
 .route-add input.num { width: 80px; }
+.route-list-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* A crag's sectors (RouteList) */
+.crag-sector-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-top: 6px; }
+.crag-sector-head .route-group-head { margin: 0; font-size: 15px; color: var(--granite); }
+.crag-sector-head a, .crag-sector-head .link-btn { font-size: 13.5px; }
+.crag-sector-description { flex-basis: 100%; margin: 0; font-size: 13.5px; }
+.crag-sector-form { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px; border: 1px dashed var(--rule); border-radius: var(--radius); }
+.crag-sector-form input { flex: 1 1 180px; min-width: 0; padding: 7px 9px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--plate); }
+.crag-sector-form-actions { display: flex; align-items: center; gap: 10px; }
 
 /* A section that opens and closes (<details className="collapsible">) */
 .collapsible > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; justify-content: space-between; }

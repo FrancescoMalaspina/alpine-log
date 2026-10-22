@@ -24,10 +24,10 @@ describe('visitPrefillFromInvite', () => {
 
   it('copies the rope\'s routes without their style', () => {
     const v = visitPrefillFromInvite(prefill({
-      ascents: [{ place_id: 7, route_id: 3, name: 'Spigolo', grade: '6a', pitches: 4, aid: null }],
+      ascents: [{ sector: 'Placche', route_id: 3, name: 'Spigolo', grade: '6a', pitches: 4, aid: null }],
     }), nameOf);
     expect(v.ascents).toHaveLength(1);
-    expect(v.ascents![0]).toMatchObject({ name: 'Spigolo', grade: '6a', wallId: '7', pitches: '4', aid: '', style: null });
+    expect(v.ascents![0]).toMatchObject({ name: 'Spigolo', grade: '6a', sector: 'Placche', pitches: '4', aid: '', style: null });
   });
 
   it('leaves the route rows alone when there are none to copy', () => {

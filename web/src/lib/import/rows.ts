@@ -156,10 +156,6 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
     return i == null ? undefined : row[i];
   };
 
-  // Luca's "Falesie" layout: "Nome falesia" is the crag (the sector), "Settore" the wall (the spot).
-  const nameHeader = foldName(table.headers[colsOf('spot.name')[0]] ?? '');
-  const nameIsCrag = /\b(falesia|crag|falaise|klettergarten)\b/.test(nameHeader);
-
   table.rows.forEach((row, r) => {
     const source = `${table.name}, row ${r + 2}`;
     let name = text(first(row, 'spot.name'));
@@ -172,16 +168,18 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
     const f = ACTIVITIES[activity];
 
     let sector = text(first(row, 'sector.name'));
+    // At a crag the "Settore" column is the crag's sector the routes are in ("Tutti"/"all": the whole crag).
+    let cragSector = '';
+    if (f.cragSectors) {
+      cragSector = /^(tutti|tutto|all|tous|alle)$/i.test(sector) ? '' : sector;
+      sector = '';
+    }
     let splitFrom = '';
     // A mountain's column and a route's column, at a spot that is a route: the route is the spot.
     const route = f.isRoute && f.routes && !colsOf('sector.name').length && groups.length === 1
       ? text(first(row, 'ascent.name')) : '';
     const split = splitRouteName(name);
-    if (f.routeList && nameIsCrag && sector) {
-      // A sector of "Tutti"/"all" is the whole crag: the crag itself is the spot.
-      if (/^(tutti|tutto|all|tous|alle)$/i.test(sector)) sector = '';
-      else [sector, name] = [name, sector];
-    } else if (sector && split && sameName(split.sector, sector)) {
+    if (sector && split && sameName(split.sector, sector)) {
       // The sector again in the name: "Breithorn" and "Breithorn - via normale".
       name = split.name;
     } else if (route && !sameName(route, name)) {
@@ -258,7 +256,7 @@ export function applyMapping(table: RawTable, m: SheetMapping): { spots: DraftSp
       v.otherPartners = parsePartners(first(row, 'visit.other_partners', g)?.v).filter(p => !v.partners.includes(p));
       v.rating = parseRating(first(row, 'visit.rating', g)?.v);
       // A later visit without its own sector column climbed in the row's sector.
-      const wall = f.routeList ? text(first(row, 'sector', g)) || text(first(row, 'sector')) : '';
+      const wall = f.routeList ? text(first(row, 'sector', g)) || text(first(row, 'sector')) || cragSector : '';
       if (f.routes) {
         v.ascents = parseAscentList(first(row, 'visit.ascents', g)?.v).map(a => ({ ...a, sector: wall }));
         const routeName = text(first(row, 'ascent.name', g));

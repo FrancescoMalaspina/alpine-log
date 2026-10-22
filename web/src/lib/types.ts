@@ -16,8 +16,8 @@ export const ACTIVITY_ORDER: Activity[] = ['crag', 'boulder', 'multipitch', 'alp
 export const EXPOSITIONS: Exposition[] = ['Nord', 'Sud', 'Est', 'Ovest'];
 
 /**
- * What groups spots inside an area: a wall (multipitch), a mountain (alpinism),
- * a crag (its walls are the spots). Optional for a spot.
+ * What groups spots inside an area: a wall (vie lunghe), a mountain (alpinism).
+ * Optional for a spot. A crag is in none: it has its own sectors (CragSector).
  */
 export type Sector = Omit<Tables['sectors']['Row'], 'created_at' | 'updated_at'> & { place_count: number };
 
@@ -86,8 +86,8 @@ export type VisitSummary = {
   ascent_count: number;
   max_grade_rank: number | null;
   grades: string[];
-  /** Other spots of the sector where routes were climbed that day. */
-  wall_names: string[];
+  /** The crag sectors routes were climbed in that day. */
+  crag_sector_names: string[];
   rating: number | null;
   /** Hardest grade among routes not marked as an attempt. */
   max_sent_grade_rank: number | null;
@@ -102,10 +102,22 @@ export type VisitSummary = {
   outing_id: number | null;
 };
 
-/** A route in a spot's shared list. */
+/** A sector of a crag (or boulder area, DWS spot): a part of it with its tiri. */
+export type CragSector = {
+  id: number;
+  place_id: number;
+  name: string;
+  description: string | null;
+  lat: number | null;
+  lng: number | null;
+  created_by: string | null;
+};
+
+/** A route in a spot's shared list (a crag's tiri, each in one of its sectors or none). */
 export type Route = {
   id: number;
   place_id: number;
+  crag_sector_id: number | null;
   name: string;
   grade: string | null;
   grade_rank: number | null;
@@ -121,8 +133,8 @@ export type Ascent = {
   grade: string | null;
   comment: string | null;
   position: number;
-  /** Set when the route is on another spot of the visit's sector (another wall of the crag). */
-  place: { id: number; name: string } | null;
+  /** The crag sector it was climbed in. */
+  sector: { id: number; name: string } | null;
   style: AscentStyle | null;
   /** Overrides the spot's pitches (pitches linked together…). */
   pitches: number | null;
@@ -197,7 +209,7 @@ export type InvitePrefill = {
   date: string;
   people: PrefillPerson[];
   /** The inviter's routes, when you were in their rope. */
-  ascents: (Pick<Ascent, 'route_id' | 'name' | 'grade' | 'pitches' | 'aid'> & { place_id: number | null })[];
+  ascents: (Pick<Ascent, 'route_id' | 'name' | 'grade' | 'pitches' | 'aid'> & { sector: string | null })[];
 };
 
 /** Someone in a shared day. visit_id is null when you can't read their visit. */
@@ -306,9 +318,9 @@ export type VisitInput = {
   other_partners: string[];
   /** Add the visit's route names to the spot's shared route list. */
   add_routes: boolean;
-  /** place_id: another spot of the same sector, when the route was climbed there. */
+  /** sector: at a crag, the name of the sector it was climbed in (a new name adds the sector). */
   ascents: {
-    name: string; grade: string; place_id: number | null; route_id: number | null; comment: string;
+    name: string; grade: string; sector: string; route_id: number | null; comment: string;
     style: AscentStyle | null; pitches: number | null; aid: string;
   }[];
   /** A tip posted on the spot as the visit is saved, dated to the visit. */

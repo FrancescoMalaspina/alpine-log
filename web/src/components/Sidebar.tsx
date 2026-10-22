@@ -241,7 +241,7 @@ export function VisitRow({ visit: v, mine, onClick, onOpenUser }: {
     v.partner_names.length ? t.app.sidebar.withPeople(v.partner_names.join(', ')) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
     v.grades.length ? v.grades.join(', ') : null,
-    v.wall_names.length ? v.wall_names.join(', ') : null,
+    v.crag_sector_names.length ? v.crag_sector_names.join(', ') : null,
   ].filter(Boolean);
   return (
     <li className="row-item">
