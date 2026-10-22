@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { locale, useI18n } from '../i18n';
-import { fetchImports, fetchVisits, type ImportRecord } from '../lib/api';
+import { fetchImports, fetchUserVisits, type ImportRecord } from '../lib/api';
 import { activityLabel, errorMessage, formatDate } from '../lib/labels';
 import { computeStats, type ActivityTally, type Tally } from '../lib/logStats';
-import { EMPTY_VISIT_FILTERS, type Activity, type Invitation, type Place, type VisitSummary, type Wish } from '../lib/types';
+import { type Activity, type Invitation, type Place, type VisitSummary, type Wish } from '../lib/types';
 import { ActivityBadge } from './ActivityBadge';
 import { Collapsible } from './Collapsible';
 import { Drawer } from './Drawer';
@@ -13,7 +13,7 @@ import { TRACK_ACTIVITIES } from './forms/placeForm';
 import { ErrorText } from './Modal';
 import { ImportWizard } from './import/ImportWizard';
 import { InvitationsSection } from './InvitationsSection';
-import { VisitRow } from './Sidebar';
+import { VisitRow } from './VisitRow';
 import { WishlistSection, type WishlistActions } from './WishlistSection';
 
 /** What only your own logbook has: invitations, imports, downloads and your wishlist. */
@@ -39,7 +39,6 @@ type Props = {
 
 // logStats groups undated visits under this key; it is translated for display.
 const NO_DATE = 'No date';
-const MINE = { ...EMPTY_VISIT_FILTERS, scope: 'mine' as const };
 
 /**
  * A logbook: every visit of one user you may read (all of your own; someone else's public ones),
@@ -57,7 +56,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
   useEffect(() => {
     let cancelled = false;
     // "mine" filters by the logbook's user; the database leaves out what you may not read.
-    fetchVisits(MINE, userId)
+    fetchUserVisits(userId)
       .then(v => { if (!cancelled) setVisits(v); })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
     if (isOwn) {

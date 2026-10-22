@@ -16,28 +16,30 @@ import { NewAreaModal } from './components/NewAreaModal';
 import { PlaceModal } from './components/PlaceModal';
 import { PlaceView, type PlaceTab } from './components/PlaceView';
 import { SectorView } from './components/SectorView';
-import { Sidebar, type ListMode } from './components/Sidebar';
+import { Sidebar, type SidebarView } from './components/Sidebar';
 import { UsersPage } from './components/UsersPage';
 import { VisitModal } from './components/VisitModal';
 import { WishModal } from './components/WishModal';
 import { useDebounced } from './hooks/useDebounced';
 import { MOBILE_QUERY, useMediaQuery } from './hooks/useMediaQuery';
+import { useRemembered } from './hooks/useRemembered';
 import {
   fetchAreas, fetchAttachments, fetchSectors, fetchInvitations, fetchInvitePrefill, fetchMyPartners, fillMissingTrackStats, fetchMyWishes, fetchPlaces,
-  fetchRocks, fetchTrackFile, fetchVisits, partnerForUser,
+  fetchRocks, fetchTrackFile, partnerForUser,
 } from './lib/api';
 import { visitPrefillFromInvite, type VisitValues } from './components/forms/visitForm';
-import type { LatLng } from './lib/coords';
+import { inBounds, type Bounds, type LatLng } from './lib/coords';
 import { trackLines, TRACK_COLORS, type Track, type TrackLayer } from './lib/gpx';
 import { errorMessage } from './lib/labels';
 import {
-  EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS,
+  EMPTY_PLACE_FILTERS,
   type Area, type Invitation, type Partner, type Place, type Sector, type PlaceFilters, type VisitDetail, type VisitSummary, type Wish,
 } from './lib/types';
 
+/** Filters the database applies; the wishlist and "on the map" ones are applied here. */
 const hasPlaceFilters = (f: PlaceFilters) =>
   !!(f.search.trim() || f.activities.length || f.areaId || f.rock || f.exposition.length || f.near
-    || f.protection.length || f.maxObligatoryRank != null || f.country);
+    || f.protection.length || f.maxObligatoryRank != null || f.country || f.withPublicVisits);
 
 const NO_TRACKS = new Map<number, Track>();
 /** A spot with more tracks than this starts with only the first one drawn. */
@@ -68,6 +70,10 @@ function panelFromHash(hash: string): Panel | null {
   return m[1] === 'area' ? { kind: 'area', areaId: +m[2] } : { kind: 'sector', sectorId: +m[2] };
 }
 
+/** Whether a key press is typing into a field, rather than a shortcut. */
+const isTyping = (target: EventTarget | null) =>
+  target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
 /** Loads and parses every GPX attachment of a place. */
 async function loadTracks(placeId: number): Promise<Map<number, Track>> {
   const gpx = (await fetchAttachments({ placeId })).filter(a => a.kind === 'gpx');
@@ -93,30 +99,18 @@ export default function App() {
   const [reloadKey, setReloadKey] = useState(0);
   const reload = useCallback(() => setReloadKey(k => k + 1), []);
 
-  const [mode, setMode] = useState<ListMode>('places');
   const [placeFilters, setPlaceFilters] = useState(EMPTY_PLACE_FILTERS);
-  const [visitFilters, setVisitFilters] = useState(EMPTY_VISIT_FILTERS);
-  const [areaSearch, setAreaSearch] = useState('');
   const debouncedPlaceFilters = useDebounced(placeFilters);
-  const debouncedVisitFilters = useDebounced(visitFilters);
 
   const [catalog, setCatalog] = useState<Place[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [filteredPlaces, setFilteredPlaces] = useState<Place[] | null>(null);
-  const [visits, setVisits] = useState<{ key: string; rows: VisitSummary[] } | null>(null);
   const [rocks, setRocks] = useState<string[]>([]);
   const [myPartners, setMyPartners] = useState<Partner[]>([]);
   const [myWishes, setMyWishes] = useState<Wish[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-
-  // Signed out: "only mine" and partner filters can't apply.
-  const effectiveVisitFilters = useMemo(
-    () => (userId ? debouncedVisitFilters : { ...debouncedVisitFilters, scope: 'all' as const, partnerId: null }),
-    [debouncedVisitFilters, userId]);
-  const visitsKey = `${JSON.stringify(effectiveVisitFilters)}|${userId}|${reloadKey}`;
-  const loading = visits?.key !== visitsKey;
 
   useEffect(() => {
     let cancelled = false;
@@ -140,14 +134,6 @@ export default function App() {
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
     return () => { cancelled = true; };
   }, [debouncedPlaceFilters, reloadKey, userId]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetchVisits(effectiveVisitFilters, userId)
-      .then(rows => { if (!cancelled) { setVisits({ key: visitsKey, rows }); setError(null); } })
-      .catch(e => { if (!cancelled) { setVisits({ key: visitsKey, rows: [] }); setError(errorMessage(e)); } });
-    return () => { cancelled = true; };
-  }, [effectiveVisitFilters, visitsKey, userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -190,16 +176,25 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [notice]);
 
+  // Refs, not state: the map moves constantly. Only the "on the map" filter
+  // follows it, through viewBounds, and only while it is on.
+  const mapCenter = useRef<LatLng>({ lat: 42.5, lng: 12.5 });
+  const mapBounds = useRef<Bounds | null>(null);
+  const [viewBounds, setViewBounds] = useState<Bounds | null>(null);
+  const changePlaceFilters = (f: PlaceFilters) => {
+    if (f.inView && !placeFilters.inView) setViewBounds(mapBounds.current);
+    setPlaceFilters(f);
+  };
+
   const searched = (hasPlaceFilters(debouncedPlaceFilters) && filteredPlaces) || catalog;
+  // On the map: every spot the search and filters keep. In the list: only those in view, if asked.
   const places = useMemo(
     () => (placeFilters.wishlist && userId ? searched.filter(p => openWishByPlace.has(p.id)) : searched),
     [placeFilters.wishlist, userId, searched, openWishByPlace]);
-  const visitRows = useMemo(() => visits?.rows ?? [], [visits]);
+  const listedPlaces = useMemo(
+    () => (placeFilters.inView && viewBounds ? places.filter(p => inBounds(p, viewBounds)) : places),
+    [placeFilters.inView, viewBounds, places]);
   const placeById = useMemo(() => new Map(catalog.map(p => [p.id, p])), [catalog]);
-  const shownAreas = useMemo(() => {
-    const s = areaSearch.trim().toLowerCase();
-    return s ? areas.filter(a => a.name.toLowerCase().includes(s)) : areas;
-  }, [areas, areaSearch]);
 
   const stats = useMemo(() => ({
     places: catalog.length,
@@ -218,8 +213,8 @@ export default function App() {
     return p?.kind === 'place' ? p.placeId : null;
   });
   const [command, setCommand] = useState<MapCommand | null>(null);
-  // A ref, not state: the map moves constantly and only the "near" filter reads this.
-  const mapCenter = useRef<LatLng>({ lat: 42.5, lng: 12.5 });
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [focusSearch, setFocusSearch] = useState(0);
 
   const [authOpen, setAuthOpen] = useState(false);
   const [newAreaOpen, setNewAreaOpen] = useState(false);
@@ -276,12 +271,21 @@ export default function App() {
     setTrackToggles({ placeId: focusedId, shown });
   };
 
-  const pins = useMemo(() => {
-    if (mode === 'places') return places;
-    if (mode === 'areas') return catalog;
-    const ids = new Set(visitRows.map(v => v.place_id));
-    return catalog.filter(p => ids.has(p.id));
-  }, [mode, places, visitRows, catalog]);
+  const pins = places;
+
+  // The spot list: open, folded (remembered on this device) or across the whole
+  // width. A logbook folds it while it is open, unless it's opened again meanwhile.
+  const [listFolded, setListFolded] = useRemembered('sidebar.collapsed', false);
+  const [listFull, setListFull] = useState(false);
+  const logKey = panel?.kind === 'log' || panel?.kind === 'logbook' ? panelHash(panel) : null;
+  const [peekedLog, setPeekedLog] = useState<string | null>(null);
+  const sidebarView: SidebarView = isMobile ? 'open'
+    : (logKey && peekedLog !== logKey) || listFolded ? 'collapsed' : listFull ? 'full' : 'open';
+  const setSidebarView = (view: SidebarView) => {
+    setPeekedLog(view === 'collapsed' ? null : logKey);
+    setListFolded(view === 'collapsed');
+    setListFull(view === 'full');
+  };
 
   const canEdit = useCallback(
     (p: Place) => !!userId && (isAdmin || p.created_by === userId), [userId, isAdmin]);
@@ -290,6 +294,7 @@ export default function App() {
   const focusOnMap = useCallback((place: Place) => {
     setFocusedId(place.id);
     setCommand({ kind: 'focus', place, nonce: Date.now() });
+    setListFull(false);
     if (isMobile) setMobileTab('map');
   }, [isMobile]);
 
@@ -371,13 +376,22 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      const formOpen = !!(placeModal || visitModal || wishModal || mergeTarget || newAreaOpen || authOpen);
+      if (e.key === '/' && !formOpen && !isTyping(e.target)) {
+        // "/" goes to the spot search, wherever it is.
+        e.preventDefault();
+        if (isMobile) setMobileTab('list');
+        else if (listFolded || logKey) { setListFolded(false); setPeekedLog(logKey); }
+        setFocusSearch(n => n + 1);
+        return;
+      }
       if (e.key !== 'Escape') return;
       if (picking) return setPicking(null);
       if (!placeModal && !visitModal && !wishModal) setPanel(null);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [placeModal, visitModal, wishModal, picking]);
+  }, [placeModal, visitModal, wishModal, mergeTarget, newAreaOpen, authOpen, picking, isMobile, listFolded, logKey, setListFolded]);
   const panelPlace = panel?.kind === 'place' ? placeById.get(panel.placeId) : undefined;
   const panelArea = panel?.kind === 'area' ? areas.find(a => a.id === panel.areaId) : undefined;
   const panelSector = panel?.kind === 'sector' ? sectors.find(x => x.id === panel.sectorId) : undefined;
@@ -395,25 +409,22 @@ export default function App() {
         invitations={invitations.length}
       />
 
-      <div className={`stage${isMobile ? ` mobile show-${mobileTab}` : ''}`}>
+      <div className={`stage${isMobile ? ` mobile show-${mobileTab}` : ` sidebar-${sidebarView}`}`}>
         <Sidebar
-          mode={mode}
-          onModeChange={setMode}
+          view={sidebarView}
+          onView={setSidebarView}
+          isMobile={isMobile}
           placeFilters={placeFilters}
-          onPlaceFilters={setPlaceFilters}
-          visitFilters={visitFilters}
-          onVisitFilters={setVisitFilters}
-          areaSearch={areaSearch}
-          onAreaSearch={setAreaSearch}
-          places={places}
-          areas={shownAreas}
-          visits={visitRows}
-          loading={loading}
+          onPlaceFilters={changePlaceFilters}
+          places={listedPlaces}
+          areas={areas}
           error={error}
           rocks={rocks}
-          partners={partners}
           getMapCenter={() => mapCenter.current}
           userId={userId}
+          hoveredId={hoveredId}
+          onHover={setHoveredId}
+          focusSearch={focusSearch}
           onPlaceClick={focusOnMap}
           onPlaceDetails={p => openPlace(p)}
           onAddVisit={openAddVisit}
@@ -423,6 +434,7 @@ export default function App() {
           onLocationPick={loc => {
             setSearchPin({ lat: loc.lat, lng: loc.lng, name: loc.name });
             setPanel(null);
+            setListFull(false);
             if (isMobile) setMobileTab('map');
             if (loc.extent) {
               const [w, n, e, s] = loc.extent;
@@ -431,8 +443,6 @@ export default function App() {
               setCommand({ kind: 'fly', at: loc, zoom: 14, nonce: Date.now() });
             }
           }}
-          onVisitClick={openLoggedVisit}
-          onOpenLogbook={openLogbook}
         />
 
         <MapView
@@ -444,7 +454,7 @@ export default function App() {
           searchPin={placeFilters.search.trim() ? searchPin : null}
           armed={!!picking}
           command={command}
-          visibleKey={`${isMobile}-${mobileTab}-${!!panel}`}
+          visibleKey={`${isMobile}-${mobileTab}-${!!panel}-${sidebarView}`}
           insetRight={panel && !isMobile ? 460 : 0}
           signedIn={!!userId}
           onMapClick={at => {
@@ -460,7 +470,13 @@ export default function App() {
           onViewVisits={p => openPlace(p, 'visits')}
           onAddVisit={openAddVisit}
           onAddPlaceAt={at => setPlaceModal({ at: { lat: at.lat, lng: at.lng } })}
-          onCenterChange={c => { mapCenter.current = c; }}
+          onViewChange={v => {
+            mapCenter.current = v.center;
+            mapBounds.current = v.bounds;
+            if (placeFilters.inView) setViewBounds(v.bounds);
+          }}
+          hoveredId={hoveredId}
+          onHover={setHoveredId}
         />
 
         {panel?.kind === 'place' && panelPlace && (

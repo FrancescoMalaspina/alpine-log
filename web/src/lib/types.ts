@@ -98,6 +98,8 @@ export type VisitSummary = {
   track_gain_m: number | null;
   partner_ids: number[];
   partner_names: string[];
+  /** Spot, sector, area, notes, author, partners and routes, lowercased: what the logbook search looks in. */
+  search_text: string;
   /** The shared day the visit is in, with the visits of the people who were there. */
   outing_id: number | null;
 };
@@ -327,8 +329,6 @@ export type VisitInput = {
   tip: Pick<TipInput, 'body' | 'topic'> | null;
 };
 
-export type VisitScope = 'mine' | 'public' | 'all';
-
 export type PlaceFilters = {
   search: string;
   activities: Activity[];
@@ -342,11 +342,15 @@ export type PlaceFilters = {
   country: string;
   /** Only places on your open wishlist (filtered in the browser). */
   wishlist: boolean;
+  /** Only spots someone has logged a public visit to. */
+  withPublicVisits: boolean;
+  /** Only spots inside the map's current view (filtered in the browser). */
+  inView: boolean;
 };
 
+/** Narrows the visits of one logbook (filtered in the browser: see lib/visitFilters.ts). */
 export type VisitFilters = {
   search: string;
-  scope: VisitScope;
   partnerId: number | null;
   areaId: number | null;
   from: string;
@@ -357,7 +361,8 @@ export type VisitFilters = {
 
 export const EMPTY_PLACE_FILTERS: PlaceFilters = {
   search: '', activities: [], areaId: null, rock: '', exposition: [], near: null, protection: [], maxObligatoryRank: null, country: '', wishlist: false,
+  withPublicVisits: false, inView: false,
 };
 export const EMPTY_VISIT_FILTERS: VisitFilters = {
-  search: '', scope: 'all', partnerId: null, areaId: null, from: '', to: '', minGradeRank: null, activity: '',
+  search: '', partnerId: null, areaId: null, from: '', to: '', minGradeRank: null, activity: '',
 };

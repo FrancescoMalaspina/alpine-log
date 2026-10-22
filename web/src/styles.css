@@ -147,6 +147,20 @@ aside {
 }
 #map { flex: 1; min-width: 0; background: #E4E8E4; }
 
+/* The spot list folded to a rail, or across the whole width with the map hidden. */
+.stage.sidebar-collapsed aside { width: 48px; flex-basis: 48px; align-items: center; padding-top: 10px; }
+.rail-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px;
+  background: none; border: 1px solid transparent; border-radius: var(--radius); cursor: pointer;
+  color: var(--granite); font-weight: 700;
+}
+.rail-btn:hover { background: var(--tint); }
+.stage.sidebar-full aside { flex: 1; width: auto; padding-inline: max(0px, calc((100% - 960px) / 2)); border-right: none; }
+.stage.sidebar-full #map { display: none; }
+.search .icon-btn { width: 32px; height: auto; font-size: 20px; }
+.row-item.hovered { background: var(--plate); }
+.pin-hovered .pin { transform: scale(1.25); transform-origin: bottom center; filter: drop-shadow(0 0 3px var(--focus)); }
+
 /* ---------------------------------------------------------------- tabs */
 .list-mode-tabs { display: flex; gap: 4px; padding: 10px 16px 0; border-bottom: 1px solid var(--rule); }
 .list-mode-tab {
@@ -707,6 +721,7 @@ html[lang="it"] .collapsible[open] > summary::after { content: 'Nascondi'; }
 .wish-btn.on { border-color: var(--granite); }
 .wish-tick, .same-day { font-weight: 600; }
 .wishlist-filter { align-self: flex-start; }
+.filter-checks { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 
 .account-users-btn { align-self: flex-start; }
 

@@ -17,7 +17,7 @@ import { beyondTopo } from './forms/visitForm';
 import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
-import { VisibilityPill } from './Sidebar';
+import { VisibilityPill } from './VisitRow';
 import { Tips } from './Tips';
 
 export type PlaceTab = 'info' | 'visits' | 'tips';
