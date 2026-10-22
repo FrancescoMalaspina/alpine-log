@@ -1,4 +1,5 @@
--- Area → Sector → Spot: data layout, save_place, area consistency, RLS. Run with: supabase test db
+-- Area → Sector → Spot (vie lunghe and the like; a crag has its sectors inside): save_place, area consistency, RLS.
+-- Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(13);
@@ -8,23 +9,19 @@ select plan(13);
 
 create temp table ids (k text primary key, v bigint);
 grant all on ids to anon, authenticated;
-insert into ids select 'civate', id from public.sectors where name = 'Falesia di Civate';
+with s as (insert into public.sectors (name, created_by) values ('Pilastri', :fra) returning id) insert into ids select 'civate', id from s;
 insert into ids select 'albard', id from public.areas where name = 'Albard';
 insert into ids select 'ozzy', id from public.places where name = 'Ozzy';
 
--- ---------------------------------------------------------------- the crags with sectors
-select is((select array_agg(name order by name) from public.places where sector_id = (select v from ids where k = 'civate')),
+-- ---------------------------------------------------------------- the layout
+select is((select array_agg(cs.name order by cs.name) from public.crag_sectors cs join public.places p on p.id = cs.place_id
+           where p.name = 'Falesia di Civate'),
           array['Amazzonia + Palestra vecchia', 'Buco della Sabbia', 'La balconata', 'Valle degli Orti'],
-          'Falesia di Civate is a sector and its old sectors are its spots');
-select ok((select bool_and(p.area_id is not distinct from s.area_id) from public.places p join public.sectors s on s.id = p.sector_id),
+          'Falesia di Civate is one crag, with its sectors inside');
+select ok((select coalesce(bool_and(p.area_id is not distinct from s.area_id), true) from public.places p join public.sectors s on s.id = p.sector_id),
           'every spot in a sector is in the sector''s area');
-select is((select count(*) from public.ascents a join public.visits v on v.id = a.visit_id
-           join public.places w on w.id = coalesce(a.place_id, v.place_id)
-           where w.sector_id = (select v from ids where k = 'civate')),
-          (select count(*) from public.ascents a join public.visits v on v.id = a.visit_id
-           join public.places p on p.id = v.place_id
-           where p.sector_id = (select v from ids where k = 'civate')),
-          'every route logged at Civate is on one of its walls');
+select is((select count(*) from public.places where sector_id is not null and public.has_crag_sectors(activity)), 0::bigint,
+          'no crag, boulder or DWS spot is in a sector');
 
 -- ---------------------------------------------------------------- anon
 set local role anon;
@@ -50,7 +47,7 @@ select is((select sector_id from public.places where id = (select v from ids whe
 select is((select count(*) from public.sectors where lower(name) = 'parete nord'), 1::bigint, 'no duplicate sector');
 
 update public.sectors set name = 'hijacked' where id = (select v from ids where k = 'civate');
-select is((select name from public.sectors where id = (select v from ids where k = 'civate')), 'Falesia di Civate',
+select is((select name from public.sectors where id = (select v from ids where k = 'civate')), 'Pilastri',
           'vale cannot rename fra''s sector');
 select lives_ok(format($$update public.sectors set description = 'Big north face' where id = %s$$, (select v from ids where k = 'north')),
                 'vale edits the sector she created');

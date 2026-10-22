@@ -8,8 +8,9 @@ select plan(10);
 
 create temp table ids (k text primary key, v bigint);
 grant all on ids to anon, authenticated;
-insert into ids select 'wall', id from public.places where name = 'Scala dei sogni';
-insert into ids select 'butch', sector_id from public.places where name = 'Scala dei sogni';
+insert into ids select 'wall', id from public.places where name = 'Muro del Butch';
+-- A sector of an area (vie lunghe), holding no spot yet.
+with s as (insert into public.sectors (name) values ('Pilastro') returning id) insert into ids select 'butch', id from s;
 
 -- ---------------------------------------------------------------- vale posts
 set local role authenticated;

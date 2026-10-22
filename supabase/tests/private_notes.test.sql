@@ -9,7 +9,7 @@ select plan(11);
 
 create temp table ids (k text primary key, v bigint);
 grant all on ids to anon, authenticated;
-insert into ids select 'wall', id from public.places where name = 'Scala dei sogni';
+insert into ids select 'wall', id from public.places where name = 'Muro del Butch';
 
 -- ---------------------------------------------------------------- vale logs a public visit
 set local role authenticated;

@@ -1,7 +1,7 @@
--- Area → Sector → Spot → Visit, one activity per spot, shared route lists. Run with: supabase test db
+-- Area → Sector → Spot → Visit, one activity per spot, shared route lists (a crag's in its sectors). Run with: supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(15);
 
 \set fra  '\'11111111-1111-4111-8111-111111111111\''
 \set vale '\'22222222-2222-4222-8222-222222222222\''
@@ -9,10 +9,9 @@ select plan(14);
 create temp table ids (k text primary key, v bigint);
 grant all on ids to anon, authenticated;
 insert into ids select 'butch', id from public.places where name = 'Muro del Butch';
--- Walls of two crags (each crag is a sector, each wall a spot)
-insert into ids select 'civate', min(p.id) from public.places p join public.sectors s on s.id = p.sector_id
-  where s.name = 'Falesia di Civate';
-insert into ids select 'scala', id from public.places where name = 'Scala dei sogni';
+-- Another crag, and one of its sectors
+insert into ids select 'civate', id from public.places where name = 'Falesia di Civate';
+insert into ids select 'orti', id from public.crag_sectors where name = 'Valle degli Orti';
 
 -- ---------------------------------------------------------------- shape of the data
 select is((select count(*) from public.places where activity is null), 0::bigint, 'every spot has an activity');
@@ -40,10 +39,10 @@ select lives_ok(format($$insert into public.routes (place_id, name, grade) value
                 'a signed-in user adds a route to a crag''s list');
 select throws_ok(format($$insert into public.routes (place_id, name) values (%s, 'su ALTO')$$, (select v from ids where k = 'butch')),
                  '23505', null, 'route names are unique per spot, ignoring case');
-select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
-  'place_id', (select v from ids where k = 'butch'),
-  'ascents', jsonb_build_array(jsonb_build_object('name', 'Elsewhere', 'place_id', (select v from ids where k = 'civate'))))),
-  '23514', null, 'a route climbed on a visit must be on a spot of the visit''s sector');
+insert into ids select 'fra_visit', public.save_visit(jsonb_build_object('place_id', (select v from ids where k = 'butch')));
+select throws_ok(format($$insert into public.ascents (visit_id, name, crag_sector_id) values (%s, 'Elsewhere', %s)$$,
+                        (select v from ids where k = 'fra_visit'), (select v from ids where k = 'orti')),
+  '23514', null, 'a route climbed on a visit is in a sector of the visit''s crag');
 
 -- ---------------------------------------------------------------- vale logs visits
 reset role;
@@ -62,22 +61,28 @@ select is((select count(*) from public.routes where place_id = (select v from id
 
 insert into ids select 'v2', public.save_visit(jsonb_build_object(
   'place_id', (select v from ids where k = 'butch'), 'add_routes', true,
-  'ascents', jsonb_build_array(jsonb_build_object('name', 'New line', 'grade', '7a', 'place_id', (select v from ids where k = 'scala')),
+  'ascents', jsonb_build_array(jsonb_build_object('name', 'New line', 'grade', '7a', 'sector', 'Scala dei sogni'),
                                jsonb_build_object('name', 'Su alto'))));
-select is((select array_agg(p.name || ': ' || r.name order by p.name, r.name) from public.routes r join public.places p on p.id = r.place_id
-           where r.place_id in ((select v from ids where k = 'butch'), (select v from ids where k = 'scala'))),
-          array['Muro del Butch: Su alto', 'Scala dei sogni: New line'],
-          'with add_routes, new names join the list of the wall they were climbed on (existing ones are not duplicated)');
+select is((select array_agg(coalesce(cs.name, '(no sector)') || ': ' || r.name order by r.name) from public.routes r
+           left join public.crag_sectors cs on cs.id = r.crag_sector_id
+           where r.place_id = (select v from ids where k = 'butch')),
+          array['Scala dei sogni: New line', '(no sector): Su alto'],
+          'with add_routes, new names join the crag''s list in their sector (existing ones are not duplicated)');
 select is((select count(*) from public.ascents where visit_id = (select v from ids where k = 'v2') and route_id is not null),
           2::bigint, 'and both ascents are linked');
 
 delete from public.routes where name = 'Su alto';
 select ok(exists (select 1 from public.routes where name = 'Su alto'), 'vale cannot delete a route fra listed on fra''s spot');
 
-select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
-  'place_id', (select v from ids where k = 'civate'),
-  'ascents', jsonb_build_array(jsonb_build_object('route_id', (select min(id) from public.routes where name = 'Su alto'))))),
+with r as (insert into public.routes (place_id, name) values ((select v from ids where k = 'civate'), 'Altrove') returning id)
+insert into ids select 'altrove', id from r;
+select throws_ok(format($$insert into public.ascents (visit_id, route_id) values (%s, %s)$$,
+                        (select v from ids where k = 'v1'), (select v from ids where k = 'altrove')),
   '23514', null, 'an ascent cannot point at another spot''s route');
+select lives_ok(format($$insert into public.routes (place_id, crag_sector_id, name) values (%s, %s, 'New line')$$,
+                       (select v from ids where k = 'butch'),
+                       (select id from public.crag_sectors where name = 'Muretto del Gio')),
+                'two sectors of a crag can have a tiro of the same name');
 
 select * from finish();
 rollback;
