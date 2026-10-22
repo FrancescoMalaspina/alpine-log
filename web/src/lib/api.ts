@@ -203,6 +203,12 @@ export async function updateCragSector(id: number, sector: CragSectorInput): Pro
   if (!data.length) throw new Error(tr().common.errors.cantChangeCragSector);
 }
 
+/** Merges a crag's sector into another of the same crag: its tiri, and the routes climbed in it, are the other's. */
+export async function mergeCragSectors(keepId: number, duplicateId: number): Promise<void> {
+  const { error } = await supabase.rpc('merge_crag_sectors', { p_keep: keepId, p_duplicate: duplicateId });
+  if (error) throw new Error(error.message);
+}
+
 /** Removes a crag's sector; its tiri and the routes climbed in it stay, in no sector. */
 export async function deleteCragSector(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('crag_sectors').delete().eq('id', id).select('id'));
