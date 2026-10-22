@@ -169,6 +169,7 @@ function PlaceInfo({ place: p, userId, isAdmin, canEdit, reloadKey, tracks, onTo
       )}
 
       <h3 className="section-title">{s.photos}</h3>
+      <p className="hint-block">{s.photosHint}</p>
       <PhotoGallery owner={{ placeId: p.id }} userId={userId} isAdmin={isAdmin} canAdd={!!userId}
                     emptyText={s.noPhotos} />
 
@@ -339,6 +340,7 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
             </section>
           );
         })}
+        {selected && <span className="field-label">{s.dayPhotos}</span>}
         {selected && (
           <PhotoGallery key={selected.key} owner={{ visitId: myVisit?.id ?? selected.visits[0].id, outingId: selected.outingId }}
                         userId={userId} isAdmin={isAdmin} canAdd={!!myVisit}

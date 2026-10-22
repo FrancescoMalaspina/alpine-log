@@ -72,6 +72,8 @@ export function VisitModal({
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [photos, setPhotos] = useState<File[]>([]);
+  // Captions typed under the photos, by photo (kept apart so typing doesn't redo the previews).
+  const [captions, setCaptions] = useState<Map<File, string>>(new Map());
   const [progress, setProgress] = useState<string | null>(null);
   // Set when the visit is saved but some photos failed: the form then only offers "Done".
   const [savedVisit, setSavedVisit] = useState<{ placeId: number; wishResolved: boolean } | null>(null);
@@ -225,7 +227,7 @@ export function VisitModal({
       for (const [i, f] of photos.entries()) {
         setProgress(s.uploadingPhoto(i + 1, photos.length));
         try {
-          await uploadPhoto({ visitId }, userId, f);
+          await uploadPhoto({ visitId }, userId, f, captions.get(f));
         } catch (e) {
           failed.push(errorMessage(e));
         }
@@ -318,6 +320,9 @@ export function VisitModal({
                   {photos.map((f, i) => (
                     <li key={previews[i]}>
                       <img src={previews[i]} alt={f.name} width={160} height={120} />
+                      <input className="photo-caption-input" value={captions.get(f) ?? ''} maxLength={500}
+                             placeholder={s.captionPlaceholder} aria-label={s.captionFor(f.name)}
+                             onChange={e => { const text = e.target.value; setCaptions(m => new Map(m).set(f, text)); }} />
                       <button type="button" className="unstage" aria-label={s.removePhoto(f.name)}
                               onClick={() => setPhotos(ps => ps.filter((_, j) => j !== i))}>×</button>
                     </li>

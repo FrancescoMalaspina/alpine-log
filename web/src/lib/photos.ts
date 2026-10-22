@@ -117,6 +117,13 @@ export async function fetchPhotos(owner: PhotoOwner): Promise<Photo[]> {
   }));
 }
 
+/** Changes the caption of a photo you added (empty: none). */
+export async function updatePhotoCaption(id: number, caption: string): Promise<void> {
+  const { data, error } = await supabase.from('photos').update({ caption: caption.trim() || null }).eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  if (!data.length) throw new Error(tr().common.errors.cantEditPhoto);
+}
+
 export async function deletePhoto(owner: PhotoOwner, photo: Photo): Promise<void> {
   const { data, error } = await supabase.from('photos').delete().eq('id', photo.id).select('id');
   if (error) throw new Error(error.message);
