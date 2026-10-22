@@ -3,6 +3,7 @@ import { useI18n } from '../i18n';
 import { reopenWish } from '../lib/api';
 import { priorityLabel, errorMessage, formatDate, seasonLabel } from '../lib/labels';
 import type { Place, Wish } from '../lib/types';
+import { Collapsible } from './Collapsible';
 import { ErrorText } from './Modal';
 import { VisibilityPill } from './Sidebar';
 
@@ -46,8 +47,7 @@ export function WishlistSection({ wishes, placeById, ...actions }: Props) {
 
   return (
     <section className="account-section">
-      <details className="collapsible" open>
-        <summary className="section-title">{t.account.wishlist.title}</summary>
+      <Collapsible id="log.wishlist" title={t.account.wishlist.title}>
         <div className="collapsible-body">
           <ErrorText error={error} />
           {!open.length && (
@@ -106,7 +106,7 @@ export function WishlistSection({ wishes, placeById, ...actions }: Props) {
             </details>
           )}
         </div>
-      </details>
+      </Collapsible>
     </section>
   );
 }

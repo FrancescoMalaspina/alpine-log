@@ -28,8 +28,26 @@ export type Photo = {
   thumbUrl: string;
 };
 
-const bucketOf = (owner: PhotoOwner) => ('placeId' in owner ? 'place-photos' : 'visit-photos');
+const VISIT_BUCKET = 'visit-photos';
+const bucketOf = (owner: PhotoOwner) => ('placeId' in owner ? 'place-photos' : VISIT_BUCKET);
 const SIGNED_URL_SECONDS = 60 * 60;
+
+// Signed URLs already made, reused while they have a while left: a new URL for
+// the same photo would make the browser download it again.
+const signedUrls = new Map<string, { url: string; until: number }>();
+const REUSE_MARGIN_MS = 5 * 60 * 1000;
+
+/** URLs of private visit photo files, by path. */
+async function signedUrlsFor(paths: string[]): Promise<Map<string, string>> {
+  const now = Date.now();
+  const missing = paths.filter(p => (signedUrls.get(p)?.until ?? 0) < now + REUSE_MARGIN_MS);
+  if (missing.length) {
+    const { data, error } = await supabase.storage.from(VISIT_BUCKET).createSignedUrls(missing, SIGNED_URL_SECONDS);
+    if (error) throw new Error(error.message);
+    for (const s of data) if (s.path && s.signedUrl) signedUrls.set(s.path, { url: s.signedUrl, until: now + SIGNED_URL_SECONDS * 1000 });
+  }
+  return new Map(paths.map(p => [p, signedUrls.get(p)?.url ?? '']));
+}
 
 async function shrink(file: File, maxSide: number, quality: number) {
   let bitmap: ImageBitmap;
@@ -98,15 +116,12 @@ export async function fetchPhotos(owner: PhotoOwner): Promise<Photo[]> {
   if (error) throw new Error(error.message);
   if (!data.length) return [];
 
-  const bucket = supabase.storage.from(bucketOf(owner));
   let urlOf: (path: string) => string;
   if ('placeId' in owner) {
+    const bucket = supabase.storage.from(bucketOf(owner));
     urlOf = path => bucket.getPublicUrl(path).data.publicUrl;
   } else {
-    const paths = data.flatMap(p => [p.storage_path, p.thumb_path]);
-    const { data: signed, error: signError } = await bucket.createSignedUrls(paths, SIGNED_URL_SECONDS);
-    if (signError) throw new Error(signError.message);
-    const byPath = new Map(signed.map(s => [s.path, s.signedUrl]));
+    const byPath = await signedUrlsFor(data.flatMap(p => [p.storage_path, p.thumb_path]));
     urlOf = path => byPath.get(path) ?? '';
   }
   return data.map(({ profile, ...p }) => ({
@@ -115,6 +130,13 @@ export async function fetchPhotos(owner: PhotoOwner): Promise<Photo[]> {
     url: urlOf(p.storage_path),
     thumbUrl: urlOf(p.thumb_path),
   }));
+}
+
+/** Changes the caption of a photo you added (empty: none). */
+export async function updatePhotoCaption(id: number, caption: string): Promise<void> {
+  const { data, error } = await supabase.from('photos').update({ caption: caption.trim() || null }).eq('id', id).select('id');
+  if (error) throw new Error(error.message);
+  if (!data.length) throw new Error(tr().common.errors.cantEditPhoto);
 }
 
 export async function deletePhoto(owner: PhotoOwner, photo: Photo): Promise<void> {

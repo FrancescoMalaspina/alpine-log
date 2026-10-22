@@ -1,5 +1,6 @@
 import { tr } from '../../i18n';
 import { ACTIVITIES, localToday } from '../../lib/labels';
+import { sameName } from '../../lib/names';
 import type { Activity, AscentStyle, InvitePrefill, Place, PrefillPerson, TipTopic, Visibility, VisitDetail, VisitInput } from '../../lib/types';
 import { summarize, trackVisit } from '../../lib/tracks';
 import type { PlaceValues, TrackDraft } from './placeForm';
@@ -41,6 +42,20 @@ export const ascentRow = (): AscentRow => ({
 });
 
 /**
+ * A logged route as it reads beside its spot. At a spot that is itself a route
+ * (multipitch, alpine, ice), your climb of that route (its name, not on another
+ * wall) says only what differs from the topo: no name, and no grade when it is
+ * the topo's. Any other route stays as it is.
+ */
+export function beyondTopo<T extends { name: string; grade: string }>(
+  a: T, onOtherWall: boolean, spot?: Pick<Place, 'name' | 'grade' | 'activity'>,
+): T {
+  const same = (x: string | null, y: string | null) => !!x && !!y && sameName(x, y);
+  if (!spot || !ACTIVITIES[spot.activity].isRoute || onOtherWall || !same(a.name, spot.name)) return a;
+  return { ...a, name: '', grade: same(a.grade, spot.grade) ? '' : a.grade };
+}
+
+/**
  * Empty or existing visit values. At a spot that is itself a route
  * (multipitch, alpine, ice), the first row is your climb of that route: it
  * holds only what you'd say differently from the topo, so its name, and a
@@ -48,17 +63,12 @@ export const ascentRow = (): AscentRow => ({
  * placeholders; saving fills them back in).
  */
 export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' | 'grade' | 'activity'>): VisitValues {
-  const isRoute = !!spot && ACTIVITIES[spot.activity].isRoute;
-  const same = (a: string | null, b: string | null) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
   const rows: AscentRow[] = (visit?.ascents ?? []).map(a => ({
     key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '',
     wallId: a.place ? String(a.place.id) : '',
     style: a.style, pitches: a.pitches?.toString() ?? '', aid: a.aid ?? '',
   }));
-  if (isRoute && rows[0] && !rows[0].wallId && same(rows[0].name, spot.name)) {
-    rows[0].name = '';
-    if (same(rows[0].grade, spot.grade)) rows[0].grade = '';
-  }
+  if (rows[0]) rows[0] = beyondTopo(rows[0], !!rows[0].wallId, spot);
   return {
     date: visit ? visit.date ?? '' : localToday(),
     visibility: visit?.visibility ?? 'private',

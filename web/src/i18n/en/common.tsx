@@ -75,6 +75,7 @@ const en = {
     photoUnreadable: (name: string) =>
       `"${name}" can't be read by this browser. Try a JPEG or PNG (on iPhone, share it as "Most compatible").`,
     cantDeletePhoto: 'Only the person who added this photo (or an admin) can delete it.',
+    cantEditPhoto: 'Only the person who added this photo can change its caption.',
     locationSearch: (status: number) => `Location search failed (${status})`,
   },
 };
