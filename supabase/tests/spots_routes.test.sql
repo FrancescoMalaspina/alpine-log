@@ -43,7 +43,7 @@ select throws_ok(format($$insert into public.routes (place_id, name) values (%s,
 select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
   'place_id', (select v from ids where k = 'butch'),
   'ascents', jsonb_build_array(jsonb_build_object('name', 'Elsewhere', 'place_id', (select v from ids where k = 'civate'))))),
-  'P0001', null, 'a route climbed on a visit must be on a spot of the visit''s sector');
+  '23514', null, 'a route climbed on a visit must be on a spot of the visit''s sector');
 
 -- ---------------------------------------------------------------- vale logs visits
 reset role;
@@ -77,7 +77,7 @@ select ok(exists (select 1 from public.routes where name = 'Su alto'), 'vale can
 select throws_ok(format($$select public.save_visit(%L)$$, jsonb_build_object(
   'place_id', (select v from ids where k = 'civate'),
   'ascents', jsonb_build_array(jsonb_build_object('route_id', (select min(id) from public.routes where name = 'Su alto'))))),
-  'P0001', null, 'an ascent cannot point at another spot''s route');
+  '23514', null, 'an ascent cannot point at another spot''s route');
 
 select * from finish();
 rollback;
