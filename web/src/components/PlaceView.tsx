@@ -8,6 +8,7 @@ import { trackStatsParts } from '../lib/trackStats';
 import { ActivityBadge } from './ActivityBadge';
 import type { OutingMember, Place, PlaceSuggestion, Route, Tip, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
+import { beyondTopo } from './forms/visitForm';
 import { PhotoGallery } from './Photos';
 import { Drawer } from './Drawer';
 import { ErrorText } from './Modal';
@@ -310,8 +311,8 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
   return (
     <div className="visits-view-body">
       <ErrorText error={error} />
-      {visits && <div className="hint-block">{s.visitsYouCanSee(visits.length)}</div>}
-      {days.length > 0 && (
+      {/* With one day there is nothing to choose: its date shows above it instead. */}
+      {days.length > 1 && (
         <div className="visits-tabs">
           {days.map((d, i) => (
             <button key={d.key} type="button" className={`visit-tab${d === selected ? ' active' : ''}`}
@@ -324,6 +325,9 @@ function PlaceVisits({ place, initialVisitId, userId, isAdmin, reloadKey, onEdit
       <div className="visit-detail">
         {!visits && !error && <div className="empty">{t.common.loading}</div>}
         {visits && !selected && <div className="empty">{s.noVisits}</div>}
+        {days.length === 1 && selected?.visits[0].date && (
+          <div className="visit-day-date">{formatDate(selected.visits[0].date)}</div>
+        )}
         {changerName && <div className="hint-block">{s.dateChangedBy(changerName)}</div>}
         {selected?.visits.map(v => {
           const mine = v.user_id === userId;
@@ -366,12 +370,15 @@ function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
   const unnamed = members.filter(m => m.user_id !== v.user_id && !named.has(m.user_id)).map(m => person(m.username, m.user_id));
   const others = [...people(v.other_partners), ...unnamed];
   const meta = [
-    v.date ? formatDate(v.date) : null,
     v.duration_hours != null ? formatHours(v.duration_hours) : null,
     v.partners.length ? <>{(v.outing_id ? s.together : s.with)('')}{joined(people(v.partners))}</> : null,
     others.length ? <>{s.otherRopes('')}{joined(others)}</> : null,
     !mine && v.username ? <>{s.by('')}{person(v.username, v.user_id)}</> : null,
   ].filter(Boolean);
+  // The spot's own route (a multipitch, an alpine route) isn't named again, nor its grade
+  // when the topo's; a climb of it that adds nothing to the topo isn't listed.
+  const climbs = v.ascents.map(a => ({ ascent: a, ...beyondTopo({ name: a.name ?? '', grade: a.grade ?? '' }, !!a.place, spot) }))
+    .filter(({ ascent: a, name, grade }) => name || grade || !a.name || a.style || a.pitches != null || a.aid || a.comment);
   return <>
     <div className="visit-meta">
       {meta.length > 0 && <span>{joined(meta)}</span>}
@@ -392,12 +399,12 @@ function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
     )}
     {v.ascents.length ? (
       <ul>
-        {v.ascents.map(a => (
+        {climbs.map(({ ascent: a, name, grade }) => (
           <li key={a.id}>
             {[
               <span key="h" className="ascent-head">
-                {a.name ? <b>{a.name}</b> : <b className="unnamed">{s.unnamedRoute}</b>}
-                {a.grade && <span className="ascent-grade num">{a.grade}</span>}
+                {name ? <b>{name}</b> : !a.name && <b className="unnamed">{s.unnamedRoute}</b>}
+                {grade && <span className="ascent-grade num">{grade}</span>}
                 {a.place && <span className="ascent-sector">{a.place.name}</span>}
                 {a.style && <span className={`ascent-style ${a.style}`}>{styleLabel(a.style)}</span>}
                 {a.pitches != null && (

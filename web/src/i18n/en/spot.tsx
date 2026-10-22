@@ -42,7 +42,6 @@ const en = {
     noPhotos: 'No photos of this spot yet.',
     // visits tab
     confirmDeleteVisit: "Delete this visit? This can't be undone.",
-    visitsYouCanSee: (n: number) => `${n} ${n === 1 ? 'visit' : 'visits'} you can see`,
     visitN: (n: number) => `Visit ${n}`,
     loading: 'Loading…',
     noVisits: 'No visits you can see yet.',

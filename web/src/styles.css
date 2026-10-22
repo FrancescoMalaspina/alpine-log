@@ -558,6 +558,7 @@ html[lang="it"] .collapsible[open] > summary::after { content: 'Nascondi'; }
 .visit-tab:hover { color: var(--granite); border-color: var(--slate); }
 .visit-tab.active { background: var(--granite); border-color: var(--granite); color: var(--plate); }
 .visit-detail { display: flex; flex-direction: column; gap: 10px; }
+.visit-day-date { font-weight: 600; }
 .visit-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--slate); }
 .visit-notes { display: flex; flex-direction: column; gap: 6px; }
 .visit-detail .description { margin: 0; line-height: 1.55; max-width: 68ch; }

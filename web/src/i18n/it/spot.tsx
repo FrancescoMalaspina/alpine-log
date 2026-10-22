@@ -42,7 +42,6 @@ const it: Widen<typeof en> = {
     dayPhotos: 'Foto della giornata',
     noPhotos: 'Ancora nessuna foto di questo spot.',
     confirmDeleteVisit: 'Eliminare questa visita? Non si può annullare.',
-    visitsYouCanSee: (n: number) => `${n} ${n === 1 ? 'visita visibile' : 'visite visibili'}`,
     visitN: (n: number) => `Visita ${n}`,
     loading: 'Caricamento…',
     noVisits: 'Ancora nessuna visita visibile.',
