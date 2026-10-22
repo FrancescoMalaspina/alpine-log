@@ -33,10 +33,10 @@ type Props = {
   existingSpotAction?: { label: string; onPick: (placeId: number) => void };
 };
 
-/** What a sector is for each activity: the crag, the wall, the mountain… */
+/** What a sector is for each activity: the wall, the mountain… A crag has none: its sectors are inside it. */
 const SECTOR_HINT: Record<PlaceValues['activity'], string> = {
-  crag: 'Falesia di Civate', boulder: 'Val di Mello', multipitch: 'Parete di Pezol', alpine: 'Breithorn', ice: 'Valle di Cogne',
-  dws: 'Cala Barques', indoor: 'Manga Climbing', ski: 'Pizzo dei Tre Signori', hike: 'Grigna', trail: 'Resegone', mtb: 'Corni di Canzo',
+  crag: '', boulder: '', multipitch: 'Parete di Pezol', alpine: 'Breithorn', ice: 'Valle di Cogne',
+  dws: '', indoor: 'Manga Climbing', ski: 'Pizzo dei Tre Signori', hike: 'Grigna', trail: 'Resegone', mtb: 'Corni di Canzo',
 };
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
@@ -118,13 +118,17 @@ export function PlaceFields({ values: v, onChange, areas, sectors, rocks, onPick
           <SimilarAreas name={v.areaName} onPick={areaName => onChange({ areaName })} />
         </>}
       </div>
-      <div className="field full">
-        <label htmlFor="placeSector">{s.sector} <span className="hint">{s.sectorHint}</span></label>
-        <Combobox id="placeSector" value={v.sectorName} placeholder={SECTOR_HINT[v.activity]}
-                  onChange={sectorName => onChange({ sectorName })}
-                  options={areaSectors.map(x => ({ key: x.id, label: x.name, hint: t.spot.similar.spots(x.place_count) }))} />
-        {isNewSector && <div className="hint-block">{s.newSector(v.sectorName.trim())}</div>}
-      </div>
+      {f.cragSectors ? (
+        <div className="field full hint-block">{s.cragSectorsHint}</div>
+      ) : (
+        <div className="field full">
+          <label htmlFor="placeSector">{s.sector} <span className="hint">{s.sectorHint}</span></label>
+          <Combobox id="placeSector" value={v.sectorName} placeholder={SECTOR_HINT[v.activity]}
+                    onChange={sectorName => onChange({ sectorName })}
+                    options={areaSectors.map(x => ({ key: x.id, label: x.name, hint: t.spot.similar.spots(x.place_count) }))} />
+          {isNewSector && <div className="hint-block">{s.newSector(v.sectorName.trim())}</div>}
+        </div>
+      )}
 
       {coordField('coords', 'placeCoords', s.mapPin, true)}
       {coordField('parking', 'placeParking', s.parking)}

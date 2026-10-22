@@ -2,8 +2,9 @@ import type { ReactNode } from 'react';
 import { useI18n } from '../../i18n';
 import { TipTopicPicker } from '../Tips';
 import { PeopleField } from './PeopleField';
-import { ACTIVITIES, gradeSuggestions, styleLabel } from '../../lib/labels';
-import { ASCENT_STYLES, type Activity, type AscentStyle, type Partner, type Route } from '../../lib/types';
+import { ACTIVITIES, gradeSuggestions, routeKind, styleLabel } from '../../lib/labels';
+import { sameName } from '../../lib/names';
+import { ASCENT_STYLES, type Activity, type AscentStyle, type CragSector, type Partner, type Route } from '../../lib/types';
 import { ascentRow, type AscentRow, type VisitValues } from './visitForm';
 
 type Props = {
@@ -12,12 +13,9 @@ type Props = {
   partners: Partner[];
   /** The spot's activity, which decides the extra fields and grade hints. */
   activity: Activity;
-  /**
-   * The other spots of the spot's sector (the crag's other walls): a route can
-   * be logged on one of them, so a day across walls stays one visit.
-   */
-  walls: { id: number; name: string }[];
-  /** The visit's own spot, the first choice of the wall dropdown. */
+  /** At a crag, its sectors: each route is in one (typing a new name adds it). */
+  sectors?: CragSector[];
+  /** The visit's own spot, what the first route is when the spot is a route. */
   spotName: string;
   /** The spot's shared route list, offered while typing route names. */
   routes?: Route[];
@@ -32,16 +30,21 @@ type Props = {
 };
 
 /** Every field of a visit. Used by "Log a visit" and by "Add a spot" with a visit. */
-export function VisitFields({ values: v, onChange, partners, activity, walls, spotName, routes = [], spotDetails, dateNote, dateLocked, sameDay }: Props) {
+export function VisitFields({ values: v, onChange, partners, activity, sectors = [], spotName, routes = [], spotDetails, dateNote, dateLocked, sameDay }: Props) {
   const { t } = useI18n();
   const s = t.spot.visitFields;
   const f = ACTIVITIES[activity];
+  const words = t.spot.routeWords[routeKind(activity)];
   const updateAscent = (key: number, patch: Partial<AscentRow>) =>
     onChange({ ascents: v.ascents.map(a => (a.key === key ? { ...a, ...patch } : a)) });
-  // Typing (or picking) a route from the spot's list fills in its grade.
+  const sectorName = (id: number | null) => sectors.find(x => x.id === id)?.name ?? '';
+  // Typing (or picking) a tiro from the spot's list fills in its grade, and its sector when the row has none.
   const setRouteName = (row: AscentRow, name: string) => {
-    const listed = !row.wallId && routes.find(r => r.name.toLowerCase() === name.trim().toLowerCase());
-    updateAscent(row.key, listed ? { name, grade: row.grade || listed.grade || '' } : { name });
+    const listed = routes.find(r => r.name.toLowerCase() === name.trim().toLowerCase()
+      && (!row.sector.trim() || sameName(sectorName(r.crag_sector_id), row.sector)));
+    updateAscent(row.key, listed
+      ? { name, grade: row.grade || listed.grade || '', sector: row.sector || sectorName(listed.crag_sector_id) }
+      : { name });
   };
   // At a route-type spot, the first row is your climb of that route; any others are other routes that day.
   const first = f.isRoute ? v.ascents[0] : undefined;
@@ -105,7 +108,7 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
         <span className="hint-block">{s.yourClimbHint}</span>
         <div className="your-climb">
           {first.name.trim() !== '' && (
-            <label className="your-climb-wide"><span>{s.routeName}</span>
+            <label className="your-climb-wide"><span>{words.name}</span>
               <input type="text" value={first.name} placeholder={spotName} onChange={e => updateAscent(first.key, { name: e.target.value })} />
             </label>
           )}
@@ -136,21 +139,19 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
         </div>
         {others.length > 0 && <span className="field-label">{s.otherRoutes}</span>}
       </>}
-      {!f.isRoute && <span className="field-label">{s.routes}</span>}
+      {!f.isRoute && <span className="field-label">{words.routes}</span>}
       <div className="routes-list">
         {others.map(a => (
           <div key={a.key} className="route-item">
           <div className="route-row">
-            <input type="text" className="route-name" placeholder={s.routeName} aria-label={s.routeName} value={a.name}
+            <input type="text" className="route-name" placeholder={words.name} aria-label={words.name} value={a.name}
                    list={routes.length ? 'spotRouteOptions' : undefined} onChange={e => setRouteName(a, e.target.value)} />
             <input type="text" className="route-grade num" placeholder={s.grade} aria-label={s.grade} value={a.grade}
                    list="visitGradeOptions" onChange={e => updateAscent(a.key, { grade: e.target.value })} />
-            {walls.length > 0 && (
-              <select className="route-sector" value={a.wallId} aria-label={s.wall}
-                      onChange={e => updateAscent(a.key, { wallId: e.target.value })}>
-                <option value="">{spotName}</option>
-                {walls.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-              </select>
+            {f.cragSectors && (
+              <input type="text" className="route-sector" placeholder={s.sector} aria-label={s.sector} value={a.sector}
+                     list={sectors.length ? 'spotSectorOptions' : undefined}
+                     onChange={e => updateAscent(a.key, { sector: e.target.value })} />
             )}
             <input type="text" className="route-comment" placeholder={s.comment} aria-label={s.comment} value={a.comment}
                    onChange={e => updateAscent(a.key, { comment: e.target.value })} />
@@ -181,18 +182,21 @@ export function VisitFields({ values: v, onChange, partners, activity, walls, sp
         ))}
       </div>
       <datalist id="visitGradeOptions">{gradeSuggestions(activity).map(g => <option key={g} value={g} />)}</datalist>
+      {sectors.length > 0 && (
+        <datalist id="spotSectorOptions">{sectors.map(x => <option key={x.id} value={x.name} />)}</datalist>
+      )}
       {routes.length > 0 && (
         <datalist id="spotRouteOptions">
-          {routes.map(r => <option key={r.id} value={r.name}>{r.grade ?? ''}</option>)}
+          {routes.map(r => <option key={r.id} value={r.name}>{[r.grade, sectorName(r.crag_sector_id)].filter(Boolean).join(' · ')}</option>)}
         </datalist>
       )}
       <button type="button" className="btn-add-route" onClick={() => onChange({ ascents: [...v.ascents, ascentRow()] })}>
-        {f.isRoute ? s.addAnotherRoute : s.addRoute}
+        {f.isRoute ? s.addAnotherRoute : words.add}
       </button>
       {f.routeList && unlisted && (
         <label className="switch small">
           <input type="checkbox" checked={v.addRoutes} onChange={e => onChange({ addRoutes: e.target.checked })} />
-          {s.addToSharedList}
+          {words.addToShared}
         </label>
       )}
       </>}

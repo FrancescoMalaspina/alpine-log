@@ -6,11 +6,11 @@ import { summarize, trackVisit } from '../../lib/tracks';
 import type { PlaceValues, TrackDraft } from './placeForm';
 
 /**
- * A route row. `wallId` is another spot of the visit's sector the route was
- * climbed on (another wall of the crag), or '' for the visit's own spot.
+ * A route row. `sector` is the name of the crag's sector it was climbed in
+ * ('' for none, or at a spot without sectors); a new name adds the sector.
  */
 export type AscentRow = {
-  key: number; name: string; grade: string; wallId: string; comment: string;
+  key: number; name: string; grade: string; sector: string; comment: string;
   style: AscentStyle | null;
   /** Override the spot's values for this climb (empty: as the spot says). */
   pitches: string; aid: string;
@@ -38,7 +38,7 @@ export type VisitValues = {
 
 let nextKey = 1;
 export const ascentRow = (): AscentRow => ({
-  key: nextKey++, name: '', grade: '', wallId: '', comment: '', style: null, pitches: '', aid: '',
+  key: nextKey++, name: '', grade: '', sector: '', comment: '', style: null, pitches: '', aid: '',
 });
 
 /**
@@ -48,10 +48,10 @@ export const ascentRow = (): AscentRow => ({
  * the topo's. Any other route stays as it is.
  */
 export function beyondTopo<T extends { name: string; grade: string }>(
-  a: T, onOtherWall: boolean, spot?: Pick<Place, 'name' | 'grade' | 'activity'>,
+  a: T, spot?: Pick<Place, 'name' | 'grade' | 'activity'>,
 ): T {
   const same = (x: string | null, y: string | null) => !!x && !!y && sameName(x, y);
-  if (!spot || !ACTIVITIES[spot.activity].isRoute || onOtherWall || !same(a.name, spot.name)) return a;
+  if (!spot || !ACTIVITIES[spot.activity].isRoute || !same(a.name, spot.name)) return a;
   return { ...a, name: '', grade: same(a.grade, spot.grade) ? '' : a.grade };
 }
 
@@ -65,10 +65,10 @@ export function beyondTopo<T extends { name: string; grade: string }>(
 export function visitValuesFrom(visit?: VisitDetail, spot?: Pick<Place, 'name' | 'grade' | 'activity'>): VisitValues {
   const rows: AscentRow[] = (visit?.ascents ?? []).map(a => ({
     key: nextKey++, name: a.name ?? '', grade: a.grade ?? '', comment: a.comment ?? '',
-    wallId: a.place ? String(a.place.id) : '',
+    sector: a.sector?.name ?? '',
     style: a.style, pitches: a.pitches?.toString() ?? '', aid: a.aid ?? '',
   }));
-  if (rows[0]) rows[0] = beyondTopo(rows[0], !!rows[0].wallId, spot);
+  if (rows[0]) rows[0] = beyondTopo(rows[0], spot);
   return {
     date: visit ? visit.date ?? '' : localToday(),
     visibility: visit?.visibility ?? 'private',
@@ -101,7 +101,7 @@ export function visitPrefillFromInvite(p: InvitePrefill, nameOf: (userId: string
     otherPeople: names(p.people.filter(x => !x.same_rope)),
     ...(p.ascents.length ? {
       ascents: p.ascents.map(a => ({
-        ...ascentRow(), name: a.name ?? '', grade: a.grade ?? '', wallId: a.place_id ? String(a.place_id) : '',
+        ...ascentRow(), name: a.name ?? '', grade: a.grade ?? '', sector: a.sector ?? '',
         pitches: a.pitches?.toString() ?? '', aid: a.aid ?? '',
       })),
     } : {}),
@@ -109,7 +109,7 @@ export function visitPrefillFromInvite(p: InvitePrefill, nameOf: (userId: string
 }
 
 const filledAscents = (v: VisitValues) =>
-  v.ascents.filter(a => a.name.trim() || a.grade.trim() || a.comment.trim() || a.wallId || a.style || a.pitches.trim() || a.aid.trim());
+  v.ascents.filter(a => a.name.trim() || a.grade.trim() || a.comment.trim() || a.style || a.pitches.trim() || a.aid.trim());
 
 /** A message if the visit has nothing in it yet, otherwise null. */
 export function visitProblem(v: VisitValues): string | null {
@@ -169,7 +169,7 @@ export function buildVisitInput(v: VisitValues, spot: VisitSpot, id?: number): V
     add_routes: f.routeList && v.addRoutes,
     ascents: routesFor(v, spot).map(a => ({
       name: a.name, grade: a.grade, comment: a.comment, route_id: null,
-      place_id: a.wallId ? Number(a.wallId) : null,
+      sector: f.cragSectors ? a.sector : '',
       style: a.style,
       pitches: f.pitches && a.pitches.trim() ? Math.round(Number(a.pitches)) : null,
       aid: f.pitches ? a.aid : '',

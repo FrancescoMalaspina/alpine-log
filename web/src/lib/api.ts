@@ -6,7 +6,7 @@ import type { Database, Json } from './database.types';
 import { supabase } from './supabase';
 import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
-  Area, Attachment, Invitation, InvitePrefill, OutingMember, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, CragSector, Invitation, InvitePrefill, OutingMember, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
   Tip, TipInput, TrackStats, VisitTrack, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
@@ -154,15 +154,15 @@ export async function rejectSuggestion(id: number, note: string): Promise<void> 
 export async function fetchRoutes(placeId: number): Promise<Route[]> {
   const rows = unwrap(await supabase
     .from('routes')
-    .select('id, place_id, name, grade, grade_rank, created_by, ascents (count)')
+    .select('id, place_id, crag_sector_id, name, grade, grade_rank, created_by, ascents (count)')
     .eq('place_id', placeId)
     .order('name'));
   return rows.map(({ ascents, ...r }) => ({ ...r, ascent_count: ascents[0]?.count ?? 0 }));
 }
 
-export async function addRoute(placeId: number, route: { name: string; grade: string }): Promise<void> {
+export async function addRoute(placeId: number, route: { name: string; grade: string; sectorId: number | null }): Promise<void> {
   const { error } = await supabase.from('routes').insert({
-    place_id: placeId, name: route.name.trim(), grade: route.grade.trim() || null,
+    place_id: placeId, crag_sector_id: route.sectorId, name: route.name.trim(), grade: route.grade.trim() || null,
   });
   if (error) {
     throw new Error(error.code === '23505' ? tr().common.errors.routeExists(route.name.trim()) : error.message);
@@ -172,6 +172,41 @@ export async function addRoute(placeId: number, route: { name: string; grade: st
 export async function deleteRoute(id: number): Promise<void> {
   const rows = unwrap(await supabase.from('routes').delete().eq('id', id).select('id'));
   if (!rows.length) throw new Error(tr().common.errors.cantRemoveRoute);
+}
+
+// ---------------------------------------------------------------- a crag's sectors
+
+export async function fetchCragSectors(placeId: number): Promise<CragSector[]> {
+  return unwrap(await supabase
+    .from('crag_sectors')
+    .select('id, place_id, name, description, lat, lng, created_by')
+    .eq('place_id', placeId)
+    .order('name'));
+}
+
+export type CragSectorInput = Pick<CragSector, 'name' | 'description' | 'lat' | 'lng'>;
+
+const cleanSector = (s: CragSectorInput) => ({
+  name: s.name.trim(), description: s.description?.trim() || null, lat: s.lat, lng: s.lng,
+});
+const sectorError = (e: { code?: string; message: string }, name: string) =>
+  new Error(e.code === '23505' ? tr().common.errors.cragSectorExists(name.trim()) : e.message);
+
+export async function addCragSector(placeId: number, sector: CragSectorInput): Promise<void> {
+  const { error } = await supabase.from('crag_sectors').insert({ place_id: placeId, ...cleanSector(sector) });
+  if (error) throw sectorError(error, sector.name);
+}
+
+export async function updateCragSector(id: number, sector: CragSectorInput): Promise<void> {
+  const { data, error } = await supabase.from('crag_sectors').update(cleanSector(sector)).eq('id', id).select('id');
+  if (error) throw sectorError(error, sector.name);
+  if (!data.length) throw new Error(tr().common.errors.cantChangeCragSector);
+}
+
+/** Removes a crag's sector; its tiri and the routes climbed in it stay, in no sector. */
+export async function deleteCragSector(id: number): Promise<void> {
+  const rows = unwrap(await supabase.from('crag_sectors').delete().eq('id', id).select('id'));
+  if (!rows.length) throw new Error(tr().common.errors.cantChangeCragSector);
 }
 
 
@@ -447,7 +482,7 @@ export async function fetchPlaceVisits(placeId: number): Promise<VisitDetail[]> 
       profile:profiles (username),
       outing:outings (date_changed_by),
       notes:visit_notes (summary, conditions, approach, descent),
-      ascents (id, route_id, name, grade, position, style, pitches, aid, note:ascent_notes (comment), place:places (id, name)),
+      ascents (id, route_id, name, grade, position, style, pitches, aid, note:ascent_notes (comment), sector:crag_sectors (id, name)),
       visit_partners (same_rope, partner:partners (name, linked_user_id)),
       attachments (id, title, private, storage_path, place_id, created_by,
                    distance_km, gain_m, loss_m, max_ele_m, min_ele_m, elapsed_s, moving_s, uphill_s)
@@ -486,7 +521,7 @@ export async function fetchLogbook(userId: string) {
       place:places (id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng, grade, max_altitude,
                     country, province, start_locality, protection, pitches, length_m, alpine_grade, grade_obligatory, aid,
                     area:areas (name), sector:sectors (name)),
-      ascents (name, grade, position, style, pitches, aid, note:ascent_notes (comment), wall:places (name)),
+      ascents (name, grade, position, style, pitches, aid, note:ascent_notes (comment), crag_sector:crag_sectors (name)),
       visit_partners (same_rope, partner:partners (name))
     `)
     .eq('user_id', userId)

@@ -202,7 +202,7 @@ export function PlaceModal({ place, initialAt, rocks, areas, sectors, partners, 
             </label>
             {logVisit && (
               <VisitFields values={visit} onChange={changeVisit} partners={partners} activity={values.activity}
-                           walls={[]} spotName={values.name} spotDetails={topoOf(values)} />
+                           spotName={values.name} spotDetails={topoOf(values)} />
             )}
           </div>
         )}

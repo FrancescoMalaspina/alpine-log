@@ -12,29 +12,35 @@ create function pg_temp.id(key text) returns bigint language sql as $$ select v 
 grant execute on function pg_temp.id(text) to anon, authenticated;
 
 -- ---------------------------------------------------------------- fixtures
--- Area "Valle" with sector "Sasso": the kept spot K, its duplicate D, and a
--- sibling S. Routes: K "Via Uno"; D "via-uno" (same folded name) and "Via Due".
+-- Area "Valle" (with a sector "Sasso" for vie lunghe): the kept crag K, its duplicate D, and
+-- another crag S. K has sector "Placca" with tiro "Via Uno"; D has "placca" (same folded
+-- name) with "via-uno", and "Tetto" with "Via Due".
 with x as (insert into public.areas (name) values ('Valle') returning id) insert into ids select 'area', id from x;
 with x as (insert into public.sectors (area_id, name) values (pg_temp.id('area'), 'Sasso') returning id) insert into ids select 'sector', id from x;
 with x as (
-  insert into public.places (name, activity, lat, lng, area_id, sector_id, grade, description, created_by)
-  values ('Placca Bella', 'crag', 45.9, 9.4, pg_temp.id('area'), pg_temp.id('sector'), null, 'Kept.', :fra),
-         ('Placca bèlla', 'crag', 45.9001, 9.4, pg_temp.id('area'), pg_temp.id('sector'), '6a', 'Duplicate.', :vale),
-         ('Torrione', 'crag', 45.901, 9.4, pg_temp.id('area'), pg_temp.id('sector'), null, null, :fra)
+  insert into public.places (name, activity, lat, lng, area_id, grade, description, created_by)
+  values ('Placca Bella', 'crag', 45.9, 9.4, pg_temp.id('area'), null, 'Kept.', :fra),
+         ('Placca bèlla', 'crag', 45.9001, 9.4, pg_temp.id('area'), '6a', 'Duplicate.', :vale),
+         ('Torrione', 'crag', 45.901, 9.4, pg_temp.id('area'), null, null, :fra)
   returning id, case name when 'Placca Bella' then 'K' when 'Placca bèlla' then 'D' else 'S' end as k
 ) insert into ids select k, id from x;
 with x as (
-  insert into public.routes (place_id, name) values
-    (pg_temp.id('K'), 'Via Uno'), (pg_temp.id('D'), 'via-uno'), (pg_temp.id('D'), 'Via Due')
+  insert into public.crag_sectors (place_id, name) values (pg_temp.id('K'), 'Placca'), (pg_temp.id('D'), 'placca'), (pg_temp.id('D'), 'Tetto')
+  returning id, case when place_id = pg_temp.id('K') then 'K.placca' when name = 'placca' then 'D.placca' else 'D.tetto' end as k
+) insert into ids select k, id from x;
+with x as (
+  insert into public.routes (place_id, crag_sector_id, name) values
+    (pg_temp.id('K'), pg_temp.id('K.placca'), 'Via Uno'), (pg_temp.id('D'), pg_temp.id('D.placca'), 'via-uno'),
+    (pg_temp.id('D'), pg_temp.id('D.tetto'), 'Via Due')
   returning id, case name when 'Via Uno' then 'K.uno' when 'via-uno' then 'D.uno' else 'D.due' end as k
 ) insert into ids select k, id from x;
 
--- vale climbed both routes of D; fra climbed D's "Via Due" from a visit at S.
+-- vale climbed both tiri of D, and something unlisted in its "placca".
 with x as (insert into public.visits (user_id, place_id, date) values (:vale, pg_temp.id('D'), '2026-09-01') returning id) insert into ids select 'vD', id from x;
-with x as (insert into public.visits (user_id, place_id, date) values (:fra, pg_temp.id('S'), '2026-09-02') returning id) insert into ids select 'vS', id from x;
-insert into public.ascents (visit_id, name, route_id) values
-  (pg_temp.id('vD'), 'via-uno', pg_temp.id('D.uno')), (pg_temp.id('vD'), 'Via Due', pg_temp.id('D.due'));
-insert into public.ascents (visit_id, name, place_id, route_id) values (pg_temp.id('vS'), 'Via Due', pg_temp.id('D'), pg_temp.id('D.due'));
+insert into public.ascents (visit_id, name, route_id, crag_sector_id, position) values
+  (pg_temp.id('vD'), 'via-uno', pg_temp.id('D.uno'), pg_temp.id('D.placca'), 0),
+  (pg_temp.id('vD'), 'Via Due', pg_temp.id('D.due'), pg_temp.id('D.tetto'), 1),
+  (pg_temp.id('vD'), 'Unlisted', null, pg_temp.id('D.placca'), 2);
 
 insert into public.photos (place_id, storage_path, thumb_path, created_by) values (pg_temp.id('D'), 'x/place/1.jpg', 'x/place/1.thumb.jpg', :vale);
 insert into public.attachments (place_id, kind, url, title, created_by) values (pg_temp.id('D'), 'link', 'https://example.com/topo', 'Topo', :vale);
@@ -61,15 +67,16 @@ select ok(not exists (select 1 from public.places where id = pg_temp.id('D')), '
 select is((select place_id from public.visits where id = pg_temp.id('vD')), pg_temp.id('K'), 'another user''s visit moved to the kept spot');
 select is((select grade from public.places where id = pg_temp.id('K')), '6a', 'a blank detail is filled from the duplicate');
 select is((select description from public.places where id = pg_temp.id('K')), E'Kept.\n\nDuplicate.', 'descriptions are put together');
+select is((select array_agg(name order by name) from public.crag_sectors where place_id = pg_temp.id('K')), array['Placca', 'Tetto'],
+          'the kept crag has both crags'' sectors, one of the same name once');
 select is((select count(*) from public.routes where place_id = pg_temp.id('K')), 2::bigint, 'the kept spot has both routes, once');
-select is((select route_id from public.ascents where visit_id = pg_temp.id('vD') and name = 'via-uno'), pg_temp.id('K.uno'),
-          'a route of the same name is the kept spot''s');
-select is((select route_id from public.ascents where visit_id = pg_temp.id('vD') and name = 'Via Due'), pg_temp.id('D.due'),
-          'a route the kept spot hadn''t got moved with its ascents');
-select is((select place_id from public.routes where id = pg_temp.id('D.due')), pg_temp.id('K'), 'that route is on the kept spot');
-select is((select place_id from public.ascents where visit_id = pg_temp.id('vS')), pg_temp.id('K'),
-          'a route climbed from the duplicate as a wall is now climbed from the kept spot');
-select is((select route_id from public.ascents where visit_id = pg_temp.id('vS')), pg_temp.id('D.due'), '…with its route');
+select is((select array[route_id, crag_sector_id] from public.ascents where visit_id = pg_temp.id('vD') and name = 'via-uno'),
+          array[pg_temp.id('K.uno'), pg_temp.id('K.placca')], 'a tiro of the same name in the same sector is the kept spot''s');
+select is((select array[route_id, crag_sector_id] from public.ascents where visit_id = pg_temp.id('vD') and name = 'Via Due'),
+          array[pg_temp.id('D.due'), pg_temp.id('D.tetto')], 'a tiro the kept spot hadn''t got moved with its sector and ascents');
+select is((select place_id from public.routes where id = pg_temp.id('D.due')), pg_temp.id('K'), 'that tiro is on the kept spot');
+select is((select crag_sector_id from public.ascents where visit_id = pg_temp.id('vD') and name = 'Unlisted'), pg_temp.id('K.placca'),
+          'a route in a sector of the same name is in the kept one');
 select is((select count(*) from public.photos where place_id = pg_temp.id('K')), 1::bigint, 'photos moved');
 select is((select count(*) from public.attachments where place_id = pg_temp.id('K')), 1::bigint, 'links moved');
 select is((select count(*) from public.spot_comments where place_id = pg_temp.id('K')), 1::bigint, 'tips moved');
@@ -86,8 +93,8 @@ with x as (
 ) insert into ids select k, id from x;
 with x as (
   insert into public.places (name, activity, lat, lng, area_id, sector_id) values
-    ('Diedro', 'crag', 45.9, 9.4, pg_temp.id('area2'), pg_temp.id('sasso2')),
-    ('Spigolo', 'crag', 45.9, 9.4, pg_temp.id('area2'), pg_temp.id('pilastro')),
+    ('Diedro', 'multipitch', 45.9, 9.4, pg_temp.id('area2'), pg_temp.id('sasso2')),
+    ('Spigolo', 'multipitch', 45.9, 9.4, pg_temp.id('area2'), pg_temp.id('pilastro')),
     ('Masso', 'boulder', 45.9, 9.4, pg_temp.id('area2'), null)
   returning id, name as k
 ) insert into ids select k, id from x;

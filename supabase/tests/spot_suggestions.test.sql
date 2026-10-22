@@ -13,7 +13,7 @@ create function pg_temp.id(key text) returns bigint language sql as $$ select v 
 grant execute on function pg_temp.id(text) to anon, authenticated;
 -- Spot S as the edit form sends it, with some fields replaced.
 create function pg_temp.spot(changes jsonb default '{}') returns jsonb language sql as $$
-  select jsonb_build_object('id', pg_temp.id('S'), 'name', 'Placca Gialla', 'activity', 'crag', 'lat', 45.9, 'lng', 9.4,
+  select jsonb_build_object('id', pg_temp.id('S'), 'name', 'Placca Gialla', 'activity', 'multipitch', 'lat', 45.9, 'lng', 9.4,
                             'area_name', 'Valle', 'sector_name', 'Sasso', 'grade', '6a', 'rock', 'granite',
                             'exposition', '["Sud"]'::jsonb, 'description', '') || changes
 $$;
@@ -110,14 +110,14 @@ select is((select status from public.place_suggestions where id = pg_temp.id('oo
 -- ---------------------------------------------------------------- merging
 -- D duplicates S. vale has a pending suggestion on both, ugo on D only.
 select pg_temp.as_user(:fra);
-insert into ids select 'D', public.save_place(jsonb_build_object('name', 'Placca gialla', 'activity', 'crag', 'lat', 45.9, 'lng', 9.4));
+insert into ids select 'D', public.save_place(jsonb_build_object('name', 'Placca gialla', 'activity', 'multipitch', 'lat', 45.9, 'lng', 9.4));
 select pg_temp.as_user(:vale);
 insert into ids select 'vS', public.suggest_place_changes(pg_temp.spot('{"grade": "6b", "sector_name": "Nuovo", "rock": "gneiss"}'));
 insert into ids select 'vD', public.suggest_place_changes(jsonb_build_object('id', pg_temp.id('D'), 'name', 'Placca gialla',
-  'activity', 'crag', 'lat', 45.9, 'lng', 9.4, 'grade', '5c'));
+  'activity', 'multipitch', 'lat', 45.9, 'lng', 9.4, 'grade', '5c'));
 select pg_temp.as_user(:ugo);
 insert into ids select 'uD', public.suggest_place_changes(jsonb_build_object('id', pg_temp.id('D'), 'name', 'Placca gialla',
-  'activity', 'crag', 'lat', 45.9, 'lng', 9.4, 'rock', 'gneiss'));
+  'activity', 'multipitch', 'lat', 45.9, 'lng', 9.4, 'rock', 'gneiss'));
 select pg_temp.as_user(:fra);
 select lives_ok(format('select public.merge_places(%s, %s)', pg_temp.id('S'), pg_temp.id('D')), 'an admin merges D into S');
 

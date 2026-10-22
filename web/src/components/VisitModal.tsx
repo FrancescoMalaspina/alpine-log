@@ -3,10 +3,10 @@ import { useLookup } from '../hooks/useLookup';
 import { useConfirm } from '../hooks/useConfirm';
 import { useI18n } from '../i18n';
 import { uploadPhoto } from '../lib/photos';
-import { acceptInvitation, addLink, completeWish, fetchRoutes, fetchSameDayVisits, publishTrack, requestToJoin, savePlace } from '../lib/api';
+import { acceptInvitation, addLink, completeWish, fetchCragSectors, fetchRoutes, fetchSameDayVisits, publishTrack, requestToJoin, savePlace } from '../lib/api';
 import { formatCoords, parseCoordinates, type LatLng } from '../lib/coords';
 import { ACTIVITIES, activityLabel, errorMessage } from '../lib/labels';
-import type { Area, Invitation, Partner, Place, Route, Sector, VisitDetail, VisitSummary, Wish } from '../lib/types';
+import type { Area, CragSector, Invitation, Partner, Place, Route, Sector, VisitDetail, VisitSummary, Wish } from '../lib/types';
 import { Combobox } from './forms/Combobox';
 import { PlaceFields } from './forms/PlaceFields';
 import { coordLabel, buildPlaceInput, guideUrlOf, placeValuesFrom, TRACK_ACTIVITIES, type CoordField, type PlaceValues, type TrackDraft } from './forms/placeForm';
@@ -67,7 +67,7 @@ export function VisitModal({
   const [tickOff, setTickOff] = useState(true);
   // A track loaded for a visit at an existing spot; a new spot keeps its own in newPlace.
   const [track, setTrack] = useState<TrackDraft | null>(null);
-  const [routeList, setRouteList] = useState<{ placeId: number; routes: Route[] } | null>(null);
+  const [routeList, setRouteList] = useState<{ placeId: number; routes: Route[]; sectors: CragSector[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -84,7 +84,9 @@ export function VisitModal({
   const isNew = choice === NEW;
   const place = isNew ? undefined : places.find(p => String(p.id) === choice);
   const activity = isNew ? newPlace.activity : place?.activity ?? 'crag';
-  const routes = place && routeList?.placeId === place.id ? routeList.routes : [];
+  const current = place && routeList?.placeId === place.id ? routeList : null;
+  const routes = current?.routes ?? [];
+  const cragSectors = current?.sectors ?? [];
   const wish = !visit && place ? openWishByPlace.get(place.id) : undefined;
 
   // Others who logged the spot that day: you may have been together.
@@ -96,11 +98,13 @@ export function VisitModal({
   const [together, setTogether] = useState<Map<string, boolean>>(new Map());
   const isTogether = (o: DayOption) => together.get(o.key) ?? !!o.invitation;
 
-  // The chosen spot's shared route list, for suggestions and linking.
+  // The chosen spot's shared route list, and a crag's sectors, for suggestions and linking.
   useEffect(() => {
     if (!place || !ACTIVITIES[place.activity].routeList) return;
     let cancelled = false;
-    fetchRoutes(place.id).then(r => { if (!cancelled) setRouteList({ placeId: place.id, routes: r }); }).catch(() => {});
+    Promise.all([fetchRoutes(place.id), ACTIVITIES[place.activity].cragSectors ? fetchCragSectors(place.id) : []])
+      .then(([r, sectors]) => { if (!cancelled) setRouteList({ placeId: place.id, routes: r, sectors }); })
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [place]);
 
@@ -116,10 +120,6 @@ export function VisitModal({
       setValues(v => ({ ...v, ascents: visitValuesFrom(undefined, spot).ascents }));
     }
   };
-  // The other spots of the chosen spot's sector: routes can be logged on them too.
-  const walls = place?.sector_id
-    ? places.filter(p => p.sector_id === place.sector_id && p.id !== place.id).map(p => ({ id: p.id, name: p.name }))
-    : [];
 
   const change = (patch: Partial<VisitValues>) => { setValues(v => ({ ...v, ...patch })); setDirty(true); };
   const changePlace = (patch: Partial<PlaceValues>) => {
@@ -292,7 +292,7 @@ export function VisitModal({
           {isNew && <h3 className="section-title">{s.theVisit}</h3>}
           {place && <TrackLoader activity={place.activity} draft={track} onDraft={changeTrack} visitVisibility={values.visibility} />}
           <VisitFields values={values} onChange={change} partners={partners} activity={activity}
-                       walls={walls} spotName={place?.name ?? newPlace.name} routes={routes}
+                       sectors={cragSectors} spotName={place?.name ?? newPlace.name} routes={routes}
                        spotDetails={place
                          ? { grade: place.grade, pitches: place.pitches, aid: place.aid }
                          : topoOf(newPlace)}

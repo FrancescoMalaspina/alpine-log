@@ -72,7 +72,7 @@ const en = {
   },
   fields: {
     'area.description': 'Mountain range (area description)',
-    'sector.name': 'Sector (wall, mountain, crag)',
+    'sector.name': 'Sector (wall, mountain; at a crag, its sector)',
     'spot.pitches': 'Pitches',
     'spot.length_m': 'Climbing length (m)',
     'spot.protection': 'Protection (bolted / trad)',
@@ -82,7 +82,7 @@ const en = {
     'spot.name': 'Spot name',
     'area.name': 'Area',
     'spot.activity': 'Activity',
-    sector: 'Wall of a route (another spot of the sector)',
+    sector: 'Sector of a route (at a crag)',
     'place.locality': 'Town / start point (for the map pin)',
     'place.region': 'Province / region (for the map pin)',
     'place.country': 'Country (for the map pin)',

@@ -196,7 +196,7 @@ const it: Widen<typeof en> = {
       'data', 'spot', 'area', 'settore', 'attivita', 'latitudine', 'longitudine', 'stato', 'provincia', 'grado_spot',
       'grado_obbligatorio', 'numero_tiri', 'sviluppo_m', 'protezioni', 'visibilita', 'con', 'altre_cordate', 'giudizio',
       'durata_ore', 'condizioni', 'riepilogo', 'avvicinamento', 'discesa',
-      'via', 'grado', 'parete', 'esito', 'tiri_via', 'artificiale_via', 'commento_via',
+      'via', 'grado', 'settore_via', 'esito', 'tiri_via', 'artificiale_via', 'commento_via',
     ],
     gpxTitle: (name: string) => `Diario di ${name}`,
     undated: 'senza data',

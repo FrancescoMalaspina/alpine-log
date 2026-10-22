@@ -133,16 +133,16 @@ describe('automap', () => {
     ]);
   });
 
-  it('turns repeat columns into extra visits, the crag as the sector and its wall as the spot', () => {
+  it('turns repeat columns into extra visits, the crag as the spot and its sector on each route', () => {
     const { spots } = applyMapping(falesie, autoMap(falesie));
-    const predore = spots.find(s => s.sector === 'Predore')!;
-    expect(predore.name).toBe('Spigolo del Vento');
+    const predore = spots.find(s => s.name === 'Predore')!;
+    expect(predore.sector).toBe('');
     expect(predore.country).toBe('IT');
     expect(predore.visits.map(v => v.date)).toEqual(['2026-05-09', '2026-10-03']);
     expect(predore.visits[1].ascents).toHaveLength(5);
-    expect(predore.visits[0].ascents[0]).toEqual({ name: '', grade: '5c', comment: '', sector: '', style: 'redpoint' });
+    expect(predore.visits[0].ascents[0]).toEqual({ name: '', grade: '5c', comment: '', sector: 'Spigolo del Vento', style: 'redpoint' });
     expect(predore.links[0].url).toContain('falesia.it');
-    expect(spots.find(s => s.sector === "Calusco d'Adda")!.visits).toHaveLength(1);
+    expect(spots.find(s => s.name === "Calusco d'Adda")!.visits[0].ascents[0].sector).toBe('Primo Settore');
   });
 
   it('maps the Vie Lunghe sheet, keeping unmapped columns as notes', () => {
@@ -257,7 +257,8 @@ describe('automap', () => {
     expect(spots[0].visits).toHaveLength(1);
     expect(spots[0].visits[0].ascents.map(a => a.name)).toEqual(['Su alto', 'Giù basso']);
     expect(spots[0].visits[0].partners).toEqual(['Fra', 'Vale']);
-    expect(spots[0].sector).toBe('Scala');
+    expect(spots[0].sector).toBe('');
+    expect(spots[0].visits[0].ascents.map(a => a.sector)).toEqual(['Scala', 'Scala']);
   });
 
   it('keeps notes private and posts a "consigli" column as a tip', () => {

@@ -1,12 +1,15 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { addRoute, deleteRoute, deleteVisit, fetchMyPlaceSuggestion, fetchOutingMembers, fetchPlaceVisits, fetchPlaceWishers, fetchRoutes, fetchTips, leaveOuting, withdrawPlaceSuggestion } from '../lib/api';
-import { formatCoords } from '../lib/coords';
+import {
+  addCragSector, addRoute, deleteCragSector, deleteRoute, deleteVisit, fetchCragSectors, fetchMyPlaceSuggestion, fetchOutingMembers, fetchPlaceVisits,
+  fetchPlaceWishers, fetchRoutes, fetchTips, leaveOuting, updateCragSector, withdrawPlaceSuggestion, type CragSectorInput,
+} from '../lib/api';
+import { formatCoords, parseCoordinates } from '../lib/coords';
 import type { TrackLayer } from '../lib/gpx';
 import { useI18n } from '../i18n';
-import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions } from '../lib/labels';
+import { ACTIVITIES, activityLabel, protectionLabel, styleLabel, directionsUrl, errorMessage, formatDate, formatHours, formatKm, gradeSuggestions, routeKind } from '../lib/labels';
 import { trackStatsParts } from '../lib/trackStats';
 import { ActivityBadge } from './ActivityBadge';
-import type { OutingMember, Place, PlaceSuggestion, Route, Tip, VisitDetail, Wish } from '../lib/types';
+import type { CragSector, OutingMember, Place, PlaceSuggestion, Route, Tip, VisitDetail, Wish } from '../lib/types';
 import { Attachments } from './Attachments';
 import { beyondTopo } from './forms/visitForm';
 import { PhotoGallery } from './Photos';
@@ -360,6 +363,7 @@ function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
 }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
+  const words = t.spot.routeWords[routeKind(spot.activity)];
   // A name its owner linked to a registered user leads to their logbook.
   const person = (name: string, userId?: string) => userId
     ? <button key={name} type="button" className="link-btn" onClick={() => onOpenLogbook(userId)}>{name}</button>
@@ -377,7 +381,7 @@ function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
   ].filter(Boolean);
   // The spot's own route (a multipitch, an alpine route) isn't named again, nor its grade
   // when the topo's; a climb of it that adds nothing to the topo isn't listed.
-  const climbs = v.ascents.map(a => ({ ascent: a, ...beyondTopo({ name: a.name ?? '', grade: a.grade ?? '' }, !!a.place, spot) }))
+  const climbs = v.ascents.map(a => ({ ascent: a, ...beyondTopo({ name: a.name ?? '', grade: a.grade ?? '' }, spot) }))
     .filter(({ ascent: a, name, grade }) => name || grade || !a.name || a.style || a.pitches != null || a.aid || a.comment);
   return <>
     <div className="visit-meta">
@@ -403,13 +407,13 @@ function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
           <li key={a.id}>
             {[
               <span key="h" className="ascent-head">
-                {name ? <b>{name}</b> : !a.name && <b className="unnamed">{s.unnamedRoute}</b>}
+                {name ? <b>{name}</b> : !a.name && <b className="unnamed">{words.unnamed}</b>}
                 {grade && <span className="ascent-grade num">{grade}</span>}
-                {a.place && <span className="ascent-sector">{a.place.name}</span>}
+                {a.sector && <span className="ascent-sector">{a.sector.name}</span>}
                 {a.style && <span className={`ascent-style ${a.style}`}>{styleLabel(a.style)}</span>}
                 {a.pitches != null && (
                   <span className="ascent-override">
-                    {spot.pitches != null && spot.pitches !== a.pitches && !a.place
+                    {spot.pitches != null && spot.pitches !== a.pitches
                       ? s.pitchesOf(a.pitches, spot.pitches) : s.pitches(a.pitches)}
                   </span>
                 )}
@@ -420,7 +424,7 @@ function VisitDetailBody({ visit: v, mine, spot, members, onOpenLogbook }: {
           </li>
         ))}
       </ul>
-    ) : <div className="empty">{s.noRoutesLogged}</div>}
+    ) : <div className="empty">{words.noneLogged}</div>}
   </>;
 }
 
@@ -442,86 +446,181 @@ export function Stars({ rating }: { rating: number }) {
 /**
  * The spot's shared route list. Optional: visits can always log
  * routes as free text; a listed route links them, so repeats add up.
+ * At a crag the tiri are under its sectors, which are listed and managed here.
  */
 function RouteList({ spot, userId, isAdmin, canEditSpot, reloadKey }: {
   spot: Place; userId: string | null; isAdmin: boolean; canEditSpot: boolean; reloadKey: number;
 }) {
   const { t } = useI18n();
   const s = t.spot.placeView;
+  const words = t.spot.routeWords[routeKind(spot.activity)];
+  const hasSectors = ACTIVITIES[spot.activity].cragSectors;
   const [routes, setRoutes] = useState<Route[] | null>(null);
+  const [sectors, setSectors] = useState<CragSector[]>([]);
   const [mine, setMine] = useState(0);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'route' | 'sector' | null>(null);
   const [name, setName] = useState('');
   const [grade, setGrade] = useState('');
+  const [sectorId, setSectorId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    fetchRoutes(spot.id)
-      .then(r => { if (!cancelled) setRoutes(r); })
+    Promise.all([fetchRoutes(spot.id), hasSectors ? fetchCragSectors(spot.id) : []])
+      .then(([r, cs]) => { if (!cancelled) { setRoutes(r); setSectors(cs); } })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
     return () => { cancelled = true; };
-  }, [spot.id, reloadKey, mine]);
+  }, [spot.id, hasSectors, reloadKey, mine]);
+
+  const canChange = (createdBy: string | null) => !!userId && (createdBy === userId || canEditSpot || isAdmin);
+  /** Runs a change, then reloads the list. */
+  async function change(run: () => Promise<unknown>) {
+    setError(null);
+    try {
+      await run();
+      setMine(n => n + 1);
+      return true;
+    } catch (err) {
+      setError(errorMessage(err));
+      return false;
+    }
+  }
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
-    try {
-      await addRoute(spot.id, { name, grade });
+    if (await change(() => addRoute(spot.id, { name, grade, sectorId: sectorId ? Number(sectorId) : null }))) {
       setName('');
       setGrade('');
-      setMine(n => n + 1);
-    } catch (err) {
-      setError(errorMessage(err));
     }
   }
 
   async function remove(r: Route) {
-    if (!confirm(s.confirmRemoveRoute(r.name))) return;
-    try {
-      await deleteRoute(r.id);
-      setMine(n => n + 1);
-    } catch (err) {
-      setError(errorMessage(err));
-    }
+    if (confirm(s.confirmRemoveRoute(r.name))) await change(() => deleteRoute(r.id));
   }
 
+  // Each sector with its tiri, then the tiri in none (all of them where the spot has no sectors).
+  const groups = [
+    ...sectors.map(cs => ({ sector: cs, routes: (routes ?? []).filter(r => r.crag_sector_id === cs.id) })),
+    { sector: null, routes: (routes ?? []).filter(r => !sectors.some(cs => cs.id === r.crag_sector_id)) },
+  ].filter(g => g.sector || g.routes.length);
 
   return (
     <section className="route-list">
-      <h3 className="section-title">{s.routes}</h3>
-      {routes && !routes.length && (
-        <div className="empty">{s.noRouteList}</div>
-      )}
-      {routes && routes.length > 0 && (
-        <div className="route-group">
-          <ul>
-            {routes.map(r => (
-              <li key={r.id}>
-                <span className="route-line-name">{r.name}</span>
-                {r.grade && <span className="num route-line-grade">{r.grade}</span>}
-                <span className="route-line-count">{r.ascent_count ? s.logged(r.ascent_count) : ''}</span>
-                {(r.created_by === userId || canEditSpot || isAdmin) && (
-                  <button type="button" className="icon-btn small" aria-label={s.removeRoute(r.name)} onClick={() => remove(r)}>×</button>
-                )}
-              </li>
-            ))}
-          </ul>
+      <h3 className="section-title">{hasSectors ? s.sectorsAnd(words.routes) : words.routes}</h3>
+      {routes && !routes.length && !sectors.length && <div className="empty">{words.noList}</div>}
+      {routes && groups.map(g => (
+        <div key={g.sector?.id ?? 'none'} className="route-group">
+          {g.sector ? (
+            <SectorHead sector={g.sector} canChange={canChange(g.sector.created_by)} onChange={change} />
+          ) : sectors.length > 0 && <h4 className="route-group-head">{s.noSector}</h4>}
+          {g.routes.length > 0 && (
+            <ul>
+              {g.routes.map(r => (
+                <li key={r.id}>
+                  <span className="route-line-name">{r.name}</span>
+                  {r.grade && <span className="num route-line-grade">{r.grade}</span>}
+                  <span className="route-line-count">{r.ascent_count ? s.logged(r.ascent_count) : ''}</span>
+                  {canChange(r.created_by) && (
+                    <button type="button" className="icon-btn small" aria-label={s.removeRoute(r.name)} onClick={() => remove(r)}>×</button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
+      ))}
       <ErrorText error={error} />
-      {userId && (adding ? (
+      {userId && adding === 'route' && (
         <form className="route-add" onSubmit={add}>
-          <input required placeholder={s.routeName} aria-label={s.routeName} value={name} onChange={e => setName(e.target.value)} />
+          <input required placeholder={words.name} aria-label={words.name} value={name} onChange={e => setName(e.target.value)} />
           <input className="num" placeholder={s.grade2} aria-label={s.grade2} list="routeGradeOptions" value={grade}
                  onChange={e => setGrade(e.target.value)} />
+          {sectors.length > 0 && (
+            <select value={sectorId} aria-label={s.inCragSector} onChange={e => setSectorId(e.target.value)}>
+              <option value="">{s.noSector}</option>
+              {sectors.map(cs => <option key={cs.id} value={cs.id}>{cs.name}</option>)}
+            </select>
+          )}
           <datalist id="routeGradeOptions">{gradeSuggestions(spot.activity).map(g => <option key={g} value={g} />)}</datalist>
           <button type="submit" className="btn btn-ghost">{s.add}</button>
-          <button type="button" className="link-btn" onClick={() => setAdding(false)}>{s.done}</button>
+          <button type="button" className="link-btn" onClick={() => setAdding(null)}>{s.done}</button>
         </form>
-      ) : (
-        <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding(true)}>{s.addRoutes}</button>
-      ))}
+      )}
+      {userId && adding === 'sector' && (
+        <SectorForm onCancel={() => setAdding(null)}
+                    onSave={sector => change(() => addCragSector(spot.id, sector)).then(ok => { if (ok) setAdding(null); })} />
+      )}
+      {userId && !adding && (
+        <div className="route-list-actions">
+          <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding('route')}>{words.addToList}</button>
+          {hasSectors && (
+            <button type="button" className="btn btn-ghost add-places-btn" onClick={() => setAdding('sector')}>{s.addSector}</button>
+          )}
+        </div>
+      )}
     </section>
+  );
+}
+
+/** A crag sector's heading: its name, the way there, what it's like; edit and remove for who may. */
+function SectorHead({ sector: cs, canChange, onChange }: {
+  sector: CragSector; canChange: boolean; onChange: (run: () => Promise<unknown>) => Promise<boolean>;
+}) {
+  const { t } = useI18n();
+  const s = t.spot.placeView;
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return <SectorForm sector={cs} onCancel={() => setEditing(false)}
+                       onSave={next => onChange(() => updateCragSector(cs.id, next)).then(ok => { if (ok) setEditing(false); })} />;
+  }
+  return (
+    <div className="crag-sector-head">
+      <h4 className="route-group-head">{cs.name}</h4>
+      {cs.lat != null && cs.lng != null && (
+        <a href={directionsUrl(cs.lat, cs.lng)} target="_blank" rel="noopener noreferrer">{s.directions}</a>
+      )}
+      {canChange && <>
+        <button type="button" className="link-btn" onClick={() => setEditing(true)}>{s.editSector}</button>
+        <button type="button" className="link-btn danger"
+                onClick={() => { if (confirm(s.confirmRemoveSector(cs.name))) onChange(() => deleteCragSector(cs.id)); }}>
+          {s.removeSector}
+        </button>
+      </>}
+      {cs.description && <p className="hint crag-sector-description">{cs.description}</p>}
+    </div>
+  );
+}
+
+/** Name, position and description of a crag sector, new or existing. */
+function SectorForm({ sector, onSave, onCancel }: {
+  sector?: CragSector; onSave: (sector: CragSectorInput) => void; onCancel: () => void;
+}) {
+  const { t } = useI18n();
+  const s = t.spot.placeView;
+  const [name, setName] = useState(sector?.name ?? '');
+  const [position, setPosition] = useState(sector?.lat != null ? formatCoords(sector.lat, sector.lng) : '');
+  const [description, setDescription] = useState(sector?.description ?? '');
+  const [problem, setProblem] = useState<string | null>(null);
+
+  function save(e: React.FormEvent) {
+    e.preventDefault();
+    const at = position.trim() ? parseCoordinates(position) : null;
+    if (position.trim() && !at) return setProblem(s.badPosition);
+    onSave({ name, description, lat: at?.lat ?? null, lng: at?.lng ?? null });
+  }
+
+  return (
+    <form className="crag-sector-form" onSubmit={save}>
+      <input required placeholder={s.sectorName} aria-label={s.sectorName} value={name} onChange={e => setName(e.target.value)} />
+      <input placeholder={s.sectorPosition} aria-label={s.sectorPosition} value={position}
+             onChange={e => { setPosition(e.target.value); setProblem(null); }} />
+      <input placeholder={s.sectorDescription} aria-label={s.sectorDescription} value={description}
+             onChange={e => setDescription(e.target.value)} />
+      <div className="crag-sector-form-actions">
+        <button type="submit" className="btn btn-ghost">{t.common.save}</button>
+        <button type="button" className="link-btn" onClick={onCancel}>{t.common.cancel}</button>
+      </div>
+      <ErrorText error={problem} />
+    </form>
   );
 }

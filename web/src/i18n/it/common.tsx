@@ -76,6 +76,8 @@ const it: Widen<typeof en> = {
     alreadyWished: 'Questo spot è già nella tua lista dei desideri.',
     photoUnreadable: (name: string) =>
       `Questo browser non riesce a leggere "${name}". Prova con un JPEG o un PNG (su iPhone, condividila come "Più compatibile").`,
+    cragSectorExists: (name: string) => `Questa falesia ha già un settore chiamato "${name}".`,
+    cantChangeCragSector: 'Può cambiarlo solo chi ha aggiunto il settore, o chi può modificare la falesia.',
     cantDeletePhoto: "Può eliminarla solo chi ha aggiunto la foto (o un admin).",
     cantEditPhoto: 'Può cambiarne la didascalia solo chi ha aggiunto la foto.',
     locationSearch: (status: number) => `Ricerca del luogo non riuscita (${status})`,

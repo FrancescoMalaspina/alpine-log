@@ -38,11 +38,11 @@ export const FIELDS: FieldDef[] = [
   ] },
   { id: 'area.description', label: 'Mountain range (area description)', level: 'spot', synonyms: s(1,
     'zona montuosa', 'gruppo montuoso', 'catena', 'catena montuosa', 'mountain range', 'range', 'massif range', 'gebirge') },
-  { id: 'sector.name', label: 'Sector (wall, mountain, crag)', level: 'spot', synonyms: [
+  { id: 'sector.name', label: 'Sector (wall, mountain; at a crag, its sector)', level: 'spot', synonyms: [
     ...s(1, 'settore', 'sector', 'secteur', 'sektor', 'parete', 'montagna', 'mountain', 'face'),
   ] },
   { id: 'spot.activity', label: 'Activity', level: 'spot', synonyms: s(1, 'activity', 'attivita', 'tipo attivita', 'disciplina', 'discipline', 'sport', 'type', 'tipo') },
-  { id: 'sector', label: 'Wall of a route (another spot of the sector)', level: 'visit', synonyms: s(0.9, 'wall', 'route wall', 'parete via') },
+  { id: 'sector', label: "Sector of a route (at a crag)", level: 'visit', synonyms: s(0.9, 'route sector', 'settore via', 'wall', 'route wall', 'parete via') },
   { id: 'place.locality', label: 'Town / start point (for the map pin)', level: 'spot', synonyms: [
     ...s(1, 'localita', 'localita partenza', 'partenza', 'location', 'town', 'village', 'paese', 'comune', 'city', 'ort', 'lieu', 'start', 'trailhead', 'parcheggio'),
   ] },

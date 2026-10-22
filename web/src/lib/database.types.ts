@@ -76,12 +76,12 @@ export type Database = {
       ascents: {
         Row: {
           aid: string | null
+          crag_sector_id: number | null
           grade: string | null
           grade_rank: number | null
           id: number
           name: string | null
           pitches: number | null
-          place_id: number | null
           position: number
           route_id: number | null
           style: string | null
@@ -89,12 +89,12 @@ export type Database = {
         }
         Insert: {
           aid?: string | null
+          crag_sector_id?: number | null
           grade?: string | null
           grade_rank?: number | null
           id?: never
           name?: string | null
           pitches?: number | null
-          place_id?: number | null
           position?: number
           route_id?: number | null
           style?: string | null
@@ -102,12 +102,12 @@ export type Database = {
         }
         Update: {
           aid?: string | null
+          crag_sector_id?: number | null
           grade?: string | null
           grade_rank?: number | null
           id?: never
           name?: string | null
           pitches?: number | null
-          place_id?: number | null
           position?: number
           route_id?: number | null
           style?: string | null
@@ -115,10 +115,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "ascents_place_id_fkey"
-            columns: ["place_id"]
+            foreignKeyName: "ascents_crag_sector_id_fkey"
+            columns: ["crag_sector_id"]
             isOneToOne: false
-            referencedRelation: "places"
+            referencedRelation: "crag_sectors"
             referencedColumns: ["id"]
           },
           {
@@ -245,6 +245,54 @@ export type Database = {
             columns: ["visit_id"]
             isOneToOne: false
             referencedRelation: "visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crag_sectors: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: number
+          lat: number | null
+          lng: number | null
+          name: string
+          place_id: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: never
+          lat?: number | null
+          lng?: number | null
+          name: string
+          place_id: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: never
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          place_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crag_sectors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crag_sectors_place_id_fkey"
+            columns: ["place_id"]
+            isOneToOne: false
+            referencedRelation: "places"
             referencedColumns: ["id"]
           },
         ]
@@ -716,6 +764,7 @@ export type Database = {
       }
       routes: {
         Row: {
+          crag_sector_id: number | null
           created_at: string
           created_by: string | null
           grade: string | null
@@ -725,6 +774,7 @@ export type Database = {
           place_id: number
         }
         Insert: {
+          crag_sector_id?: number | null
           created_at?: string
           created_by?: string | null
           grade?: string | null
@@ -734,6 +784,7 @@ export type Database = {
           place_id: number
         }
         Update: {
+          crag_sector_id?: number | null
           created_at?: string
           created_by?: string | null
           grade?: string | null
@@ -743,6 +794,13 @@ export type Database = {
           place_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "routes_crag_sector_id_fkey"
+            columns: ["crag_sector_id"]
+            isOneToOne: false
+            referencedRelation: "crag_sectors"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "routes_created_by_fkey"
             columns: ["created_by"]
@@ -1094,6 +1152,7 @@ export type Database = {
           area_name: string | null
           ascent_count: number | null
           conditions: string | null
+          crag_sector_names: string[] | null
           date: string | null
           duration_hours: number | null
           grades: string[] | null
@@ -1117,7 +1176,6 @@ export type Database = {
           user_id: string | null
           username: string | null
           visibility: string | null
-          wall_names: string[] | null
         }
         Relationships: [
           {
@@ -1212,6 +1270,7 @@ export type Database = {
       }
       fold_name: { Args: { t: string }; Returns: string }
       grade_rank: { Args: { grade: string }; Returns: number }
+      has_crag_sectors: { Args: { p_activity: string }; Returns: boolean }
       import_logbook: { Args: { p: Json }; Returns: Json }
       invite_prefill: { Args: { p_invite_id: number }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }

@@ -74,7 +74,7 @@ const it: Widen<typeof en> = {
   },
   fields: {
     'area.description': "Gruppo montuoso (descrizione dell'area)",
-    'sector.name': 'Settore (parete, montagna, falesia)',
+    'sector.name': 'Settore (parete, montagna; in falesia, il suo settore)',
     'spot.pitches': 'Tiri',
     'spot.length_m': 'Sviluppo (m)',
     'spot.protection': 'Protezioni (spittata / trad)',
@@ -84,7 +84,7 @@ const it: Widen<typeof en> = {
     'spot.name': 'Nome spot',
     'area.name': 'Area',
     'spot.activity': 'Attività',
-    sector: "Parete della via (un altro spot del settore)",
+    sector: 'Settore del tiro (in falesia)',
     'place.locality': 'Paese / punto di partenza (per il segnaposto)',
     'place.region': 'Provincia / regione (per il segnaposto)',
     'place.country': 'Paese (per il segnaposto)',

@@ -27,8 +27,8 @@ function toCsv(visits: LogbookVisit[]): string {
       v.other_partners.join('; '), v.rating, v.duration_hours, v.conditions, v.summary, v.approach, v.descent,
     ];
     const routes = v.ascents.length ? v.ascents : [null];
-    // "wall": another spot of the sector the route was on (another wall of the crag).
-    return routes.map(a => [...base, a?.name, a?.grade, a?.wall?.name, a?.style, a?.pitches, a?.aid, a?.comment]);
+    // The sector of the crag the route was climbed in.
+    return routes.map(a => [...base, a?.name, a?.grade, a?.crag_sector?.name, a?.style, a?.pitches, a?.aid, a?.comment]);
   });
   // The byte-order mark makes Excel read the file as UTF-8 (accents, ° signs).
   return '﻿' + [tr().account.export.csvHeader, ...rows].map(r => r.map(cell).join(',')).join('\r\n') + '\r\n';
@@ -65,9 +65,9 @@ function toJson(visits: LogbookVisit[], username: string): string {
         parking: v.place.parking_lat != null ? { lat: v.place.parking_lat, lng: v.place.parking_lng } : null,
         start: v.place.start_lat != null ? { lat: v.place.start_lat, lng: v.place.start_lng } : null,
       },
-      // "sector" (kept for v2 backups): another spot of the visit's sector the route was on.
+      // "sector": the sector of the crag the route was climbed in (in older backups, another wall of it).
       routes: v.ascents.map(a => ({
-        name: a.name, grade: a.grade, sector: a.wall?.name ?? null, comment: a.comment,
+        name: a.name, grade: a.grade, sector: a.crag_sector?.name ?? null, comment: a.comment,
         style: a.style, pitches: a.pitches, aid: a.aid,
       })),
     })),

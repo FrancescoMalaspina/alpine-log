@@ -166,7 +166,6 @@ out.push(`do $import$
 declare
   v_owner uuid := (select id from auth.users where email = ${q(owner)});
   pid bigint;
-  sid bigint;
   vid bigint;
   aid bigint;
 begin
@@ -193,26 +192,19 @@ for (const a of areas.values()) {
 out.push('');
 
 for (const s of spots) {
-  // A crag with sectors becomes a sector, and each of its sectors a spot (a
-  // wall); the first wall carries the crag's links and visits. Same layout as
-  // the 20261013160000_sectors_layer migration gives existing data.
-  const [firstWall, ...otherWalls] = s.sectors;
+  // A crag is one spot with its sectors inside; each route climbed in one of
+  // them names it. Same layout as the 20261025100000 migration gives existing data.
   const area = s.area ? areaId(s.area) : 'null';
-  if (firstWall) {
-    out.push(`  -- ${s.area ? `${s.area.name} / ` : ''}${s.name} (sector)
-  insert into public.sectors (created_by, area_id, name, description)
-  values (v_owner, ${area}, ${q(s.name)}, ${q(s.description)})
-  returning id into sid;`);
-  }
-  const insertSpot = (name, description, sector) => `  insert into public.places (created_by, area_id, sector_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
+  out.push(`  -- ${s.area ? `${s.area.name} / ` : ''}${s.name}
+  insert into public.places (created_by, area_id, name, activity, lat, lng, parking_lat, parking_lng, start_lat, start_lng,
                              rock, exposition, description, grade)
-  values (v_owner, ${area}, ${sector}, ${q(name)}, ${q(s.activity)},
+  values (v_owner, ${area}, ${q(s.name)}, ${q(s.activity)},
           ${num(s.lat)}, ${num(s.lng)}, ${num(s.parking[0])}, ${num(s.parking[1])}, ${num(s.start[0])}, ${num(s.start[1])},
-          ${q(s.rock)}, ${textArray(s.exposition)}, ${q(description)}, ${q(firstWall ? null : s.grade)})`;
-  out.push(`  -- ${s.area ? `${s.area.name} / ` : ''}${firstWall ? `${s.name} / ${firstWall}` : s.name}
-${insertSpot(firstWall ?? s.name, firstWall ? null : s.description, firstWall ? 'sid' : 'null')}
+          ${q(s.rock)}, ${textArray(s.exposition)}, ${q(s.description)}, ${q(s.grade)})
   returning id into pid;`);
-  for (const name of otherWalls) out.push(`${insertSpot(name, null, 'sid')};`);
+  for (const name of s.sectors) {
+    out.push(`  insert into public.crag_sectors (place_id, name, created_by) values (pid, ${q(name)}, v_owner);`);
+  }
   for (const link of s.links) {
     out.push(`  insert into public.attachments (place_id, created_by, kind, title, url) values (pid, v_owner, 'link', 'Guide', ${q(link)});`);
   }
@@ -226,14 +218,13 @@ ${insertSpot(firstWall ?? s.name, firstWall ? null : s.description, firstWall ? 
   values (vid, ${q(v.summary)}, ${q(v.avvicinamento)}, ${q(v.discesa)});`);
     }
     v.routes.forEach((r, i) => {
-      // A route on another wall names that spot; one whose sector isn't a wall
-      // of this crag keeps the sector's name in its comment.
+      // A route names its sector of the crag; one whose sector the crag hasn't
+      // got keeps the sector's name in its comment.
       const ownSector = r.sector && s.sectors.includes(r.sector);
       const comment = r.sector && !ownSector ? [r.comment, `(sector: ${r.sector})`].filter(Boolean).join(' ') : r.comment;
-      const wall = ownSector && r.sector !== firstWall
-        ? `(select id from public.places where sector_id = sid and name = ${q(r.sector)})` : 'null';
-      out.push(`  insert into public.ascents (visit_id, place_id, name, grade, position)
-  values (vid, ${wall}, ${q(r.name)}, ${q(r.grade)}, ${i})${comment ? `
+      const sector = ownSector ? `(select id from public.crag_sectors where place_id = pid and name = ${q(r.sector)})` : 'null';
+      out.push(`  insert into public.ascents (visit_id, crag_sector_id, name, grade, position)
+  values (vid, ${sector}, ${q(r.name)}, ${q(r.grade)}, ${i})${comment ? `
   returning id into aid;
   insert into public.ascent_notes (ascent_id, comment) values (aid, ${q(comment)})` : ''};`);
     });

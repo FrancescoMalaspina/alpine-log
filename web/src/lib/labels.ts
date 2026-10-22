@@ -16,6 +16,8 @@ type Fields = {
   conditions: boolean;
   /** The spot is itself one route: a visit is one go at it. */
   isRoute: boolean;
+  /** The spot is a whole crag with sectors inside (each with its tiri), and is in no sector itself. */
+  cragSectors: boolean;
   /** Visits log the routes climbed. */
   routes: boolean;
   /** A route of several pitches: pitches, climbing length, mandatory grade, aid. */
@@ -39,63 +41,67 @@ const FONT = ['4', '5', '5+', '6A', '6A+', '6B', '6B+', '6C', '6C+', '7A', '7A+'
 export const ACTIVITIES: Record<Activity, ActivityInfo> = {
   crag: {
     color: '#4A5560', grades: FRENCH,
-    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, cragSectors: true, routes: true,
     pitches: false, protection: true, alpineGrade: false,
   },
   boulder: {
     color: '#7D2E46', grades: FONT,
-    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, cragSectors: true, routes: true,
     pitches: false, protection: false, alpineGrade: false,
   },
   multipitch: {
     color: '#A55A17', grades: FRENCH,
-    routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, cragSectors: false, routes: true,
     pitches: true, protection: true, alpineGrade: true,
   },
   alpine: {
     color: '#6A4C93',
     grades: ['F', 'PD-', 'PD', 'PD+', 'AD-', 'AD', 'AD+', 'D-', 'D', 'D+', 'TD-', 'TD', 'TD+', 'ED'],
-    routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    routeList: false, rock: true, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, cragSectors: false, routes: true,
     pitches: true, protection: true, alpineGrade: true,
   },
   ice: {
     color: '#1F7898',
     grades: ['WI2', 'WI3', 'WI3+', 'WI4', 'WI4+', 'WI5', 'WI5+', 'WI6', 'M4', 'M5', 'M6', 'M7'],
-    routeList: false, rock: false, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, routes: true,
+    routeList: false, rock: false, altitude: true, distance: false, approach: true, conditions: true, isRoute: true, cragSectors: false, routes: true,
     pitches: true, protection: false, alpineGrade: true,
   },
   dws: {
     color: '#2E4FA3', grades: ['S0', 'S1', 'S2', 'S3', ...FRENCH],
-    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: true, isRoute: false, routes: true,
+    routeList: true, rock: true, altitude: false, distance: false, approach: false, conditions: true, isRoute: false, cragSectors: true, routes: true,
     pitches: false, protection: false, alpineGrade: false,
   },
   indoor: {
     color: '#8C6D1F', grades: [...FRENCH, ...FONT],
-    routeList: true, rock: false, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, routes: true,
+    routeList: true, rock: false, altitude: false, distance: false, approach: false, conditions: false, isRoute: false, cragSectors: false, routes: true,
     pitches: false, protection: false, alpineGrade: false,
   },
   ski: {
     color: '#2F7D5B',
     grades: ['MS', 'MSA', 'BS', 'BSA', 'OS', 'OSA', '1.2', '1.3', '2.1', '2.3', '3.1', '3.3', '4.1', '5.1'],
-    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, cragSectors: false, routes: false,
     pitches: false, protection: false, alpineGrade: false,
   },
   hike: {
     color: '#6E7B22', grades: ['T', 'E', 'EE', 'EEA', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6'],
-    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, cragSectors: false, routes: false,
     pitches: false, protection: false, alpineGrade: false,
   },
   trail: {
     color: '#B03A6E', grades: [],
-    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, cragSectors: false, routes: false,
     pitches: false, protection: false, alpineGrade: false,
   },
   mtb: {
     color: '#C25E1F', grades: ['S0', 'S1', 'S2', 'S3', 'S4', 'S5'],
-    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, routes: false,
+    routeList: false, rock: false, altitude: true, distance: true, approach: false, conditions: true, isRoute: true, cragSectors: false, routes: false,
     pitches: false, protection: false, alpineGrade: false,
   },
 };
+
+/** What a spot's routes are called (a key of t.spot.routeWords): tiri at a crag, blocchi at a boulder area, vie elsewhere. */
+export const routeKind = (a: Activity): 'via' | 'tiro' | 'blocco' =>
+  a === 'boulder' ? 'blocco' : ACTIVITIES[a].cragSectors ? 'tiro' : 'via';
 
 /** The activity's name in the current language. */
 export const activityLabel = (a: Activity) => tr().common.activities[a];
