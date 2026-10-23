@@ -2,6 +2,12 @@ import { tr } from '../i18n';
 
 export type LatLng = { lat: number; lng: number };
 
+/** The part of the map in view. */
+export type Bounds = { south: number; west: number; north: number; east: number };
+
+export const inBounds = (p: LatLng, b: Bounds) =>
+  p.lat >= b.south && p.lat <= b.north && p.lng >= b.west && p.lng <= b.east;
+
 /**
  * Reads one coordinate pair, either decimal ("46.076245, 9.435389",
  * "46.07N 9.43E") or degrees/minutes/seconds ("46°04'34.5"N 9°26'07.4"E").

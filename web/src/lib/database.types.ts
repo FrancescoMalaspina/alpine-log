@@ -329,6 +329,32 @@ export type Database = {
           },
         ]
       }
+      leftover_photo_files: {
+        Row: {
+          bucket: string
+          owner_id: string
+          path: string
+        }
+        Insert: {
+          bucket: string
+          owner_id: string
+          path: string
+        }
+        Update: {
+          bucket?: string
+          owner_id?: string
+          path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leftover_photo_files_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       outing_invites: {
         Row: {
           answered_at: string | null
@@ -480,6 +506,8 @@ export type Database = {
           created_by: string
           height: number | null
           id: number
+          moved_from: number | null
+          pending: boolean
           place_id: number | null
           size_bytes: number | null
           storage_path: string
@@ -493,6 +521,8 @@ export type Database = {
           created_by?: string
           height?: number | null
           id?: never
+          moved_from?: number | null
+          pending?: boolean
           place_id?: number | null
           size_bytes?: number | null
           storage_path: string
@@ -506,6 +536,8 @@ export type Database = {
           created_by?: string
           height?: number | null
           id?: never
+          moved_from?: number | null
+          pending?: boolean
           place_id?: number | null
           size_bytes?: number | null
           storage_path?: string
@@ -519,6 +551,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photos_moved_from_fkey"
+            columns: ["moved_from"]
+            isOneToOne: false
+            referencedRelation: "photos"
             referencedColumns: ["id"]
           },
           {
@@ -1221,6 +1260,7 @@ export type Database = {
         Args: { p_id: number; p_visit_id?: number }
         Returns: number
       }
+      approve_photo: { Args: { p_id: number }; Returns: undefined }
       approve_place_suggestion: {
         Args: { p_fields?: string[]; p_id: number; p_note?: string }
         Returns: string[]
@@ -1306,6 +1346,10 @@ export type Database = {
         Args: { p_duplicate: number; p_keep: number }
         Returns: Json
       }
+      move_photo_to_spot: {
+        Args: { p_path: string; p_photo_id: number; p_thumb_path: string }
+        Returns: boolean
+      }
       my_invitations: {
         Args: never
         Returns: {
@@ -1335,6 +1379,21 @@ export type Database = {
         Args: { p_partner_id: number }
         Returns: boolean
       }
+      pending_photos: {
+        Args: never
+        Returns: {
+          caption: string
+          created_at: string
+          created_by: string
+          from_visit: boolean
+          id: number
+          place_id: number
+          place_name: string
+          storage_path: string
+          thumb_path: string
+          username: string
+        }[]
+      }
       pending_place_suggestions: {
         Args: never
         Returns: {
@@ -1361,6 +1420,7 @@ export type Database = {
         Args: { p_attachment_id: number; p_public_path: string }
         Returns: undefined
       }
+      reject_photo: { Args: { p_id: number }; Returns: undefined }
       reject_place_suggestion: {
         Args: { p_id: number; p_note?: string }
         Returns: undefined

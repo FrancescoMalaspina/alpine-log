@@ -5,7 +5,7 @@ import { priorityLabel, errorMessage, formatDate, seasonLabel } from '../lib/lab
 import type { Place, Wish } from '../lib/types';
 import { Collapsible } from './Collapsible';
 import { ErrorText } from './Modal';
-import { VisibilityPill } from './Sidebar';
+import { VisibilityPill } from './VisitRow';
 
 export type WishlistActions = {
   onEditWish: (place: Place, wish: Wish) => void;

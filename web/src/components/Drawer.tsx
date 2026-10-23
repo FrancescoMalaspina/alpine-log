@@ -7,6 +7,8 @@ type Props = {
   meta?: ReactNode;
   onClose: () => void;
   footer?: ReactNode;
+  /** Kept open but out of sight, as while its spots are shown on a phone's map. */
+  hidden?: boolean;
   children: ReactNode;
 };
 
@@ -15,10 +17,10 @@ type Props = {
  * signpost: a white plate with a pointed end and a red edge.
  * Docked right of the map on desktop, full-screen on phones.
  */
-export function Drawer({ title, meta, onClose, footer, children }: Props) {
+export function Drawer({ title, meta, onClose, footer, hidden, children }: Props) {
   const { t } = useI18n();
   return (
-    <section className="drawer" role="dialog" aria-labelledby="drawerTitle">
+    <section className={`drawer${hidden ? ' drawer-hidden' : ''}`} role="dialog" aria-labelledby="drawerTitle">
       <div className="drawer-head">
         <div className="signpost">
           <span className="signpost-edge" aria-hidden="true" />

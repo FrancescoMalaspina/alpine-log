@@ -6,7 +6,7 @@ import type { Database, Json } from './database.types';
 import { supabase } from './supabase';
 import { readTrackFile, trackStats, type TrackFile } from './tracks';
 import type {
-  Area, Attachment, CragSector, Invitation, InvitePrefill, OutingMember, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitFilters, VisitInput, VisitSummary,
+  Area, Attachment, CragSector, Invitation, InvitePrefill, OutingMember, Partner, Place, PlaceFilters, PlaceInput, PlaceSuggestion, Profile, UserRef, Route, Sector, VisitDetail, VisitInput, VisitSummary,
   Tip, TipInput, TrackStats, VisitTrack, Wish, WishInput,
 } from './types';
 import { tr } from '../i18n';
@@ -38,6 +38,12 @@ const PLACE_COLUMNS = `
   visits (count)
 ` as const;
 
+/** Spots with at least one public visit. */
+async function publicVisitPlaceIds(): Promise<number[]> {
+  const rows = unwrap(await supabase.from('visit_overview').select('place_id').eq('visibility', 'public'));
+  return [...new Set(rows.map(r => r.place_id!))];
+}
+
 export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
   let nearIds: number[] | null = null;
   if (f.near) {
@@ -47,6 +53,8 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
     nearIds = rows.map(r => r.place_id);
     if (!nearIds.length) return [];
   }
+  const visitedIds = f.withPublicVisits ? await publicVisitPlaceIds() : null;
+  if (visitedIds && !visitedIds.length) return [];
 
   let q = supabase
     .from('places')
@@ -54,7 +62,20 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
     .order('name');
 
   const s = cleanSearch(f.search);
-  if (s) q = q.or(`name.ilike.%${s}%,rock.ilike.%${s}%,description.ilike.%${s}%,grade.ilike.%${s}%`);
+  if (s) {
+    // A spot is also found by its area's or sector's name.
+    const [inAreas, inSectors] = await Promise.all([
+      supabase.from('areas').select('id').ilike('name', `%${s}%`),
+      supabase.from('sectors').select('id').ilike('name', `%${s}%`),
+    ]);
+    const areaIds = unwrap(inAreas).map(a => a.id);
+    const sectorIds = unwrap(inSectors).map(x => x.id);
+    q = q.or([
+      `name.ilike.%${s}%`, `rock.ilike.%${s}%`, `description.ilike.%${s}%`, `grade.ilike.%${s}%`,
+      ...(areaIds.length ? [`area_id.in.(${areaIds})`] : []),
+      ...(sectorIds.length ? [`sector_id.in.(${sectorIds})`] : []),
+    ].join(','));
+  }
   if (f.activities.length) q = q.in('activity', f.activities);
   if (f.areaId) q = q.eq('area_id', f.areaId);
   if (f.rock) q = q.eq('rock', f.rock);
@@ -63,6 +84,7 @@ export async function fetchPlaces(f: PlaceFilters): Promise<Place[]> {
   if (f.maxObligatoryRank != null) q = q.lte('grade_obligatory_rank', f.maxObligatoryRank);
   if (f.country) q = q.eq('country', f.country);
   if (nearIds) q = q.in('id', nearIds);
+  if (visitedIds) q = q.in('id', visitedIds);
 
   return unwrap(await q).map(({ visits, ...p }) => ({
     ...p,
@@ -451,26 +473,14 @@ export async function fillMissingTrackStats(userId: string): Promise<void> {
 
 // ---------------------------------------------------------------- visits
 
-export async function fetchVisits(f: VisitFilters, userId: string | null): Promise<VisitSummary[]> {
-  if (f.scope === 'mine' && !userId) return [];
-  let q = supabase
+/** One user's visits, as a logbook lists them: all of your own, someone else's that you may read (the database leaves out the rest). */
+export async function fetchUserVisits(userId: string): Promise<VisitSummary[]> {
+  return unwrap(await supabase
     .from('visit_overview')
     .select('*')
+    .eq('user_id', userId)
     .order('date', { ascending: false, nullsFirst: false })
-    .order('id', { ascending: false });
-
-  if (f.scope === 'mine') q = q.eq('user_id', userId!);
-  if (f.scope === 'public') q = q.eq('visibility', 'public');
-  if (f.partnerId) q = q.contains('partner_ids', [f.partnerId]);
-  if (f.areaId) q = q.eq('area_id', f.areaId);
-  if (f.from) q = q.gte('date', f.from);
-  if (f.to) q = q.lte('date', f.to);
-  if (f.minGradeRank != null) q = q.gte('max_grade_rank', f.minGradeRank);
-  if (f.activity) q = q.eq('place_activity', f.activity);
-  const s = cleanSearch(f.search).toLowerCase();
-  if (s) q = q.ilike('search_text', `%${s}%`);
-
-  return unwrap(await q) as VisitSummary[];
+    .order('id', { ascending: false })) as VisitSummary[];
 }
 
 type VisitNotes = Pick<VisitDetail, 'summary' | 'conditions' | 'approach' | 'descent'>;
@@ -569,6 +579,24 @@ export async function linkPartner(id: number, userId: string | null): Promise<vo
 /** Renames a partner everywhere; to a name you already use, merges the two. Returns the partner that remains. */
 export async function renamePartner(id: number, name: string): Promise<number> {
   return unwrap(await supabase.rpc('rename_partner', { p_id: id, p_name: name }));
+}
+
+/** Two partners linked to two different users are two people: they can't merge. */
+export const canMergePartners = (a: Partner, b: Partner) => !(a.linked_user_id && b.linked_user_id);
+
+/** Which of two merging partners stays: the one linked to a registered user (it is named after them), else the other. */
+export const partnerKeptByMerge = (merged: Partner, into: Partner) =>
+  merged.linked_user_id && !into.linked_user_id ? merged : into;
+
+/**
+ * Makes two of your partners one: their visits and wishes join, under the
+ * name that stays (see partnerKeptByMerge). Returns the partner that remains.
+ */
+export async function mergePartners(merged: Partner, into: Partner): Promise<number> {
+  if (!canMergePartners(merged, into)) throw new Error(tr().account.partners.linkedMergeHint);
+  const keep = partnerKeptByMerge(merged, into);
+  const gone = keep === into ? merged : into;
+  return renamePartner(gone.id, keep.name);
 }
 
 /** Removes a partner (and the name from the visits it is on). */

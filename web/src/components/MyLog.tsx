@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { locale, useI18n } from '../i18n';
-import { fetchImports, fetchVisits, type ImportRecord } from '../lib/api';
+import { fetchImports, fetchUserVisits, type ImportRecord } from '../lib/api';
 import { activityLabel, errorMessage, formatDate } from '../lib/labels';
 import { computeStats, type ActivityTally, type Tally } from '../lib/logStats';
-import { EMPTY_VISIT_FILTERS, type Activity, type Invitation, type Place, type VisitSummary, type Wish } from '../lib/types';
+import {
+  ACTIVITY_ORDER, EMPTY_VISIT_FILTERS, type Area, type Invitation, type Partner, type Place, type VisitSummary, type Wish,
+} from '../lib/types';
+import { countVisitFilters, filterVisits } from '../lib/visitFilters';
 import { ActivityBadge } from './ActivityBadge';
 import { Collapsible } from './Collapsible';
 import { Drawer } from './Drawer';
@@ -13,7 +16,9 @@ import { TRACK_ACTIVITIES } from './forms/placeForm';
 import { ErrorText } from './Modal';
 import { ImportWizard } from './import/ImportWizard';
 import { InvitationsSection } from './InvitationsSection';
-import { VisitRow } from './Sidebar';
+import { PeopleResults } from './PeopleResults';
+import { VisitFiltersPanel } from './VisitFilters';
+import { VisitRow } from './VisitRow';
 import { WishlistSection, type WishlistActions } from './WishlistSection';
 
 /** What only your own logbook has: invitations, imports, downloads and your wishlist. */
@@ -24,6 +29,8 @@ type OwnLogbook = WishlistActions & {
   placeById: Map<number, Place>;
   invitations: Invitation[];
   onAddInvitation: (invitation: Invitation) => void;
+  /** Your partners, to filter your visits by. */
+  partners: Partner[];
 };
 
 type Props = {
@@ -33,31 +40,40 @@ type Props = {
   reloadKey: number;
   onClose: () => void;
   onOpenLoggedVisit: (visit: VisitSummary) => void;
+  /** Signed in: find a climber and open their logbook (your own id opens yours). */
+  onOpenLogbook?: (userId: string) => void;
+  /** Signed in and on someone else's logbook: back to yours. */
+  onOpenMine?: () => void;
+  /** The spots of the visits shown, for the map; first is true the first time they're known. */
+  onShownPlaces: (placeIds: number[], first: boolean) => void;
+  /** On a phone: hides the logbook and shows its spots on the map. */
+  onShowOnMap?: () => void;
+  hidden?: boolean;
   /** Set for your own logbook; without it, someone else's, read-only. */
   own?: OwnLogbook;
 };
 
 // logStats groups undated visits under this key; it is translated for display.
 const NO_DATE = 'No date';
-const MINE = { ...EMPTY_VISIT_FILTERS, scope: 'mine' as const };
 
 /**
  * A logbook: every visit of one user you may read (all of your own; someone else's public ones),
- * with simple totals.
+ * with totals. Its filters narrow the totals, statistics, list and the spots on the map alike.
  */
-export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit, own }: Props) {
+export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit, own, ...props }: Props) {
   const { t } = useI18n();
   const [visits, setVisits] = useState<VisitSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [only, setOnly] = useState<Activity | null>(null);
+  const [filters, setFilters] = useState(EMPTY_VISIT_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [climber, setClimber] = useState('');
   const [dialog, setDialog] = useState<'download' | 'imports' | 'wizard' | null>(null);
   const [imports, setImports] = useState<ImportRecord[]>([]);
   const isOwn = !!own;
 
   useEffect(() => {
     let cancelled = false;
-    // "mine" filters by the logbook's user; the database leaves out what you may not read.
-    fetchVisits(MINE, userId)
+    fetchUserVisits(userId)
       .then(v => { if (!cancelled) setVisits(v); })
       .catch(e => { if (!cancelled) setError(errorMessage(e)); });
     if (isOwn) {
@@ -68,7 +84,25 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
     return () => { cancelled = true; };
   }, [userId, reloadKey, isOwn]);
 
-  const stats = useMemo(() => (visits ? computeStats(visits) : null), [visits]);
+  const shown = useMemo(() => (visits ? filterVisits(visits, filters) : null), [visits, filters]);
+  const stats = useMemo(() => (shown ? computeStats(shown) : null), [shown]);
+  // The choices come from every visit, so picking one doesn't hide the others.
+  const activities = useMemo(
+    () => ACTIVITY_ORDER.filter(a => visits?.some(v => v.place_activity === a)), [visits]);
+  const areas = useMemo(() => {
+    const byId = new Map<number, string>();
+    for (const v of visits ?? []) if (v.area_id && v.area_name) byId.set(v.area_id, v.area_name);
+    return [...byId].map(([id, name]) => ({ id, name }) as Area).sort((a, b) => a.name.localeCompare(b.name));
+  }, [visits]);
+
+  const { onShownPlaces } = props;
+  const reported = useRef(false);
+  useEffect(() => {
+    if (!shown) return;
+    onShownPlaces([...new Set(shown.map(v => v.place_id))], !reported.current);
+    reported.current = true;
+  }, [shown, onShownPlaces]);
+
   // Climbing (routes, pitches, grades) and tours (distance, height) count different things: a table each.
   const climbing = stats?.byActivity.filter(a => !TRACK_ACTIVITIES.includes(a.type)) ?? [];
   const tours = stats?.byActivity.filter(a => TRACK_ACTIVITIES.includes(a.type)) ?? [];
@@ -79,11 +113,9 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
   const pitches: Column<Tally> = { head: t.account.myLog.pitches, cell: r => r.pitches };
   const km: Column<Tally> = { head: t.account.myLog.distance, cell: r => Math.round(r.km) };
   const climbed: Column<Tally> = { head: t.account.myLog.climbed, cell: r => r.gain && r.gain.toLocaleString(locale()) };
-  const shown = useMemo(
-    () => (visits ?? []).filter(v => !only || v.place_activity === only), [visits, only]);
   const byYear = useMemo(() => {
     const groups = new Map<string, VisitSummary[]>();
-    for (const v of shown) {
+    for (const v of shown ?? []) {
       const year = v.date?.slice(0, 4) ?? NO_DATE;
       groups.set(year, [...(groups.get(year) ?? []), v]);
     }
@@ -99,7 +131,24 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
         </span>
       )}
       onClose={onClose}
+      hidden={props.hidden}
     >
+      {(props.onOpenLogbook || props.onShowOnMap) && (
+        <div className="log-people">
+          {props.onOpenMine && <button type="button" className="link-btn" onClick={props.onOpenMine}>{t.account.myLog.backToMine}</button>}
+          {props.onShowOnMap && (
+            <button type="button" className="btn btn-ghost log-on-map" disabled={!shown?.length} onClick={props.onShowOnMap}>
+              {t.account.myLog.showOnMap}
+            </button>
+          )}
+          {props.onOpenLogbook && <>
+            <input type="search" className="log-find" value={climber} placeholder={t.account.myLog.findClimber}
+                   aria-label={t.account.myLog.findClimber} spellCheck={false} onChange={e => setClimber(e.target.value)} />
+            <PeopleResults query={climber} onOpenLogbook={props.onOpenLogbook} />
+          </>}
+        </div>
+      )}
+
       <ErrorText error={error} />
       {own && <InvitationsSection invitations={own.invitations} placeById={own.placeById}
                                   onAdd={own.onAddInvitation} onChanged={own.onChanged} />}
@@ -109,7 +158,40 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
         <div className="empty">{own ? t.account.myLog.empty : t.account.myLog.emptyOther(username)}</div>
       )}
 
-      {stats && visits!.length > 0 && (
+      {own && <WishlistSection {...own} />}
+
+      {visits && visits.length > 0 && <>
+        <div className="log-filters">
+          <div className="search">
+            <input type="search" value={filters.search} placeholder={t.account.myLog.searchVisits} aria-label={t.account.myLog.searchVisits}
+                   spellCheck={false} onChange={e => setFilters({ ...filters, search: e.target.value })} />
+            <button type="button" className={`btn btn-quiet filter-toggle${filtersOpen ? ' active' : ''}`}
+                    aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}>
+              {t.app.sidebar.filters}
+              {countVisitFilters(filters) > 0 && <span className="filter-count">{countVisitFilters(filters)}</span>}
+            </button>
+          </div>
+          {filtersOpen && <VisitFiltersPanel f={filters} onChange={setFilters} partners={own?.partners ?? []} areas={areas} />}
+          {activities.length > 1 && (
+            <div className="chip-row" role="group" aria-label={t.account.myLog.onlyOne}>
+              <label className="type-option small">
+                <input type="radio" name="logActivity" checked={!filters.activity}
+                       onChange={() => setFilters({ ...filters, activity: '' })} />{t.account.myLog.all}
+              </label>
+              {activities.map(a => (
+                <label key={a} className="type-option small">
+                  <input type="radio" name="logActivity" checked={filters.activity === a}
+                         onChange={() => setFilters({ ...filters, activity: a })} />
+                  {activityLabel(a)}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+        {!shown!.length && <div className="empty">{t.app.sidebar.emptyNothing}</div>}
+      </>}
+
+      {stats && shown!.length > 0 && (
         <dl className="log-totals">
           <div><dt>{t.account.myLog.daysOut}</dt><dd className="num">{stats.totals.days}</dd></div>
           <div><dt>{t.account.myLog.spots}</dt><dd className="num">{stats.totals.places}</dd></div>
@@ -117,9 +199,7 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
         </dl>
       )}
 
-      {own && <WishlistSection {...own} />}
-
-      {stats && visits!.length > 0 && <>
+      {stats && shown!.length > 0 && <>
         <Collapsible id="log.statistics" title={t.account.myLog.statistics}>
           {climbing.length > 0 && <>
             <h4 className="stats-heading">{t.account.myLog.climbing}</h4>
@@ -143,19 +223,6 @@ export function MyLog({ userId, username, reloadKey, onClose, onOpenLoggedVisit,
         </Collapsible>
 
         <Collapsible id="log.visits" title={t.account.myLog.allVisits}>
-          {stats.byActivity.length > 1 && (
-            <div className="chip-row" role="group" aria-label={t.account.myLog.onlyOne}>
-              <label className="type-option small">
-                <input type="radio" name="logActivity" checked={!only} onChange={() => setOnly(null)} />{t.account.myLog.all}
-              </label>
-              {stats.byActivity.map(a => (
-                <label key={a.type} className="type-option small">
-                  <input type="radio" name="logActivity" checked={only === a.type} onChange={() => setOnly(a.type)} />
-                  {activityLabel(a.type)}
-                </label>
-              ))}
-            </div>
-          )}
           {byYear.map(([year, list]) => (
             <details key={year} className="row-group log-year" open>
               <summary className="group-head"><span>{year === NO_DATE ? t.account.myLog.noDate : year}</span><span className="group-count">{list.length}</span></summary>

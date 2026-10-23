@@ -1,156 +1,148 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n';
 import { GRADE_OPTIONS } from '../lib/grades';
-import { activityLabel, formatDate, formatHours, protectionLabel } from '../lib/labels';
+import { activityLabel, protectionLabel } from '../lib/labels';
+import { foldName } from '../lib/names';
 import { ActivityBadge } from './ActivityBadge';
+import { AreaSelect } from './AreaSelect';
 import { LocationResults } from './LocationResults';
-import { PeopleResults } from './PeopleResults';
 import type { Location } from '../lib/geocode';
 import type { LatLng } from '../lib/coords';
 import {
-  ACTIVITY_ORDER, EMPTY_PLACE_FILTERS, EMPTY_VISIT_FILTERS, EXPOSITIONS, PROTECTIONS,
-  type Area, type Partner, type Place, type PlaceFilters, type VisitFilters, type VisitScope, type VisitSummary,
+  ACTIVITY_ORDER, EMPTY_PLACE_FILTERS, EXPOSITIONS, PROTECTIONS, type Area, type Place, type PlaceFilters,
 } from '../lib/types';
 
-export type ListMode = 'places' | 'areas' | 'visits';
+/** Open beside the map, folded to a thin rail, or across the whole width with the map hidden. */
+export type SidebarView = 'open' | 'collapsed' | 'full';
 
 type Props = {
-  mode: ListMode;
-  onModeChange: (mode: ListMode) => void;
+  view: SidebarView;
+  onView: (view: SidebarView) => void;
+  /** On phones the bottom bar switches between list and map, so there are no fold buttons. */
+  isMobile: boolean;
   placeFilters: PlaceFilters;
   onPlaceFilters: (f: PlaceFilters) => void;
-  visitFilters: VisitFilters;
-  onVisitFilters: (f: VisitFilters) => void;
-  areaSearch: string;
-  onAreaSearch: (s: string) => void;
   places: Place[];
   areas: Area[];
-  visits: VisitSummary[];
-  loading: boolean;
   error: string | null;
   rocks: string[];
-  partners: Partner[];
   getMapCenter: () => LatLng;
   userId: string | null;
+  /** The spot under the pointer, here or on the map: both show it. */
+  hoveredId: number | null;
+  onHover: (placeId: number | null) => void;
+  /** Bumped to put the cursor in the search box (the "/" key). */
+  focusSearch: number;
   onPlaceClick: (place: Place) => void;
   onPlaceDetails: (place: Place) => void;
   onAddVisit: (place: Place) => void;
   onAreaClick: (areaId: number) => void;
   onSectorClick: (sectorId: number) => void;
-  onVisitClick: (visit: VisitSummary) => void;
-  onOpenLogbook: (userId: string) => void;
   onLocationPick: (location: Location) => void;
   onNewArea: () => void;
 };
 
 function countPlaceFilters(f: PlaceFilters) {
   return f.activities.length + (f.areaId ? 1 : 0) + (f.rock ? 1 : 0) + f.exposition.length + (f.near ? 1 : 0) + (f.wishlist ? 1 : 0)
-    + f.protection.length + (f.maxObligatoryRank != null ? 1 : 0) + (f.country ? 1 : 0);
+    + f.protection.length + (f.maxObligatoryRank != null ? 1 : 0) + (f.country ? 1 : 0)
+    + (f.withPublicVisits ? 1 : 0) + (f.inView ? 1 : 0);
 }
-function countVisitFilters(f: VisitFilters) {
-  return (f.scope !== 'all' ? 1 : 0) + (f.partnerId ? 1 : 0) + (f.areaId ? 1 : 0) + (f.from ? 1 : 0) + (f.to ? 1 : 0)
-    + (f.minGradeRank != null ? 1 : 0) + (f.activity ? 1 : 0);
+
+/** Areas whose name holds the search, accents and case aside (from two letters on). */
+function matchingAreas(areas: Area[], search: string) {
+  const q = foldName(search);
+  return q.length < 2 ? [] : areas.filter(a => foldName(a.name).includes(q));
 }
 
 const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter(x => x !== item) : [...list, item]);
 
+/** The spot search: one box for spots, areas and places on the map, with filters. */
 export function Sidebar(props: Props) {
-  const { mode, placeFilters: pf, visitFilters: vf } = props;
+  const { view, onView, isMobile, placeFilters: pf } = props;
   const { t } = useI18n();
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const active = mode === 'places' ? countPlaceFilters(pf) : mode === 'visits' ? countVisitFilters(vf) : 0;
-  const search = mode === 'places' ? pf.search : mode === 'visits' ? vf.search : props.areaSearch;
-  const counts = { places: props.places.length, areas: props.areas.length, visits: props.visits.length };
-  const count = counts[mode];
-  const visitsLoading = props.loading && mode === 'visits';
-  const setSearch = (s: string) => {
-    if (mode === 'places') props.onPlaceFilters({ ...pf, search: s });
-    else if (mode === 'visits') props.onVisitFilters({ ...vf, search: s });
-    else props.onAreaSearch(s);
-  };
+  const searchBox = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (props.focusSearch) searchBox.current?.focus(); }, [props.focusSearch]);
+
+  if (view === 'collapsed') {
+    return (
+      <aside className="sidebar-rail">
+        <button type="button" className="rail-btn" onClick={() => onView('open')}
+                title={t.app.sidebar.showList} aria-label={t.app.sidebar.showList}>
+          <SearchIcon /><span aria-hidden="true">»</span>
+        </button>
+      </aside>
+    );
+  }
+
+  const active = countPlaceFilters(pf);
+  const areaHits = matchingAreas(props.areas, pf.search);
+  const searching = pf.search.trim().length >= 3;
 
   return (
-    <aside>
-      <div className="list-mode-tabs" role="tablist" aria-label={t.app.sidebar.whatToList}>
-        {(['places', 'areas', 'visits'] as const).map(m => (
-          <button key={m} type="button" role="tab" aria-selected={mode === m}
-                  className={`list-mode-tab${mode === m ? ' active' : ''}`} onClick={() => props.onModeChange(m)}>
-            {t.app.sidebar.tabs[m]}
-            <span className="tab-count">{m === 'visits' && props.loading ? '' : counts[m]}</span>
-          </button>
-        ))}
-      </div>
-
+    <aside className={view === 'full' ? 'sidebar-full' : undefined}>
       <div className="search">
-        <input type="search" value={search} placeholder={t.app.sidebar.searchPlaceholder[mode]} aria-label={t.app.sidebar.searchPlaceholder[mode]}
-               spellCheck={false} onChange={e => setSearch(e.target.value)} />
-        {mode !== 'areas' && (
-          <button type="button" className={`btn btn-quiet filter-toggle${filtersOpen ? ' active' : ''}`}
-                  aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}>
-            {t.app.sidebar.filters}{active > 0 && <span className="filter-count">{active}</span>}
-          </button>
-        )}
+        <input ref={searchBox} type="search" value={pf.search} placeholder={t.app.sidebar.searchPlaceholder}
+               aria-label={t.app.sidebar.searchPlaceholder} spellCheck={false}
+               onChange={e => props.onPlaceFilters({ ...pf, search: e.target.value })} />
+        <button type="button" className={`btn btn-quiet filter-toggle${filtersOpen ? ' active' : ''}`}
+                aria-expanded={filtersOpen} onClick={() => setFiltersOpen(o => !o)}>
+          {t.app.sidebar.filters}{active > 0 && <span className="filter-count">{active}</span>}
+        </button>
+        {!isMobile && (view === 'full'
+          ? <button type="button" className="btn btn-quiet filter-toggle" onClick={() => onView('open')}>{t.app.sidebar.showMap}</button>
+          : <>
+              <button type="button" className="icon-btn" onClick={() => onView('full')}
+                      title={t.app.sidebar.fullWidth} aria-label={t.app.sidebar.fullWidth}>⤢</button>
+              <button type="button" className="icon-btn" onClick={() => onView('collapsed')}
+                      title={t.app.sidebar.hideList} aria-label={t.app.sidebar.hideList}>«</button>
+            </>)}
       </div>
 
-      {filtersOpen && mode === 'places' && (
+      {filtersOpen && (
         <PlaceFiltersPanel f={pf} onChange={props.onPlaceFilters} rocks={props.rocks} areas={props.areas}
                            countries={[...new Set(props.places.map(p => p.country).filter((c): c is string => !!c))].sort()}
                            getMapCenter={props.getMapCenter} signedIn={!!props.userId} />
       )}
-      {filtersOpen && mode === 'visits' && (
-        <VisitFiltersPanel f={vf} onChange={props.onVisitFilters} partners={props.partners} areas={props.areas}
-                           signedIn={!!props.userId} />
-      )}
 
-      <div className="list" aria-busy={visitsLoading}>
-        <p className="visually-hidden" aria-live="polite">
-          {visitsLoading ? '' : t.app.sidebar.shown[mode](count)}
-        </p>
+      <div className="list">
+        <p className="visually-hidden" aria-live="polite">{t.app.sidebar.shown(props.places.length)}</p>
         {props.error && <div className="list-empty form-error">{props.error}</div>}
-        {!props.error && !visitsLoading && count === 0 && !(mode === 'places' && search.trim().length >= 3) && (
-          <div className="list-empty">
-            {mode === 'visits' && !props.userId
-              ? t.app.sidebar.emptyPublicVisits
-              : mode === 'areas' && !props.areaSearch
-                ? t.app.sidebar.emptyAreas
-                : t.app.sidebar.emptyNothing}
-          </div>
+        {!props.error && !props.places.length && !areaHits.length && !searching && (
+          <div className="list-empty">{t.app.sidebar.emptyNothing}</div>
         )}
-        {mode !== 'areas' && <PeopleResults query={search} onOpenLogbook={props.onOpenLogbook} />}
-        {mode === 'places' && <PlaceGroups {...props} />}
-        {mode === 'places' && (
-          <LocationResults query={pf.search} getMapCenter={props.getMapCenter} onPick={props.onLocationPick} />
+        {areaHits.length > 0 && (
+          <section className="row-group area-results" aria-label={t.app.sidebar.areasHead}>
+            <h2 className="group-head"><span>{t.app.sidebar.areasHead}</span><span className="group-count">{areaHits.length}</span></h2>
+            <ul className="rows">
+              {areaHits.map(a => (
+                <li key={a.id} className="row-item">
+                  <button type="button" className="row-main" onClick={() => props.onAreaClick(a.id)}>
+                    <span className="row-title">{a.name}</span>
+                    <span className="row-meta">{t.app.sidebar.spots(a.place_count)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-        {mode === 'areas' && props.userId && (
+        <PlaceGroups {...props} />
+        <LocationResults query={pf.search} getMapCenter={props.getMapCenter} onPick={props.onLocationPick} />
+        {props.userId && (
           <div className="list-action">
             <button type="button" className="btn btn-ghost" onClick={props.onNewArea}>{t.app.sidebar.newArea}</button>
           </div>
-        )}
-        {mode === 'areas' && (
-          <ul className="rows">
-            {props.areas.map(a => (
-              <li key={a.id} className="row-item">
-                <button type="button" className="row-main" onClick={() => props.onAreaClick(a.id)}>
-                  <span className="row-title">{a.name}</span>
-                  <span className="row-meta">{t.app.sidebar.spots(a.place_count)}</span>
-                  {a.description && <span className="row-summary">{a.description}</span>}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {mode === 'visits' && (
-          <ul className="rows">
-            {props.visits.map(v => (
-              <VisitRow key={v.id} visit={v} mine={v.user_id === props.userId} onClick={() => props.onVisitClick(v)}
-                        onOpenUser={props.onOpenLogbook} />
-            ))}
-          </ul>
         )}
       </div>
     </aside>
   );
 }
+
+const SearchIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">
+    <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 21 21" strokeLinecap="round" />
+  </svg>
+);
 
 /**
  * Spots grouped under their area, and within it under their sector (spots
@@ -207,7 +199,9 @@ function bySector(places: Place[]): [Place['sector'], Place[]][] {
   return [...groups.values()].sort(([a], [b]) => (!a ? -1 : !b ? 1 : a.name.localeCompare(b.name)));
 }
 
-function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }: { place: Place } & Props) {
+
+
+function PlaceRow({ place: p, userId, hoveredId, onHover, onPlaceClick, onPlaceDetails, onAddVisit }: { place: Place } & Props) {
   const { t } = useI18n();
   const facts = [
     activityLabel(p.activity),
@@ -218,7 +212,8 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
     p.visit_count ? t.app.sidebar.visits(p.visit_count) : null,
   ].filter(Boolean);
   return (
-    <li className="row-item">
+    <li className={`row-item${hoveredId === p.id ? ' hovered' : ''}`}
+        onMouseEnter={() => onHover(p.id)} onMouseLeave={() => onHover(null)}>
       <button type="button" className="row-main" onClick={() => onPlaceClick(p)}>
         <span className="row-title"><ActivityBadge activity={p.activity} />{p.name}</span>
         <span className="row-meta">{facts.join(', ')}</span>
@@ -231,60 +226,6 @@ function PlaceRow({ place: p, userId, onPlaceClick, onPlaceDetails, onAddVisit }
   );
 }
 
-export function VisitRow({ visit: v, mine, onClick, onOpenUser }: {
-  visit: VisitSummary; mine: boolean; onClick: () => void;
-  /** Someone else's visit: opens its author's logbook. */
-  onOpenUser?: (userId: string) => void;
-}) {
-  const { t } = useI18n();
-  const facts = [
-    v.partner_names.length ? t.app.sidebar.withPeople(v.partner_names.join(', ')) : null,
-    v.duration_hours != null ? formatHours(v.duration_hours) : null,
-    v.grades.length ? v.grades.join(', ') : null,
-    v.crag_sector_names.length ? v.crag_sector_names.join(', ') : null,
-  ].filter(Boolean);
-  return (
-    <li className="row-item">
-      <button type="button" className="row-main" onClick={onClick}>
-        <span className="row-kicker">
-          {v.date ? <time dateTime={v.date}>{formatDate(v.date)}</time> : t.app.sidebar.noDate}
-          {!mine && v.username && <span>{t.app.sidebar.by(v.username)}</span>}
-          <VisibilityPill visibility={v.visibility} />
-        </span>
-        <span className="row-title">
-          <ActivityBadge activity={v.place_activity} />{v.sector_name ? `${v.sector_name} › ` : ''}{v.place_name}
-        </span>
-        {v.area_name && <span className="row-meta">{v.area_name}</span>}
-        {facts.length > 0 && <span className="row-meta">{facts.join('; ')}</span>}
-        {v.summary && <span className="row-summary">{v.summary}</span>}
-      </button>
-      {!mine && v.username && onOpenUser && (
-        <div className="row-actions">
-          <button type="button" onClick={() => onOpenUser(v.user_id)}>{t.account.myLog.title(v.username)}</button>
-        </div>
-      )}
-    </li>
-  );
-}
-
-export function VisibilityPill({ visibility }: { visibility: 'private' | 'public' }) {
-  const { t } = useI18n();
-  return visibility === 'public'
-    ? <span className="vis-pill public" title={t.app.sidebar.publicTitle}>{t.common.public}</span>
-    : <span className="vis-pill private" title={t.app.sidebar.privateTitle}>{t.common.private}</span>;
-}
-
-function AreaSelect({ id, value, areas, onChange }:
-  { id: string; value: number | null; areas: Area[]; onChange: (id: number | null) => void }) {
-  const { t } = useI18n();
-  return (
-    <select id={id} value={value ?? ''} onChange={e => onChange(e.target.value ? +e.target.value : null)}>
-      <option value="">{t.app.sidebar.anyArea}</option>
-      {areas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-    </select>
-  );
-}
-
 function PlaceFiltersPanel({ f, onChange, rocks, areas, countries, getMapCenter, signedIn }: {
   f: PlaceFilters; onChange: (f: PlaceFilters) => void; rocks: string[]; areas: Area[]; countries: string[];
   getMapCenter: () => LatLng; signedIn: boolean;
@@ -292,12 +233,22 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, countries, getMapCenter,
   const { t } = useI18n();
   return (
     <div className="filters">
-      {signedIn && (
-        <label className="type-option small wishlist-filter">
-          <input type="checkbox" checked={f.wishlist} onChange={() => onChange({ ...f, wishlist: !f.wishlist })} />
-          {t.app.sidebar.onlyWishlist}
+      <div className="filter-checks">
+        {signedIn && (
+          <label className="type-option small wishlist-filter">
+            <input type="checkbox" checked={f.wishlist} onChange={() => onChange({ ...f, wishlist: !f.wishlist })} />
+            {t.app.sidebar.onlyWishlist}
+          </label>
+        )}
+        <label className="type-option small">
+          <input type="checkbox" checked={f.withPublicVisits} onChange={() => onChange({ ...f, withPublicVisits: !f.withPublicVisits })} />
+          {t.app.sidebar.onlyPublicVisits}
         </label>
-      )}
+        <label className="type-option small">
+          <input type="checkbox" checked={f.inView} onChange={() => onChange({ ...f, inView: !f.inView })} />
+          {t.app.sidebar.onlyInView}
+        </label>
+      </div>
       <div className="filter-group">
         <span className="filter-label">{t.app.sidebar.activity}</span>
         <div className="chip-row">
@@ -383,74 +334,6 @@ function PlaceFiltersPanel({ f, onChange, rocks, areas, countries, getMapCenter,
       </div>
       <button type="button" className="link-btn clear-all"
               onClick={() => onChange({ ...EMPTY_PLACE_FILTERS, search: f.search })}>{t.app.sidebar.clearFilters}</button>
-    </div>
-  );
-}
-
-function VisitFiltersPanel({ f, onChange, partners, areas, signedIn }: {
-  f: VisitFilters; onChange: (f: VisitFilters) => void; partners: Partner[]; areas: Area[]; signedIn: boolean;
-}) {
-  const { t } = useI18n();
-  const scopes: { value: VisitScope; label: string }[] = [
-    { value: 'all', label: signedIn ? t.app.sidebar.scopeMinePublic : t.app.sidebar.scopePublic },
-    ...(signedIn ? [{ value: 'mine' as const, label: t.app.sidebar.scopeOnlyMine }] : []),
-    ...(signedIn ? [{ value: 'public' as const, label: t.app.sidebar.scopeOnlyPublic }] : []),
-  ];
-  return (
-    <div className="filters">
-      {scopes.length > 1 && (
-        <div className="filter-group">
-          <span className="filter-label">{t.app.sidebar.show}</span>
-          <div className="segmented">
-            {scopes.map(s => (
-              <button key={s.value} type="button" className={f.scope === s.value ? 'active' : ''}
-                      onClick={() => onChange({ ...f, scope: s.value })}>{s.label}</button>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="filter-row-2">
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="activityFilter">{t.app.sidebar.activity}</label>
-          <select id="activityFilter" value={f.activity}
-                  onChange={e => onChange({ ...f, activity: e.target.value as VisitFilters['activity'] })}>
-            <option value="">{t.app.sidebar.any}</option>
-            {ACTIVITY_ORDER.map(t => <option key={t} value={t}>{activityLabel(t)}</option>)}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="visitAreaFilter">{t.app.sidebar.area}</label>
-          <AreaSelect id="visitAreaFilter" value={f.areaId} areas={areas} onChange={areaId => onChange({ ...f, areaId })} />
-        </div>
-      </div>
-      {signedIn && partners.length > 0 && (
-        <div className="filter-group">
-          <label className="filter-label" htmlFor="partnerFilter">{t.app.sidebar.climbedWith}</label>
-          <select id="partnerFilter" value={f.partnerId ?? ''}
-                  onChange={e => onChange({ ...f, partnerId: e.target.value ? +e.target.value : null })}>
-            <option value="">{t.app.sidebar.anyone}</option>
-            {partners.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-      )}
-      <div className="filter-group">
-        <span className="filter-label">{t.app.sidebar.date}</span>
-        <div className="date-row">
-          <input type="date" value={f.from} aria-label={t.app.sidebar.fromDate} onChange={e => onChange({ ...f, from: e.target.value })} />
-          <span>{t.app.sidebar.to}</span>
-          <input type="date" value={f.to} aria-label={t.app.sidebar.toDate} onChange={e => onChange({ ...f, to: e.target.value })} />
-        </div>
-      </div>
-      <div className="filter-group">
-        <label className="filter-label" htmlFor="gradeFilter">{t.app.sidebar.hardestGrade}</label>
-        <select id="gradeFilter" value={f.minGradeRank ?? ''}
-                onChange={e => onChange({ ...f, minGradeRank: e.target.value ? +e.target.value : null })}>
-          <option value="">{t.app.sidebar.anyGrade}</option>
-          {GRADE_OPTIONS.map(g => <option key={g.label} value={g.rank}>{g.label}</option>)}
-        </select>
-      </div>
-      <button type="button" className="link-btn clear-all"
-              onClick={() => onChange({ ...EMPTY_VISIT_FILTERS, search: f.search })}>{t.app.sidebar.clearFilters}</button>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { useI18n } from '../i18n';
 import L from 'leaflet';
 import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import { badgeSvg, pinSvg, plainPinSvg } from '../lib/activityIcons';
-import type { LatLng } from '../lib/coords';
+import type { Bounds, LatLng } from '../lib/coords';
 import type { Track, TrackLayer } from '../lib/gpx';
 import { ACTIVITIES, activityLabel } from '../lib/labels';
 import type { Activity, Place } from '../lib/types';
@@ -36,7 +36,11 @@ type Props = {
   onViewVisits: (place: Place) => void;
   onAddVisit: (place: Place) => void;
   onAddPlaceAt: (at: LatLng) => void;
-  onCenterChange: (center: LatLng) => void;
+  /** After every pan or zoom: the centre and what is in view. */
+  onViewChange: (view: { center: LatLng; bounds: Bounds }) => void;
+  /** The spot under the pointer, here or in the list: its pin stands out. */
+  hoveredId: number | null;
+  onHover: (placeId: number | null) => void;
 };
 
 const pinIcon = (svg: string, extraClass = '') => L.divIcon({
@@ -86,7 +90,7 @@ function fit(map: L.Map, pts: L.LatLngTuple[], insetRight: number) {
   });
 }
 
-function Controller({ pins, command, markers, armed, tempPin, focusedPlace, tracks, visibleKey, insetRight, onMapClick, onCenterChange }: {
+function Controller({ pins, command, markers, armed, tempPin, focusedPlace, tracks, visibleKey, insetRight, onMapClick, onViewChange }: {
   pins: Place[];
   command: MapCommand | null;
   markers: React.RefObject<Map<number, L.Marker>>;
@@ -97,7 +101,7 @@ function Controller({ pins, command, markers, armed, tempPin, focusedPlace, trac
   visibleKey: string;
   insetRight: number;
   onMapClick: (at: LatLng) => void;
-  onCenterChange: (center: LatLng) => void;
+  onViewChange: Props['onViewChange'];
 }) {
   // Read inside effects without re-running them when only these change.
   const inset = useRef(insetRight);
@@ -111,7 +115,8 @@ function Controller({ pins, command, markers, armed, tempPin, focusedPlace, trac
     click: e => onMapClick({ lat: e.latlng.lat, lng: e.latlng.lng }),
     moveend: () => {
       const { lat, lng } = map.getCenter();
-      onCenterChange({ lat, lng });
+      const b = map.getBounds();
+      onViewChange({ center: { lat, lng }, bounds: { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() } });
     },
   });
 
@@ -170,6 +175,16 @@ export function MapView(props: Props) {
   // new array, which re-pans an open popup — keep them stable across renders.
   const positions = useMemo(
     () => new Map(pins.map(p => [p.id, [p.lat, p.lng] as L.LatLngTuple])), [pins]);
+  // The hovered pin is marked on its element, so its icon isn't rebuilt.
+  useEffect(() => {
+    const marker = props.hoveredId != null ? markers.current.get(props.hoveredId) : undefined;
+    marker?.getElement()?.classList.add('pin-hovered');
+    marker?.setZIndexOffset(1000);
+    return () => {
+      marker?.getElement()?.classList.remove('pin-hovered');
+      marker?.setZIndexOffset(0);
+    };
+  }, [props.hoveredId, pins]);
   const searchMarker = useRef<L.Marker>(null);
   // Open the found location's popup once its marker is on the map.
   useEffect(() => {
@@ -213,7 +228,7 @@ export function MapView(props: Props) {
         visibleKey={props.visibleKey}
         insetRight={props.insetRight}
         onMapClick={props.onMapClick}
-        onCenterChange={props.onCenterChange}
+        onViewChange={props.onViewChange}
       />
 
       {trackLayers.filter(l => l.shown).flatMap(l => l.track.lines.map((line, j) => (
@@ -230,6 +245,8 @@ export function MapView(props: Props) {
             else markers.current.delete(p.id);
           }}
           eventHandlers={{
+            mouseover: () => props.onHover(p.id),
+            mouseout: () => props.onHover(null),
             click: e => {
               L.DomEvent.stopPropagation(e);
               // While a form is picking a point, a pin is just a spot on the map.

@@ -47,20 +47,30 @@ read anyone's private visits, notes, wishes or tracks.
   private too. Making the visit public shares the track on the spot for good:
   it stays public even if the visit goes private again, and the app asks
   first.
-- **Search** finds your places and also mountains, huts and villages
+- **Search** (the list on the left) finds spots by their name or their area's
+  or sector's, lists matching areas, and also mountains, huts and villages
   (OpenStreetMap, via the free [Photon](https://photon.komoot.io) geocoder);
-  a found location can become a new place in one click.
-- **My logbook** shows each user's visits with totals per activity and year,
-  and downloads them as CSV (one row per route), JSON (full backup) or GPX
-  (visited places as waypoints).
+  a found location can become a new place in one click. Filters include
+  "only spots with public visits" and "only what's on the map". The list
+  folds to a rail or spreads across the screen; "/" jumps to it.
+- **My logbook** is where the activity is: each user's visits with totals per
+  activity and year, its own search and filters (area, partner, dates,
+  grade, activity), and the map shows only the spots of the visits listed.
+  "Find a climber" opens someone else's logbook. It downloads as CSV (one
+  row per route), JSON (full backup) or GPX (visited places as waypoints).
+- **Partners** (Account → Partners) can be renamed, linked to a registered
+  user, or merged when you gave one person two names.
 - **Import** (My logbook → Import visits) reads Excel/ODS/CSV/JSON files in any
   layout: see [Importing logbooks](#importing-logbooks).
 - **Photos** on places (public) and on visits (only visible to whoever can
   see the visit). The browser shrinks each photo to a ~2000 px display copy
   plus a thumbnail before uploading (a few hundred KB instead of several MB),
-  which also strips EXIF data such as GPS position.
+  which also strips EXIF data such as GPS position. A photo on a spot you
+  can't edit waits for an admin before everyone sees it. A visit photo can
+  move to its spot (never back), on the same terms.
 - **Phones** get their own layout: Map/List tabs, a bottom bar with "add here"
-  (GPS), and full-screen panels and forms.
+  (GPS), and full-screen panels and forms; a logbook's "Show on map" shows
+  its spots.
 
 ```
 web/        React + TypeScript + Vite frontend (Leaflet map, supabase-js)
@@ -81,6 +91,7 @@ request may read or write (`supabase/migrations/`).
 |---|---|---|
 | areas, sectors, spots, route lists | everyone, signed in or not | any signed-in user adds; the creator or an admin edits |
 | attachments (links, GPX, PDF) | everyone (files sit in the public `place-files` bucket); tracks of private visits only the uploader | any signed-in user adds; a track goes on a visit only if it's your visit; the uploader or an admin removes |
+| photos | spot photos: everyone once an admin has approved them (before that, the uploader and admins); visit photos: whoever can read the visit | any signed-in user adds to a spot, reviewed unless they may edit it; the owner adds to a visit and may move it to its spot; the uploader or an admin removes |
 | visits, their routes and partners | the owner, everyone if public | the owner (admins may delete) |
 | visit notes (how it went, conditions, approach, descent, route comments) | only the owner, even on a public visit | the owner |
 | tips on spots and sectors | everyone | any signed-in user posts, also from the visit form; the author edits; the author or an admin removes |

@@ -9,7 +9,7 @@ import type { Activity, Attachment } from '../lib/types';
 import { TRACK_ACTIVITIES } from './forms/placeForm';
 import { saveTrackAt } from './forms/save';
 import { ErrorText } from './Modal';
-import { VisibilityPill } from './Sidebar';
+import { VisibilityPill } from './VisitRow';
 
 type Props = {
   owner: AttachmentOwner;
