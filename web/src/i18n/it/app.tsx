@@ -107,6 +107,9 @@ const it: Widen<typeof en> = {
     legend: 'Legenda',
     legendStart: 'Attacco',
     legendTrack: 'Traccia GPX',
+    showPosition: 'Mostra la mia posizione (resta su questo dispositivo)',
+    recentre: 'Centra sulla mia posizione',
+    hidePosition: 'Smetti di mostrare la mia posizione',
   },
   auth: {
     signIn: 'Accedi',

@@ -517,6 +517,7 @@ export default function App() {
           }}
           hoveredId={hoveredId}
           onHover={setHoveredId}
+          onNotice={setNotice}
         />
 
         {panel?.kind === 'place' && panelPlace && (

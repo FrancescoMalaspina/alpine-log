@@ -47,6 +47,11 @@ read anyone's private visits, notes, wishes or tracks.
   private too. Making the visit public shares the track on the spot for good:
   it stays public even if the visit goes private again, and the app asks
   first.
+- **Your position on the map.** The button under the zoom shows where you are,
+  to follow a spot's track in the field without downloading it. It starts off
+  on every visit; the first tap asks the browser's permission. The map follows
+  you until you drag it, and the button brings it back. Your position stays on
+  your device and is never saved.
 - **Search** (the list on the left) finds spots by their name or their area's
   or sector's, lists matching areas, and also mountains, huts and villages
   (OpenStreetMap, via the free [Photon](https://photon.komoot.io) geocoder);

@@ -50,13 +50,17 @@ export function parseCoordinates(input: string): LatLng | null {
 export const formatCoords = (lat: number | null | undefined, lng: number | null | undefined, digits = 6) =>
   lat == null || lng == null ? '' : `${+lat.toFixed(digits)}, ${+lng.toFixed(digits)}`;
 
+/** Why the device's position could not be read, in the reader's language. */
+export const geolocationError = (e: GeolocationPositionError) =>
+  new Error(e.code === e.PERMISSION_DENIED ? tr().app.coords.denied : tr().app.coords.unavailable);
+
 /** The device's current position (asks for permission the first time). */
 export function currentPosition(): Promise<LatLng> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) return reject(new Error(tr().app.coords.noGeolocation));
     navigator.geolocation.getCurrentPosition(
       p => resolve({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6) }),
-      e => reject(new Error(e.code === e.PERMISSION_DENIED ? tr().app.coords.denied : tr().app.coords.unavailable)),
+      e => reject(geolocationError(e)),
       { enableHighAccuracy: true, timeout: 15000 },
     );
   });

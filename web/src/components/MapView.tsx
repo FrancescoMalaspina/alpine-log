@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useI18n } from '../i18n';
 import L from 'leaflet';
-import { LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { Circle, LayersControl, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { useLivePosition } from '../hooks/useLivePosition';
 import { badgeSvg, pinSvg, plainPinSvg } from '../lib/activityIcons';
 import type { Bounds, LatLng } from '../lib/coords';
 import type { Track, TrackLayer } from '../lib/gpx';
@@ -41,6 +43,8 @@ type Props = {
   /** The spot under the pointer, here or in the list: its pin stands out. */
   hoveredId: number | null;
   onHover: (placeId: number | null) => void;
+  /** A short message for the reader, e.g. why their position can't be shown. */
+  onNotice: (message: string) => void;
 };
 
 const pinIcon = (svg: string, extraClass = '') => L.divIcon({
@@ -64,6 +68,7 @@ const OSM_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright
 const PARKING_ICON = badgeIcon('P', 'parking');
 const SEARCH_ICON = L.divIcon({ html: '<div class="search-pin"></div>', className: '', iconSize: [22, 22], iconAnchor: [11, 11], popupAnchor: [0, -10] });
 const START_ICON = badgeIcon('⚑', 'start');
+const LIVE_ICON = L.divIcon({ html: '<div class="live-dot"></div>', className: '', iconSize: [18, 18], iconAnchor: [9, 9] });
 
 /** Every point that belongs to a place: the pin, parking, start, GPX tracks. */
 function placePoints(place: Place, tracks: Track[]): L.LatLngTuple[] {
@@ -217,6 +222,7 @@ export function MapView(props: Props) {
         </LayersControl.BaseLayer>
       </LayersControl>
       <Legend />
+      {'geolocation' in navigator && <LivePositionLayer onNotice={props.onNotice} />}
       <Controller
         pins={pins}
         command={props.command}
@@ -310,6 +316,76 @@ export function MapView(props: Props) {
 
       {tempPosition && <Marker position={tempPosition} icon={TEMP_ICON} interactive={false} />}
     </MapContainer>
+  );
+}
+
+/**
+ * Where the reader is, switched on from a button under the zoom: the map
+ * follows them until they drag it, and the button brings it back.
+ */
+function LivePositionLayer({ onNotice }: { onNotice: (message: string) => void }) {
+  const { t } = useI18n();
+  const map = useMap();
+  const { position, on, start, stop } = useLivePosition(onNotice);
+  const [following, setFollowing] = useState(false);
+  useMapEvents({ dragstart: () => setFollowing(false) });
+
+  // The button lives in Leaflet's own control stack, under zoom and layers.
+  const [box] = useState(() => {
+    const div = L.DomUtil.create('div', 'leaflet-bar');
+    L.DomEvent.disableClickPropagation(div);
+    return div;
+  });
+  const layersKey = t.app.map.topographic;
+  useEffect(() => {
+    const control = new L.Control({ position: 'topleft' });
+    control.onAdd = () => box;
+    control.addTo(map);
+    return () => { control.remove(); };
+    // Re-added when the layers control is rebuilt for a new language, to stay below it.
+  }, [map, box, layersKey]);
+
+  // The first fix flies there; later ones keep it in view while following.
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (!position) { arrived.current = false; return; }
+    if (!following) return;
+    if (arrived.current) {
+      map.panTo([position.lat, position.lng], { animate: !reducedMotion() });
+      return;
+    }
+    arrived.current = true;
+    map.flyTo([position.lat, position.lng], Math.max(map.getZoom(), 15), { duration: 0.8, animate: !reducedMotion() });
+  }, [position, following, map]);
+
+  const at = useMemo(() => (position ? [position.lat, position.lng] as L.LatLngTuple : null), [position]);
+  const label = !on ? t.app.map.showPosition : following ? t.app.map.hidePosition : t.app.map.recentre;
+  const press = () => {
+    if (!on) { setFollowing(true); start(); }
+    else if (!following) setFollowing(true);
+    else stop();
+  };
+
+  return (
+    <>
+      {createPortal(
+        <button type="button" className={`locate-btn${on ? ' on' : ''}${on && following ? ' following' : ''}`}
+          title={label} aria-label={label} aria-pressed={on} onClick={press}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="7" />
+            <circle className="locate-btn-core" cx="12" cy="12" r="2.5" />
+            <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+          </svg>
+        </button>,
+        box,
+      )}
+      {at && position && (
+        <>
+          <Circle center={at} radius={position.accuracy} interactive={false} pathOptions={{ className: 'live-accuracy' }} />
+          <Marker position={at} icon={LIVE_ICON} interactive={false} keyboard={false} zIndexOffset={2000} />
+        </>
+      )}
+    </>
   );
 }
 
