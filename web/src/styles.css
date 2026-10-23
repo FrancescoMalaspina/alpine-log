@@ -299,6 +299,26 @@ aside {
 .attribution { margin: 6px 16px 0; font-size: 12.5px; color: var(--slate); }
 .gpx-line { stroke-width: 4; stroke-opacity: .9; stroke-dasharray: 1 7; stroke-linecap: round; fill: none; }
 
+/* The reader's own position, and the button under the zoom that shows it. */
+.live-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--focus); border: 3px solid #fff; box-shadow: 0 1px 4px rgba(35, 43, 48, .45);
+  animation: live-pulse 2s ease-out infinite;
+}
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(31, 111, 168, .5), 0 1px 4px rgba(35, 43, 48, .45); } 100% { box-shadow: 0 0 0 12px rgba(31, 111, 168, 0), 0 1px 4px rgba(35, 43, 48, .45); } }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+.live-accuracy { fill: var(--focus); fill-opacity: .12; stroke: var(--focus); stroke-opacity: .35; stroke-width: 1; }
+.locate-btn {
+  display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: inherit; background: #fff; color: var(--granite); cursor: pointer;
+}
+.leaflet-touch .locate-btn { width: 30px; height: 30px; }
+.locate-btn:hover { background: #f4f4f4; }
+.locate-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.locate-btn-core { fill: none; }
+.locate-btn.on { color: var(--focus); }
+.locate-btn.following .locate-btn-core { fill: currentColor; }
+
 .map-legend {
   position: absolute; left: 12px; bottom: 28px; z-index: 800;
   background: rgba(255, 255, 255, .94); border-radius: var(--radius); box-shadow: 0 1px 4px rgba(35, 43, 48, .25);

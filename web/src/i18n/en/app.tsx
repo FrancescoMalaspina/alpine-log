@@ -105,6 +105,9 @@ const en = {
     legend: 'Legend',
     legendStart: 'Start',
     legendTrack: 'GPX track',
+    showPosition: 'Show my position (stays on this device)',
+    recentre: 'Centre on my position',
+    hidePosition: 'Stop showing my position',
   },
   auth: {
     signIn: 'Sign in',
